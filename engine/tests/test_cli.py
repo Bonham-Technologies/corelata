@@ -74,7 +74,8 @@ def test_run_clean(config_path, inputs, tmp_path, capsys):
         "gate.json",
     }
     html = (out / "report.html").read_text()
-    assert html.startswith("<!DOCTYPE html>") and "<sup" not in html
+    assert html.startswith("<!DOCTYPE html>") and 'class="claim-ids"' not in html
+    assert '<sup class="source-refs">1</sup>' in html  # source references always show (CRL-96)
     assert (out / "report.docx").read_bytes()[:2] == b"PK"
     trace = json.loads((out / "trace.json").read_text())
     assert trace["state"] == "completed" and trace["status"] == "clean"
@@ -345,7 +346,8 @@ def test_run_claim_ids_apply_to_md_and_html_but_never_docx(config_path, inputs, 
     from docx import Document
 
     doc = Document(str(out / "report.docx"))
-    assert not any(r.font.superscript for p in doc.paragraphs for r in p.runs)
+    sups = [r.text for p in doc.paragraphs for r in p.runs if r.font.superscript]
+    assert sups and all(s.replace(",", "").isdigit() for s in sups)  # source references only
 
 
 def test_report_reproduces_the_run_outputs(run_dir, capsys, tmp_path):

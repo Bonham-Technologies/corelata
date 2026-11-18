@@ -1,5 +1,10 @@
+import io
 from pathlib import Path
 
+from docx import Document
+
+from corelata.render.docx import render_docx
+from corelata.render.html import render_html
 from corelata.render.markdown import render_markdown
 from corelata.render.outline import (
     APPENDIX_TITLE,
@@ -14,7 +19,7 @@ from corelata.render.outline import (
     finding_line,
     source_line,
 )
-from corelata.schema import SourceEntry
+from corelata.schema import Claim, ClaimKind, SourceEntry, SourceSummaryStatement
 from tests.render.fixtures import (
     NUMBERED,
     PACK,
@@ -50,6 +55,10 @@ def test_outline_follows_template_order_with_marking_top_and_bottom():
         "bullets",
         "heading",
         "para",
+        "para",
+        "para",
+        "heading",
+        "para",
         "heading",
         "bullets",
         "heading",
@@ -62,6 +71,7 @@ def test_outline_follows_template_order_with_marking_top_and_bottom():
         "Key judgments",
         "Scope note",
         "Sources",
+        "Source summary",
         "Capacity",
         "Alternatives considered",
         "Gaps and indicators",
@@ -69,12 +79,19 @@ def test_outline_follows_template_order_with_marking_top_and_bottom():
     assert all(h.number is None for h in headings)
     kj = blocks[3]
     assert isinstance(kj, Bullets) and kj.role == "key_judgments"
-    assert kj.items == (Item("Capacity grew.", "Moderate confidence.", ("c1",)),)
+    assert kj.items == (Item("Capacity grew.", "Moderate confidence.", ("c1",), (1,)),)
     assert blocks[5] == Para("Two sources.")
-    assert blocks[9] == Para("Grew 40 percent.", ("c1",))
-    alts = blocks[11]
+    sources = blocks[7]
+    assert isinstance(sources, Bullets) and sources.numbered and len(sources.items) == 2
+    assert blocks[9:12] == [
+        Para("One official notice; one translation."),
+        Para("Most important to the key judgments: a.txt.", refs=(1,)),
+        Para("Neither source contradicts the other."),
+    ]
+    assert blocks[13] == Para("Grew 40 percent.", ("c1",), (1,))
+    alts = blocks[15]
     assert alts.items == (Item("Unlikely.", "Flat.", ()),) and alts.role == "alternatives"
-    assert blocks[13].items == (Item("Customs data."),) and blocks[13].role == "gaps"
+    assert blocks[17].items == (Item("Customs data."),) and blocks[17].role == "gaps"
 
 
 def test_outline_numbers_headings_and_appends_open_findings():
@@ -83,7 +100,7 @@ def test_outline_numbers_headings_and_appends_open_findings():
     )
     labels = [b.label for b in blocks if isinstance(b, Heading)]
     assert labels[:2] == ["1. Key judgments", "2. Scope note"]
-    assert labels[3] == "4. Capacity"
+    assert labels[3:5] == ["4. Source summary", "5. Capacity"]
     assert labels[-1] == APPENDIX_TITLE  # the appendix is never numbered
     findings = blocks[-2]
     assert isinstance(findings, Bullets) and findings.role == "findings"
@@ -127,11 +144,61 @@ def test_empty_lists_keep_headings_with_no_items():
         "Key judgments",
         "Scope note",
         "Sources",
+        "Source summary",
         "Alternatives considered",
         "Gaps and indicators",
     ]
     empties = [b for b in blocks if isinstance(b, Bullets) and b.items == ()]
     assert [b.role for b in empties] == ["alternatives", "gaps"]
+
+
+def test_source_details_lead_the_note_and_citations_name_each_source_once():
+    entry = SourceEntry(
+        source_id="src1",
+        descriptor="open-source report",
+        reliability_note="Now.",
+        origin="Port of Varna",
+        date_of_information="July 2026",
+        access="direct",
+    )
+    assert source_line(entry, SOURCES[0]) == (
+        "a.txt — open-source report; originator: Port of Varna; date of information: July 2026;"
+        " access: direct; Now. (sha256 abcdef01)"
+    )
+    report = make_report().model_copy(
+        update={
+            "sources": list(reversed(make_report().sources)),  # src2 is now source 1
+            "claims": [
+                Claim(
+                    id="c1",
+                    text="Grew.",
+                    kind=ClaimKind.FACT,
+                    evidence=["src1/u1", "src2/u1", "src1/u2", "src9/u1", "bad"],
+                )
+            ],
+        }
+    )
+    blocks = build_outline(report, PACK, SOURCES)
+    assert Para("Grew 40 percent.", ("c1",), (1, 2)) in blocks
+
+
+def test_a_summary_with_conflicts_cites_them_and_no_summary_has_no_section():
+    summary = SourceSummaryStatement(
+        strengths_and_weaknesses="",
+        key_sources=[],
+        corroboration="The two disagree.",
+        conflicting_sources=["src2", "src1", "src7"],
+    )
+    blocks = build_outline(
+        make_report().model_copy(update={"source_summary": summary}), PACK, SOURCES
+    )
+    start = blocks.index(Heading("Source summary"))
+    assert blocks[start + 1 : start + 3] == [
+        Para("The two disagree."),
+        Para("Conflicting reporting: b.json, a.txt, src7.", refs=(1, 2)),
+    ]
+    bare = build_outline(make_report().model_copy(update={"source_summary": None}), PACK, SOURCES)
+    assert Heading("Source summary") not in bare
 
 
 def test_unknown_section_names_are_ignored():
@@ -180,3 +247,23 @@ def test_degradations_come_before_the_open_findings_appendix_unnumbered():
     assert all(not (isinstance(b, Heading) and b.text == DEGRADATION_TITLE) for b in plain)
     md = render_markdown(report, PACK, SOURCES)
     assert f"## {DEGRADATION_TITLE}\n\n- audit incomplete: boom\n" in md
+
+
+def test_a_scanned_source_says_ocr_recovered_its_text_in_every_render():
+    """CRL-95 (AC4): the sources section names the pages OCR read, in all three renders."""
+    scanned = SOURCES[0].model_copy(update={"provenance": {"ocr_pages": [2, 5]}})
+    one_page = SOURCES[0].model_copy(update={"provenance": {"ocr_pages": [1]}})
+    entry = SourceEntry(source_id="src1", descriptor="open-source report")
+    assert source_line(entry, scanned) == (
+        "a.txt — open-source report (sha256 abcdef01; text recovered by OCR (2 pages))"
+    )
+    assert source_line(entry, one_page).endswith("; text recovered by OCR (1 page))")
+    sources = [scanned, *SOURCES[1:]]
+    note = "text recovered by OCR (2 pages)"
+    assert note in render_markdown(make_report(), PACK, sources)
+    assert note in render_html(make_report(), PACK, sources)
+    text = "\n".join(
+        p.text for p in Document(io.BytesIO(render_docx(make_report(), PACK, sources))).paragraphs
+    )
+    assert note in text
+    assert "OCR" not in render_markdown(make_report(), PACK, SOURCES)

@@ -21,7 +21,10 @@ from corelata.schema.report import (
     Quote,
     ReportBody,
     ReportBodyCore,
+    ReportBodyWithChanges,
     SourceEntry,
+    SourceEntryCore,
+    SourceSummaryStatement,
 )
 from corelata.stages.audit_schema import enum_item, enum_list
 
@@ -61,6 +64,8 @@ def report_output_type(
     source_ids: Sequence[str],
     *,
     quotes: bool = False,
+    access_terms: Sequence[str] = (),
+    summary: bool = False,
     prior_run_ids: Sequence[str] = (),
 ) -> type[ReportBodyCore]:
     """`unit_refs` are the refs `StageContext.check_refs` accepts: `ctx.index.refs()`, every
@@ -68,9 +73,13 @@ def report_output_type(
     the run's sources, in order. Subclassing keeps `ReportBody`'s claim-id validator. `quotes`
     (`pipeline.evidence_quotes` is not `off`, CRL-93) adds `Claim.quotes`; without it the claim
     is built on `ClaimCore`, so the schema is the one a run sent before quotes existed.
-    `prior_run_ids` (the earlier accepted reports the writer reads, CRL-97) adds
-    `changes_from_previous`; without them the body is built on `ReportBodyCore`, so the schema
-    is the one a run sent before project memory existed."""
+    `access_terms` (the lexicon's `source_access`, CRL-96) adds each source entry's date of
+    information, origin and `access`, an enum of those terms (`SourceAccess`); `summary` (the
+    template has a `source_summary` section) adds `source_summary`, whose source lists draw on
+    the same `SourceId` enum as `source_id`. Without either the schema is the one sent before
+    CRL-96. `prior_run_ids` (the earlier accepted reports the writer reads, CRL-97) adds
+    `changes_from_previous`, on `ReportBodyWithChanges`; without them the body is built on
+    `ReportBodyCore`, so the schema is the one a run sent before project memory existed."""
     evidence = enum_list(
         "UnitRef", unit_refs, description=Claim.model_fields["evidence"].description
     )
@@ -85,19 +94,47 @@ def report_output_type(
     else:
         claim = create_model("Claim", __base__=ClaimCore, __doc__=Claim.__doc__, evidence=evidence)
     # A run always has at least one source, so `source_ids` is never empty and needs no
-    # `maxItems: 0` rule; `enum_item` gives a plain string above ENUM_LIMIT ids.
-    source = create_model(
-        "SourceEntry",
-        __base__=SourceEntry,
-        __doc__=SourceEntry.__doc__,
-        source_id=(enum_item("SourceId", source_ids), ...),
-    )
+    # `maxItems: 0` rule; `enum_item` gives a plain string above ENUM_LIMIT ids. One enum serves
+    # every field that names a source, so the schema lists the ids once.
+    source_id = enum_item("SourceId", source_ids)
+    if access_terms:
+        source = create_model(
+            "SourceEntry",
+            __base__=SourceEntry,
+            __doc__=SourceEntry.__doc__,
+            source_id=(source_id, ...),
+            # no description: OpenAI's strict subset refuses keywords next to a `$ref`
+            access=(enum_item("SourceAccess", access_terms), ...),
+        )
+    else:
+        source = create_model(
+            "SourceEntry",
+            __base__=SourceEntryCore,
+            __doc__=SourceEntry.__doc__,
+            source_id=(source_id, ...),
+        )
     fields: dict[str, Any] = {"sources": (list[source], ...), "claims": (list[claim], ...)}
     if prior_run_ids:
         fields["changes_from_previous"] = _changes_field(prior_run_ids)
+    if summary:
+        fields["source_summary"] = (_summary_model(source_id), ...)
     return create_model(
         "ReportBody",
-        __base__=ReportBody if prior_run_ids else ReportBodyCore,
+        __base__=ReportBodyWithChanges if prior_run_ids else ReportBodyCore,
         __doc__=ReportBody.__doc__,
         **fields,
+    )
+
+
+def _summary_model(source_id: Any) -> type[SourceSummaryStatement]:
+    def ids(name: str) -> tuple[Any, Any]:
+        description = SourceSummaryStatement.model_fields[name].description
+        return (list[source_id], Field(default_factory=list, description=description))
+
+    return create_model(
+        "SourceSummaryStatement",
+        __base__=SourceSummaryStatement,
+        __doc__=SourceSummaryStatement.__doc__,
+        key_sources=ids("key_sources"),
+        conflicting_sources=ids("conflicting_sources"),
     )

@@ -86,9 +86,9 @@ def test_sections_in_template_order_with_marking_top_and_bottom():
         "## Gaps and indicators",
     ]
     assert "# Varna port" in md
-    assert "**Moderate confidence.** Capacity grew." in md
-    assert "- a.txt — open-source report; Current. (sha256 abcdef01)" in md
-    assert "- b.json — translated document; Tier B. (sha256 ffffffff; Coglossa run run-42)" in md
+    assert "**Moderate confidence.** Capacity grew.^1^\n" in md
+    assert "1. a.txt — open-source report; Current. (sha256 abcdef01)" in md
+    assert "2. b.json — translated document; Tier B. (sha256 ffffffff; Coglossa run run-42)" in md
     assert "^[c1]" not in md
 
 
@@ -116,6 +116,6 @@ def test_claim_ids_and_numbered_headings_and_open_findings():
         open_findings=[finding],
     )
     assert "## 1. Key judgments" in md and "## 4. Capacity" in md
-    assert "Grew 40 percent. ^[c1]" in md
+    assert "Grew 40 percent.^1^ ^[c1]" in md
     assert "## Audit findings open at delivery" in md
     assert "- icd203.tc.8 (blocking): c9 has no evidence — Cite or remove." in md

@@ -60,6 +60,12 @@ def _ids(p: Paragraph, claim_ids: tuple[str, ...], on: bool) -> None:
         p.add_run(" " + ", ".join(claim_ids)).font.superscript = True
 
 
+def _refs(p: Paragraph, refs: tuple[int, ...]) -> None:
+    """Source reference numbers (CRL-96), superscript right after the text."""
+    if refs:
+        p.add_run(",".join(map(str, refs))).font.superscript = True
+
+
 _NS = {
     "w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
     "a": "http://schemas.openxmlformats.org/drawingml/2006/main",
@@ -155,18 +161,24 @@ def render_docx(
                 _heading(doc, text, 1)
             case Heading():
                 _heading(doc, block.label, 2)
-            case Para(text, claim_ids):
+            case Para(text, claim_ids, refs):
                 p = doc.add_paragraph()
                 p.add_run(text)
+                _refs(p, refs)
                 _ids(p, claim_ids, with_claim_ids)
-            case Bullets(items):
-                for item in items:
-                    p = _styled(doc, "List Bullet")
-                    if p.style.name != "List Bullet":
-                        p.add_run("• ")
+            case Bullets(items, numbered=numbered):
+                for n, item in enumerate(items, start=1):
+                    if numbered:  # numbered in the text, so the numbers match the citations
+                        p = doc.add_paragraph()
+                        p.add_run(f"{n}. ")
+                    else:
+                        p = _styled(doc, "List Bullet")
+                        if p.style.name != "List Bullet":
+                            p.add_run("• ")
                     if item.lead:
                         p.add_run(f"{item.lead} ").bold = True
                     p.add_run(item.text)
+                    _refs(p, item.refs)
                     _ids(p, item.claim_ids, with_claim_ids)
     buf = io.BytesIO()
     doc.save(buf)

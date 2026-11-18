@@ -5,10 +5,11 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from corelata.config import CorelataConfig, EvidenceQuotes
+from corelata.ingest.base import HINT_KEYS
 from corelata.ingest.units import UnitIndex
 from corelata.llm.agent import AgentRunner
 from corelata.quotes import QuoteCheck
-from corelata.schema import Digest, PriorReport, Source
+from corelata.schema import Digest, PriorReport, Source, SourceUnit, reliability_tier
 from corelata.standards.schema import ResolvedPack
 
 
@@ -16,6 +17,14 @@ class StageError(Exception):
     def __init__(self, stage: str, message: str) -> None:
         super().__init__(f"{stage}: {message}")
         self.stage = stage
+
+
+def ocr_flag(unit: SourceUnit) -> dict[str, Any]:
+    """`{"ocr": true, "ocr_confidence": 0-100}` for a unit OCR read from a scanned page (CRL-95),
+    so the writer and the auditor can weigh it (icd203.tc.1); nothing for any other unit."""
+    if not unit.meta.get("ocr"):
+        return {}
+    return {"ocr": True, "ocr_confidence": unit.meta.get("ocr_confidence")}
 
 
 def estimate_tokens(text: str, bytes_per_token: float) -> int:
@@ -61,6 +70,7 @@ class StageContext:
             source, unit = self.index.get(ref)
             out.append(
                 {"ref": ref, "text": unit.text, "locator": unit.locator, "source": source.name}
+                | ocr_flag(unit)
             )
         return out
 
@@ -68,10 +78,21 @@ class StageContext:
         return [d.model_dump() for d in self.digests.values()]
 
     def source_payload(self) -> list[dict[str, Any]]:
-        return [
-            {"id": s.id, "name": s.name, "format": s.format, "provenance": s.provenance}
-            for s in self.sources
-        ]
+        """Each source as the writer reads it; a Coglossa export with scored spans adds its
+        `reliability_tier` (CRL-96). Ingest's date and origin hints (`HINT_KEYS`) are offered
+        only when the pack asks for source details, so without them the payload is the one
+        sent before CRL-96."""
+        out = []
+        for s in self.sources:
+            provenance = s.provenance
+            if not self.pack.source_details:
+                provenance = {k: v for k, v in provenance.items() if k not in HINT_KEYS}
+            item = {"id": s.id, "name": s.name, "format": s.format, "provenance": provenance}
+            tier = reliability_tier(s)
+            if tier is not None:
+                item["reliability_tier"] = tier
+            out.append(item)
+        return out
 
     @property
     def evidence_quotes(self) -> EvidenceQuotes:

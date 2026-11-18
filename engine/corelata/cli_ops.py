@@ -13,6 +13,7 @@ from corelata import service
 from corelata.config import ConfigError, CorelataConfig, default_config_path, load_config
 from corelata.exports import DocxExportError, dump_json, write_outputs
 from corelata.ingest.base import IngestError
+from corelata.ingest.ocr import OcrSettings
 from corelata.logs import configure_json_logging, remove_json_logging
 from corelata.prompts.check import validate_prompts
 from corelata.prompts.library import PromptLibrary
@@ -167,11 +168,16 @@ def _read(path: Path) -> bytes:
 
 
 async def _ingest_files(
-    db: Database, storage, project_id: uuid.UUID, inputs: list[Path], exports: list[Path]
+    db: Database,
+    storage,
+    project_id: uuid.UUID,
+    inputs: list[Path],
+    exports: list[Path],
+    ocr: OcrSettings | None = None,
 ) -> list[uuid.UUID]:
     ids: list[uuid.UUID] = []
     for path in inputs:
-        ids += await service.add_source(db, storage, project_id, path.name, _read(path))
+        ids += await service.add_source(db, storage, project_id, path.name, _read(path), ocr=ocr)
     for path in exports:
         ids += await service.add_source(
             db, storage, project_id, path.name, _read(path), coglossa_export=True
@@ -196,7 +202,9 @@ def _ingest(args: argparse.Namespace) -> int:
 
     async def go(db: Database) -> list[uuid.UUID]:
         pid = await service.create_project(db, args.project)
-        return await _ingest_files(db, storage, pid, args.inputs, args.coglossa_export)
+        return await _ingest_files(
+            db, storage, pid, args.inputs, args.coglossa_export, cfg.ingest.ocr_settings()
+        )
 
     for sid in _with_db(cfg, go):
         print(sid)
@@ -220,7 +228,9 @@ def _queue_run(args: argparse.Namespace) -> int:
             await _check_parent(db, parent, args.project)
         pid = await service.create_project(db, args.project)
         ids = list(source_ids)
-        ids += await _ingest_files(db, storage, pid, args.inputs, args.coglossa_export)
+        ids += await _ingest_files(
+            db, storage, pid, args.inputs, args.coglossa_export, cfg.ingest.ocr_settings()
+        )
         req = service.RunRequest(
             project_id=pid,
             source_ids=ids,
@@ -249,7 +259,9 @@ def _queue_discover(args: argparse.Namespace) -> int:
     async def go(db: Database, queue: service.JobQueue) -> uuid.UUID:
         pid = await service.create_project(db, args.project)
         ids = list(source_ids)
-        ids += await _ingest_files(db, storage, pid, args.inputs, args.coglossa_export)
+        ids += await _ingest_files(
+            db, storage, pid, args.inputs, args.coglossa_export, cfg.ingest.ocr_settings()
+        )
         return await service.start_discovery(db, queue, pid, ids, args.audience)
 
     did = _with_queue(cfg, go)

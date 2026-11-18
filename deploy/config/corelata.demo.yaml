@@ -10,6 +10,7 @@ roles:
   conveyor: { model: m1 }
   auditor: { model: m1 }
 standards: { packs_dir: /etc/corelata/packs, default_pack: icd203-base }
+ingest: { ocr: auto, ocr_languages: [eng] }  # scanned PDF pages are read by Tesseract (in the image)
 storage: { path: /data/files }
 worker: { concurrency: 2, stalled_after_s: 120 }
 api: { max_upload_mb: 200, progress_poll_s: 0.5 }

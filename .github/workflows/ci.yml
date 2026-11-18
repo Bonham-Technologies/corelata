@@ -38,6 +38,8 @@ jobs:
         with:
           python-version: "3.12"
       - run: uv sync --all-groups
+      # CRL-95: the scanned-page test reads a page with the real Tesseract (English pack)
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run pytest

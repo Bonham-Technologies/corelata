@@ -215,6 +215,21 @@ lexicon:
 
 Resolution order: base pack → `extends` chain → profile. `disable` removes a rule; `override` replaces named fields; `add` appends; a profile that both disables and overrides the same rule id is a load error. Resolution is a pure function with property tests (§13). A profile with `draft: true` is refused by `load_pack` for a run; `corelata pack validate` reports it as a warning.
 
+CRL-96 amendment (ICD 206 sourcing): the lexicon may carry `source_access`, the terms a source
+entry's `access` takes (base pack: `direct`, `indirect`, `unknown`). A non-empty list asks every
+source entry for `date_of_information`, `origin` and `access` (ICD 206 D.3.a(6)(b) and (e), and
+the D.3.c descriptor factor "source access"); an empty or absent list (every pack before) asks for
+none and is left out of the resolved pack's dump, so such a pack hashes as before. The template's
+`section_order` may list `source_summary` (base pack: after `sources`), the source summary
+statement of ICD 206 D.3.d; a pack without it asks for none. A profile turns either off with
+`template: {source_details: false}` (the resolved lexicon's `source_access` is emptied) or
+`template: {source_summary: false}` (the section leaves `section_order`); `true` or absent keeps
+the pack's choice. `icd206.src.1` now quotes ICD 206 D.3.d (the 1.0.0 pack cited D.2 and
+paraphrased) and its evidence is the source summary section, or the scope note or sources section
+of a report without one. The base pack is version 1.1.0; `corelata pack diff` between 1.0.0 and
+1.1.0 lists that rule's `text`, `source` and `evidence_required`, `section_order added:
+['source_summary']` and `source_access`.
+
 ### §6.6 Snapshot
 
 A run stores the resolved pack as JSON (`run.pack_snapshot`) and its hash (`run.pack_hash`: the first 16 hex characters of the SHA-256 of the key-sorted compact JSON of the resolved pack, excluding `docx_reference_path`; the same convention as `config_hash`). Every finding, draft and rendered report refers to the snapshot, never to the directory. Editing the pack never changes the meaning of an old run.
@@ -239,7 +254,7 @@ A run stores the resolved pack as JSON (`run.pack_snapshot`) and its hash (`run.
 | icd203.tc.7 | Explains change to or consistency of judgments | advisory as written; verifiable when the run read the project's earlier accepted reports, `not_applicable` (initial coverage) when the project has none (CRL-97, `with_prior_reports`) |
 | icd203.tc.8 | Makes accurate judgments and assessments | verifiable (claim-to-evidence check; the auditor's core job) |
 | icd203.tc.9 | Incorporates effective visual information | advisory in v1 (no visuals generated); a profile may override to verifiable |
-| icd206.src.1 | Source summary statement present | verifiable |
+| icd206.src.1 | Source summary statement present (ICD 206 D.3.d; the `source_summary` section, CRL-96) | verifiable |
 | icd206.src.2 | Source reference citations for key judgments | verifiable |
 | icd206.src.3 | Source descriptors from the lexicon | verifiable |
 
@@ -303,7 +318,7 @@ key_judgments}`); the writer's per-call schema then adds `changes_from_previous`
 `prior_run_id` an enum of their run ids (`PriorRunId`) and its validator checks the same; the
 conveyor may reword an entry's explanation only. With none kept the payloads, prompts and
 schemas are byte for byte those sent before project memory existed (`writer/v3` and `auditor/v4`
-render as `writer/v2` and `auditor/v3`), so `max_reports: 0` restores the earlier behaviour.
+render as `writer/v2` and `auditor/v3`, and the OCR versions after them likewise), so `max_reports: 0` restores the earlier behaviour.
 `corelata run` without a project and the bench have no project memory.
 
 ### §7.5 Error handling
@@ -368,11 +383,12 @@ Report
   handling_marking: str                      # from lexicon allowed list
   key_judgments: list[KeyJudgment]           # KeyJudgment{text, confidence: high|moderate|low, claim_ids}
   scope_note: str
-  sources: list[SourceEntry]                 # SourceEntry{source_id, descriptor, reliability_note}
+  sources: list[SourceEntry]                 # SourceEntry{source_id, descriptor, reliability_note, date_of_information?, origin?, access?}
   analysis: list[Section]                    # Section{heading, paragraphs: list[Paragraph{text, claim_ids}]}
   alternatives: list[Alternative]            # Alternative{hypothesis, assessment, claim_ids}
   gaps_and_indicators: list[str]
   claims: list[Claim]                        # Claim{id, text, kind: fact|judgment|assumption, evidence: list[unit_id], likelihood_term?: str, quotes?: list[Quote{ref, text}]}
+  source_summary?: SourceSummaryStatement    # CRL-96: {strengths_and_weaknesses, key_sources, corroboration, conflicting_sources}
   metadata: ReportMetadata                   # {run_id, pack_name, pack_hash, profile, iteration, status, open_findings: list[finding_id]}
 ```
 
@@ -413,7 +429,31 @@ change a quote, and the auditor receives each cited unit's quotes beside its tex
 words are in the unit is an engine check (§8.4), not a repair. The prompts that mention quotes are
 new versions (`writer/v2`, `conveyor/v2`, `auditor/v3`; the previous ones stay for the record) and
 render, with `off`, exactly as the previous versions did, so only the trace's `prompt_versions`
-tells such a run from one made before.
+tells such a run from one made before. The OCR wording (CRL-95) followed as `writer/v4` and
+`auditor/v5`: the text of `writer/v3` and `auditor/v4` (quotes and project memory) plus what a
+unit's `ocr` flag means.
+
+CRL-96 amendment (source reference citations): `SourceEntry` gains `date_of_information`, `origin`
+and `access` (strings, default empty, a blank value left out of every dump), and `ReportBody` gains
+`source_summary: SourceSummaryStatement | null` (`strengths_and_weaknesses`, `key_sources:
+list[source_id]`, `corroboration`, `conflicting_sources: list[source_id]`; null is left out of
+every dump), so a report, trace or export without them reads and serialises as before. The per-call
+schema adds the three source fields when the pack's lexicon has `source_access` (`access` an enum
+of those terms, `SourceAccess`) and `source_summary` when the template lists the section (its
+source lists drawn from the same `SourceId` enum as `source_id`); without either it is byte for
+byte the schema sent before. The validator checks `access` against the lexicon, that the summary is
+present and names only the run's sources; the conveyor may reword the summary but not change an
+entry's date, origin or access, or the sources the summary names. Ingest's hints
+(`Source.provenance.date` and `.origin`, read from an HTML page's `<meta>` elements and a DOCX
+file's core properties; each at most 200 characters, control characters dropped, and a hint never
+stops a file from ingesting) reach the writer in its payload's `sources` only when the pack has
+source details, so without them that payload is byte for byte the one sent before; the writer
+confirms, corrects or blanks each, and its answer is what the report carries (the engine never
+fills a blank date or origin back in). The engine completes each entry after the writer and the
+conveyor only so far as a Coglossa export's `reliability_note` names its reliability tier (the
+lowest tier among its scored spans) unless it already does. The prompts that mention them are new
+versions (`writer/v5`, `conveyor/v3`) and render, with neither, exactly as `writer/v4` and
+`conveyor/v2` (quotes, project memory and OCR included).
 
 ### §8.2 Audit schema
 
@@ -497,6 +537,15 @@ Markdown and HTML renderers are pure functions of `Report` + resolved template +
 
 M11 amendment: a report with `metadata.degradations` lists them under "Stages incomplete at
 delivery", before the open-findings appendix, in all three renders.
+
+CRL-96 amendment: every render shows source reference citations (ICD 206 D.3.a): the sources
+section is a numbered list in the report's source order, each entry with its originator, date of
+information and access when present, and every paragraph or item whose claims cite units carries
+the numbers of those units' sources as a superscript (HTML `<sup class="source-refs">`, Markdown
+`^1,2^`, a superscript run in DOCX), shown whether or not claim ids are. The numbered list is the
+reference list wherever the template puts `sources`; a pack that wants true endnotes lists
+`sources` last. A report with a `source_summary` renders it under "Source summary", naming and
+citing its key and conflicting sources.
 
 CRL-97 amendment: a report with `changes_from_previous` has a "Changes from previous analysis"
 section after the key judgments in all three renders, one item per entry: "Consistent with

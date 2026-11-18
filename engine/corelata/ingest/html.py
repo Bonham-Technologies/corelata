@@ -10,7 +10,7 @@ from typing import Any
 import lxml.html
 from lxml import etree
 
-from corelata.ingest.base import file_sha256, is_scene_break, make_blocks, strip_nul
+from corelata.ingest.base import file_sha256, is_scene_break, make_blocks, source_meta, strip_nul
 from corelata.schema import BlockKind, SourceDocument
 
 Item = tuple[BlockKind, str, str | None]
@@ -180,6 +180,44 @@ def parse_html(data: bytes) -> Any | None:
         return None
 
 
+# `<meta>` names and properties that say when a page was issued and who issued it (CRL-96), in
+# order of preference: the page's own date and author before its site's name.
+_DATE_META = (
+    "article:published_time",
+    "date",
+    "dc.date",
+    "dc.date.issued",
+    "dcterms.issued",
+    "dcterms.date",
+    "citation_publication_date",
+    "article:modified_time",
+)
+_ORIGIN_META = (
+    "author",
+    "dc.creator",
+    "dcterms.creator",
+    "citation_author",
+    "article:author",
+    "dc.publisher",
+    "dcterms.publisher",
+    "publisher",
+    "og:site_name",
+)
+
+
+def html_meta(root: Any) -> dict[str, str]:
+    """The page's date and origin from its `<meta>` elements, as ingest hints (CRL-96)."""
+    found: dict[str, str] = {}
+    for el in root.iter("meta"):
+        key = (el.get("name") or el.get("property") or "").strip().casefold()
+        content = (el.get("content") or "").strip()
+        if key and content:
+            found.setdefault(key, content)
+    date = next((found[k] for k in _DATE_META if k in found), None)
+    origin = next((found[k] for k in _ORIGIN_META if k in found), None)
+    return source_meta(date, origin)
+
+
 def collect_blocks(root: Any, locator: str | None) -> list[Item]:
     collector = _Collector(locator)
     collector.walk(root)
@@ -199,4 +237,5 @@ class HtmlIngestor:
             format=self.format,
             sha256=file_sha256(path),
             blocks=make_blocks(str(path), items),
+            meta=html_meta(root) if root is not None else {},
         )

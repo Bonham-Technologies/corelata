@@ -38,6 +38,7 @@ pipeline:                          # spec §7
   quote_match_threshold: 1.0       # share of a quote's words that must match the unit in order; 1.0 is exact
   prior_judgments: { max_reports: 3, budget_tokens: 2000 }  # the project's newest accepted reports the writer and auditor read; max_reports: 0 reads none (unset: 0)
 
+# ingest: { ocr: auto, ocr_languages: [eng] }  # read scanned PDF pages with Tesseract (default off)
 # retry: { max_attempts: 4, base_delay_s: 2, max_delay_s: 60 }
 # audit: { store_llm_io: true }    # keep every prompt and reply in the trace
 # prompts_dir: ./prompts           # override templates: prompts/<id>/v<N>.j2

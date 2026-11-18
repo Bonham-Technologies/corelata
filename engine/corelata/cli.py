@@ -30,6 +30,7 @@ from corelata.exports import (
 )
 from corelata.ingest.base import IngestError
 from corelata.ingest.coglossa import load_coglossa_export
+from corelata.ingest.ocr import OcrSettings
 from corelata.ingest.units import make_source
 from corelata.llm.agent import AGENT_FAILURES, CallLog
 from corelata.llm.registry import build_backends
@@ -237,10 +238,12 @@ def _usage(message: str) -> int:
     return EXIT_USAGE
 
 
-def load_sources(paths: list[Path], coglossa_exports: list[Path]) -> list[Source]:
+def load_sources(
+    paths: list[Path], coglossa_exports: list[Path], ocr: OcrSettings | None = None
+) -> list[Source]:
     sources: list[Source] = []
     for path in paths:
-        sources.append(make_source(f"src{len(sources) + 1}", path))
+        sources.append(make_source(f"src{len(sources) + 1}", path, ocr=ocr))
     for path in coglossa_exports:
         sources.extend(load_coglossa_export(f"src{len(sources) + 1}", path))
     return sources
@@ -254,7 +257,7 @@ def _setup(args: argparse.Namespace) -> tuple[CorelataConfig, list[Source], Prom
     validate_prompts(cfg, prompts)
     if not args.inputs and not args.coglossa_export:
         raise IngestError("give at least one input file or --coglossa-export")
-    return cfg, load_sources(args.inputs, args.coglossa_export), prompts
+    return cfg, load_sources(args.inputs, args.coglossa_export, cfg.ingest.ocr_settings()), prompts
 
 
 def _statement(args: argparse.Namespace) -> str:

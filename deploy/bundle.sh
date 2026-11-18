@@ -3,6 +3,8 @@
 #   deploy/bundle.sh                      -> dist/corelata-<version>-linux-amd64.tar (+ .sha256)
 # Options: --version V (default: the tag at HEAD, else <corelata version>-g<sha>), --out DIR
 # (default: dist), --allow-dirty, --keep-stage (keep the unpacked directory next to the tarball).
+# OCR_LANGUAGES="eng fra" picks the Tesseract language packs in the image (default: eng; operator
+# guide, "Scanned PDFs").
 set -euo pipefail
 repo=$(cd "$(dirname "$0")/.." && pwd)
 die() { echo "error: $*" >&2; exit 1; }
@@ -12,6 +14,8 @@ PLATFORM=${PLATFORM:-linux/amd64}
 # The tarball name, manifest and check-bundle.sh all say linux/amd64 (the air-gapped hosts).
 [ "$PLATFORM" = linux/amd64 ] || die "PLATFORM=$PLATFORM is not supported; the bundle is linux/amd64 only"
 POSTGRES_IMAGE=postgres:16-alpine
+OCR_LANGUAGES=${OCR_LANGUAGES:-eng}
+[[ "$OCR_LANGUAGES" =~ ^[A-Za-z0-9_\ ]+$ ]] || die "OCR_LANGUAGES='$OCR_LANGUAGES': give Tesseract codes separated by spaces, such as \"eng fra\""
 SYFT_IMAGE=anchore/syft:v1.18.1
 
 version="" out="$repo/dist" allow_dirty=false keep=false
@@ -49,7 +53,7 @@ echo "== image ($PLATFORM)"
 # --provenance=false: buildx's provenance attestation turns `docker save` into a multi-manifest
 # tar and confuses `docker image inspect` ids.
 docker build --provenance=false --platform "$PLATFORM" -f "$repo/deploy/docker/app.Dockerfile" \
-  --build-arg VERSION="$version" -t "$app" "$repo"
+  --build-arg VERSION="$version" --build-arg OCR_LANGUAGES="$OCR_LANGUAGES" -t "$app" "$repo"
 "$repo/deploy/tests/check-app-image.sh" "$app"
 docker pull --platform "$PLATFORM" "$POSTGRES_IMAGE"
 docker save -o "$stage/images/app.tar" "$app"

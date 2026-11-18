@@ -79,6 +79,8 @@ class ScenarioExpect(_Strict):
     rules_must_fail: list[str] = Field(default_factory=list)
     open_findings: list[str] | None = None
     digested: list[str] | None = None
+    # CRL-96: the delivered report's source summary names at least these sources as conflicting
+    conflicting_sources: list[str] | None = Field(None, min_length=1)
 
     @model_validator(mode="after")
     def _one_form_each(self) -> "ScenarioExpect":
@@ -266,7 +268,20 @@ def compare(scenario: Scenario, record: RunRecord) -> list[str]:
         check("open_findings", sorted(e.open_findings), actual_open)
     if e.digested is not None:
         check("digested", sorted(e.digested), sorted(d.source_id for d in record.digests))
+    if e.conflicting_sources is not None:
+        out += _compare_conflict(e.conflicting_sources, record)
     return out
+
+
+def _compare_conflict(expected: list[str], record: RunRecord) -> list[str]:
+    summary = record.report.source_summary if record.report is not None else None
+    if summary is None:
+        return ["conflicting_sources: the report has no source summary"]
+    missing = sorted(set(expected) - set(summary.conflicting_sources))
+    if not missing:
+        return []
+    named = ", ".join(summary.conflicting_sources) or "none"
+    return [f"conflicting_sources: not named as conflicting: {', '.join(missing)} (named: {named})"]
 
 
 def _compare_rule_sets(

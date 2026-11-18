@@ -66,6 +66,13 @@
           "title": "Likelihood",
           "type": "array"
         },
+        "source_access": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Source Access",
+          "type": "array"
+        },
         "source_descriptors": {
           "items": {
             "type": "string"

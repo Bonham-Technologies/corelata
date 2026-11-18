@@ -242,3 +242,32 @@ async def test_a_pack_without_the_block_keeps_tc7_advisory_with_earlier_reports(
     assert finding(rec, TC7).verdict is Verdict.ATTESTED
     assert len(rec.report.changes_from_previous) == 1
     assert finding(await go([]), TC7).verdict is Verdict.ATTESTED
+
+
+async def test_a_source_ocr_read_and_earlier_reports_reach_the_writer_and_the_auditor_together(
+    run, fake_backend, make_config
+):
+    """CRL-95 with CRL-97: a scanned source's units keep their OCR flag while the writer and the
+    auditor also read the project's earlier judgments, and both prompts explain both."""
+    ocr = {"ocr": True, "ocr_confidence": 64.0}
+    source = text_source("src1", *PORT)
+    scanned = source.model_copy(
+        update={
+            "units": [u.model_copy(update={"meta": ocr}) for u in source.units],
+            "provenance": {"ocr_pages": [1], "ocr_languages": ["eng"]},
+        }
+    )
+    earlier = prior("r-earlier", 12, "Varna's capacity will keep growing.")
+    rec = await run(scanned, cfg=make_config(pipeline=ON), prior_reports=[earlier])
+    assert rec.state is RunState.COMPLETED and finding(rec, TC7).verdict is Verdict.PASS
+    by_task = requests_by_task(fake_backend)
+    writer, auditor = by_task["writer"][0], by_task["auditor"][0]
+    assert all(u | ocr == u for u in payload(writer)["units"])
+    cited = payload(auditor)["cited_units"]
+    assert cited and all(u | ocr == u for u in cited)
+    for request in (writer, auditor):
+        system = request.messages[0].content
+        assert '"ocr": true' in system and "INPUT_JSON.prior_reports" in system
+        assert [p["run_id"] for p in payload(request)["prior_reports"]] == ["r-earlier"]
+    versions = {(c.role, c.prompt_version) for c in rec.llm_calls}
+    assert {("writer", 5), ("auditor", 5)} <= versions

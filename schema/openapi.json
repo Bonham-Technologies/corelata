@@ -929,6 +929,13 @@
             "title": "Likelihood",
             "type": "array"
           },
+          "source_access": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Source Access",
+            "type": "array"
+          },
           "source_descriptors": {
             "items": {
               "type": "string"
@@ -1940,6 +1947,21 @@
             "title": "Name",
             "type": "string"
           },
+          "ocr_pages": {
+            "title": "Ocr Pages",
+            "type": "integer"
+          },
+          "reliability_tier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reliability Tier"
+          },
           "sha256": {
             "title": "Sha256",
             "type": "string"
@@ -1957,7 +1979,8 @@
           "sha256",
           "units",
           "digested",
-          "coglossa_run_id"
+          "coglossa_run_id",
+          "ocr_pages"
         ],
         "title": "SourceSummary",
         "type": "object"
@@ -3227,7 +3250,7 @@
         ]
       },
       "post": {
-        "description": "Store and parse one upload (spec §5): one source, or two for a Coglossa export that\ncarries a translation guide. Nothing is kept when the file cannot be parsed.",
+        "description": "Store and parse one upload (spec §5): one source, or two for a Coglossa export that\ncarries a translation guide. Nothing is kept when the file cannot be parsed. With\n`ingest.ocr: auto` a PDF's scanned pages are read by OCR before the answer (CRL-95).",
         "operationId": "upload_source_api_projects__project_id__sources_post",
         "parameters": [
           {

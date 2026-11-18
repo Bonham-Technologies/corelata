@@ -271,6 +271,22 @@
           "title": "Name",
           "type": "string"
         },
+        "ocr_pages": {
+          "title": "Ocr Pages",
+          "type": "integer"
+        },
+        "reliability_tier": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reliability Tier"
+        },
         "sha256": {
           "title": "Sha256",
           "type": "string"
@@ -288,7 +304,8 @@
         "sha256",
         "units",
         "digested",
-        "coglossa_run_id"
+        "coglossa_run_id",
+        "ocr_pages"
       ],
       "title": "SourceSummary",
       "type": "object"

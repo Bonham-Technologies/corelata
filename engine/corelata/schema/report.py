@@ -66,10 +66,63 @@ class KeyJudgment(BaseModel):
     claim_ids: list[str]
 
 
-class SourceEntry(BaseModel):
+def _blank(value: str) -> bool:
+    return not value
+
+
+class SourceEntryCore(BaseModel):
+    """`SourceEntry` without the CRL-96 details: the per-call schema a pack whose lexicon has no
+    `source_access` list sends is built on it, so that schema is the one sent before them."""
+
     source_id: str
     descriptor: str = Field(description="A source descriptor phrase from the lexicon")
     reliability_note: str = ""
+
+
+class SourceEntry(SourceEntryCore):
+    # CRL-96 (ICD 206 D.3.a(6), D.3.c): what a source reference citation says about the source
+    # besides its descriptor. A blank value is left out of every dump, so an entry without them
+    # serialises exactly as it did before they existed.
+    date_of_information: str = Field(
+        "",
+        description="When the source's information was issued or current, as precisely as the "
+        "source says (2026-08-10, July 2026); empty when unknown",
+        exclude_if=_blank,
+    )
+    origin: str = Field(
+        "",
+        description="Who originated, authored or published the information; empty when unknown",
+        exclude_if=_blank,
+    )
+    access: str = Field(
+        "",
+        description="The source's access to what it reports, a term from the lexicon's "
+        "source_access",
+        exclude_if=_blank,
+    )
+
+    def details(self) -> tuple[str, str, str]:
+        return (self.date_of_information, self.origin, self.access)
+
+
+class SourceSummaryStatement(BaseModel):
+    """ICD 206 D.3.d: the sources considered together (CRL-96)."""
+
+    strengths_and_weaknesses: str = Field(
+        description="Strengths and weaknesses of the source base as a whole"
+    )
+    key_sources: list[str] = Field(
+        default_factory=list, description="Ids of the sources the key judgments depend on most"
+    )
+    corroboration: str = Field(
+        description="Which sources corroborate one another and which conflict, naming them; "
+        "say so when none conflict"
+    )
+    conflicting_sources: list[str] = Field(
+        default_factory=list,
+        description="Ids of the sources whose reporting conflicts with another source's; empty "
+        "when none conflict",
+    )
 
 
 class Paragraph(BaseModel):
@@ -112,9 +165,10 @@ def _empty(items: list) -> bool:
 
 
 class ReportBodyCore(BaseModel):
-    """`ReportBody` without `changes_from_previous`: the per-call schema a run without earlier
-    reports sends is built on it (`stages/report_schema.py`), so that schema is the one a run
-    sent before project memory existed (CRL-97)."""
+    """`ReportBody` without `changes_from_previous` (CRL-97) or `source_summary` (CRL-96): the
+    per-call schema (`stages/report_schema.py`) is built on it, or on `ReportBodyWithChanges`,
+    and adds a source summary only when the template has that section, so a run without earlier
+    reports or a source summary sends the schema a run sent before either existed."""
 
     title: str
     handling_marking: str
@@ -127,7 +181,7 @@ class ReportBodyCore(BaseModel):
     claims: list[Claim]
 
     @model_validator(mode="after")
-    def _claim_ids_resolve(self) -> "ReportBody":
+    def _claim_ids_resolve(self) -> "ReportBodyCore":
         seen: set[str] = set()
         for c in self.claims:
             if c.id in seen:
@@ -153,8 +207,9 @@ class ReportBodyCore(BaseModel):
         return [c for c in self.claims if not c.evidence]
 
 
-class ReportBody(ReportBodyCore):
-    """What the writer and conveyor produce. `Report` adds engine-owned metadata."""
+class ReportBodyWithChanges(ReportBodyCore):
+    """`ReportBody` without `source_summary`: the per-call schema a run with earlier reports
+    sends is built on it."""
 
     # CRL-97: asked for only when the run read earlier accepted reports; an empty list is left
     # out of every dump, so a report without it serialises as it did before.
@@ -169,6 +224,18 @@ class ReportBody(ReportBodyCore):
         for change in self.changes_from_previous:
             ids.update(change.claim_ids)
         return ids
+
+
+def _no_summary(summary: SourceSummaryStatement | None) -> bool:
+    return summary is None
+
+
+class ReportBody(ReportBodyWithChanges):
+    """What the writer and conveyor produce. `Report` adds engine-owned metadata."""
+
+    # CRL-96: present when the template has a `source_summary` section; None is left out of every
+    # dump, so a report without one serialises exactly as it did before the section existed.
+    source_summary: SourceSummaryStatement | None = Field(None, exclude_if=_no_summary)
 
 
 class ReportStatus(StrEnum):

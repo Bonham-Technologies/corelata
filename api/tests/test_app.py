@@ -178,6 +178,9 @@ async def test_engine_errors_map_to_statuses(write_config, kind, caplog):
             response = await client.get("/api/boom")
     assert (response.status_code, response.json()) == (status, {"detail": detail})
     assert "secret internals" not in response.text
+    # CRL-68: an internal error's 500 too, which is sent outside the middleware
+    assert response.headers["x-content-type-options"] == "nosniff"
+    assert response.headers["referrer-policy"] == "same-origin"
     if kind == "internal":
         [record] = [r for r in caplog.records if r.levelno == logging.ERROR]
         assert record.exc_info is not None and "secret internals" in str(record.exc_info[1])
