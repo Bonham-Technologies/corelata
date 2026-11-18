@@ -52,7 +52,7 @@ jobs:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           persist-credentials: false
       - if: steps.gate.outputs.run == 'true'
-        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           python-version: "3.12"
       - if: steps.gate.outputs.run == 'true'
@@ -63,7 +63,7 @@ jobs:
           uv run --with-requirements deploy/hosted/modal/requirements.txt modal deploy deploy/hosted/modal/app.py
           uv run --with-requirements deploy/hosted/modal/requirements.txt modal run deploy/hosted/modal/app.py::seed
       - if: steps.gate.outputs.run == 'true'
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
         with:
           package_json_file: deploy/hosted/vercel/package.json
       - if: steps.gate.outputs.run == 'true'
