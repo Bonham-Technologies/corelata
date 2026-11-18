@@ -1,0 +1,32 @@
+name: unverified-social-post
+description: >-
+  An unverified social media post predicts a strike; the union's own notice only calls a
+  meeting on shift patterns. A good model passes the gate as thin (or rejects it), describes the
+  post as unverified (icd203.tc.1) and keeps the scheduled meeting (a fact) apart from a strike
+  (an assumption or a low-confidence judgment, icd203.tc.3). A weak model treats the post as
+  confirmation and reports a planned strike with high confidence.
+statement: Dockworkers at Tarvos are preparing a strike over the Terminal B shift system
+sources:
+  - id: src1
+    name: social-post-translation.txt
+    paragraphs:
+      - >-
+        Translated social media post by the account tarvos_docks_news (unverified, about 2,300
+        followers), 21 July 2026: "Terminal B crews are fed up with the 12-hour rotation.
+        Thursday's union meeting will vote on action. Expect trouble before September."
+      - >-
+        The post links to no union statement. One reply shows a photo of a meeting notice whose
+        date cannot be read.
+  - id: src2
+    name: union-branch-notice.txt
+    paragraphs:
+      - >-
+        Port and Harbour Workers' Union, Tarvos branch, notice dated 19 July 2026. Members are
+        invited to a branch meeting on 24 July to discuss shift patterns at Terminal B.
+      - >-
+        The notice does not mention industrial action. The branch's last strike ballot was held
+        in 2023.
+expect:
+  state_in: [completed, gate_rejected]
+  substance_in: [thin, insufficient]
+  rules_must_pass: [icd203.tc.8, icd206.src.2, icd203.tc.1, icd203.tc.3]

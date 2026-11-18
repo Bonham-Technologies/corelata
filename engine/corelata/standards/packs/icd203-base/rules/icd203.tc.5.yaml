@@ -1,0 +1,13 @@
+id: icd203.tc.5
+title: Demonstrates customer relevance and addresses implications
+source: "ICD 203 (2015) D.6.e(5)"
+text: >
+  Analytic products should provide information and insight on issues relevant to the customers
+  and address the implications of the information and analysis they provide.
+severity: major
+checkability: verifiable
+applies_to: [writer, conveyor, auditor]
+evidence_required: >
+  The key judgments answer the value statement the analyst supplied, name the audience it
+  serves, and state what the judgments imply for that audience.
+route_to: conveyor

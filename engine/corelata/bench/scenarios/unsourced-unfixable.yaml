@@ -1,0 +1,20 @@
+name: unsourced-unfixable
+description: A claim the writer cannot source stays open through both revisions; the report is delivered findings_open.
+statement: Varna port capacity expansion matters to shippers
+sources:
+  - id: src1
+    paragraphs:
+      - The port of Varna expanded its container capacity in 2025.
+      - Capacity expansion was financed by a state bank.
+      - Container traffic through Varna rose 40 percent.
+      - UNSOURCED UNFIXABLE detail on Varna.
+max_iterations: 2
+expect:
+  state: completed
+  status: findings_open
+  iterations: 2
+  failing_rules:
+    0: [icd203.as.5, icd203.tc.8, icd206.src.2]
+    1: [icd203.as.5, icd203.tc.8, icd206.src.2]
+    2: [icd203.as.5, icd203.tc.8, icd206.src.2]
+  open_findings: [icd203.as.5@2, icd203.tc.8@2, icd206.src.2@2]

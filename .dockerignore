@@ -1,0 +1,18 @@
+# The build context is an allowlist: only what the image needs. This keeps .venv,
+# node_modules, caches and local configs out of the image and the build.
+*
+!engine/pyproject.toml
+!engine/uv.lock
+!engine/corelata/
+!api/pyproject.toml
+!api/uv.lock
+!api/corelata_api/
+!web/
+!docs/examples/
+web/node_modules/
+web/dist/
+web/coverage/
+web/playwright-report/
+web/test-results/
+**/__pycache__/
+**/.pytest_cache/

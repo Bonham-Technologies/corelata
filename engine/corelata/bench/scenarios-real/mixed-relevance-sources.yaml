@@ -1,0 +1,35 @@
+name: mixed-relevance-sources
+description: >-
+  One source backs the statement with before-and-after figures; the other, a city budget
+  extract, is beside the point. A good model passes the gate, cites the port bulletin for every
+  figure, still lists the budget extract under sources and says in the scope note why it was set
+  aside (icd206.src.1, icd203.as.4), and weighs another cause for the shorter waits as an
+  alternative. A weak model cites the budget for claims it does not support or leaves the budget
+  source out of the report's sources list.
+statement: Terminal B has cut vessel waiting times at Tarvos
+sources:
+  - id: src1
+    name: tarvos-port-authority-bulletin.txt
+    paragraphs:
+      - >-
+        Tarvos Port Authority, quarterly bulletin, 3 July 2026. Terminal B entered full service
+        on 12 May 2026 with four ship-to-shore cranes.
+      - >-
+        Average waiting time for container ships at anchor fell from 31 hours in January to
+        March 2026 to 9 hours in April to June. Berth productivity rose from 24 to 29 crane moves
+        per hour over the same period.
+  - id: src2
+    name: city-budget-extract.txt
+    paragraphs:
+      - >-
+        City of Tarvos, draft budget for 2027, published 30 July 2026. Capital spending on roads
+        near the port rises to 18 million.
+      - >-
+        The budget also funds a library in the old customs house and a cycle lane along the
+        harbour front.
+expect:
+  state: completed
+  iterations_max: 1
+  gate_supported_in: [true]
+  substance_in: [thin, sufficient]
+  rules_must_pass: [icd203.tc.8, icd206.src.2, icd206.src.1, icd203.as.4]

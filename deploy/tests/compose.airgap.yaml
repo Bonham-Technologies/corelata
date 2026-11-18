@@ -1,0 +1,17 @@
+# The air-gap install test (spec §12): the stack on a network with no route out, reading the
+# operator's config/corelata.yaml (the demo overlay only adds the synthetic model server).
+networks:
+  default:
+    internal: true
+
+x-operator-config: &operator-config
+  CORELATA_CONFIG: /etc/corelata/corelata.yaml
+
+services:
+  migrate:
+    environment: *operator-config
+  worker:
+    environment: *operator-config
+  api:
+    environment: *operator-config
+    ports: !reset []

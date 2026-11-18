@@ -1,0 +1,130 @@
+name: many-sources-writer-budget
+description: Four mid-sized sources, each under the digest threshold, together exceed the
+  writer's unit budget; the largest are digested until the rest fit, and the writer sees
+  every remaining source in full.
+statement: Varna port capacity expansion matters to shippers
+sources:
+  - id: src1
+    name: port-notes.txt
+    paragraphs:
+      - Port note 0 says Varna port capacity rose as berth 0 reopened.
+      - Port note 1 says Varna port capacity rose as berth 1 reopened.
+      - Port note 2 says Varna port capacity rose as berth 2 reopened.
+      - Port note 3 says Varna port capacity rose as berth 3 reopened.
+      - Port note 4 says Varna port capacity rose as berth 4 reopened.
+      - Port note 5 says Varna port capacity rose as berth 5 reopened.
+      - Port note 6 says Varna port capacity rose as berth 6 reopened.
+      - Port note 7 says Varna port capacity rose as berth 7 reopened.
+      - Port note 8 says Varna port capacity rose as berth 8 reopened.
+      - Port note 9 says Varna port capacity rose as berth 9 reopened.
+  - id: src2
+    name: customs-log.txt
+    paragraphs:
+      - Customs entry 0 says Varna port cleared extra container capacity.
+      - Customs entry 1 says Varna port cleared extra container capacity.
+      - Customs entry 2 says Varna port cleared extra container capacity.
+      - Customs entry 3 says Varna port cleared extra container capacity.
+      - Customs entry 4 says Varna port cleared extra container capacity.
+      - Customs entry 5 says Varna port cleared extra container capacity.
+      - Customs entry 6 says Varna port cleared extra container capacity.
+      - Customs entry 7 says Varna port cleared extra container capacity.
+      - Customs entry 8 says Varna port cleared extra container capacity.
+      - Customs entry 9 says Varna port cleared extra container capacity.
+      - Customs entry 10 says Varna port cleared extra container capacity.
+      - Customs entry 11 says Varna port cleared extra container capacity.
+      - Customs entry 12 says Varna port cleared extra container capacity.
+      - Customs entry 13 says Varna port cleared extra container capacity.
+      - Customs entry 14 says Varna port cleared extra container capacity.
+      - Customs entry 15 says Varna port cleared extra container capacity.
+      - Customs entry 16 says Varna port cleared extra container capacity.
+      - Customs entry 17 says Varna port cleared extra container capacity.
+      - Customs entry 18 says Varna port cleared extra container capacity.
+      - Customs entry 19 says Varna port cleared extra container capacity.
+      - Customs entry 20 says Varna port cleared extra container capacity.
+      - Customs entry 21 says Varna port cleared extra container capacity.
+      - Customs entry 22 says Varna port cleared extra container capacity.
+      - Customs entry 23 says Varna port cleared extra container capacity.
+      - Customs entry 24 says Varna port cleared extra container capacity.
+      - Customs entry 25 says Varna port cleared extra container capacity.
+      - Customs entry 26 says Varna port cleared extra container capacity.
+      - Customs entry 27 says Varna port cleared extra container capacity.
+      - Customs entry 28 says Varna port cleared extra container capacity.
+      - Customs entry 29 says Varna port cleared extra container capacity.
+      - Customs entry 30 says Varna port cleared extra container capacity.
+      - Customs entry 31 says Varna port cleared extra container capacity.
+      - Customs entry 32 says Varna port cleared extra container capacity.
+      - Customs entry 33 says Varna port cleared extra container capacity.
+      - Customs entry 34 says Varna port cleared extra container capacity.
+      - Customs entry 35 says Varna port cleared extra container capacity.
+      - Customs entry 36 says Varna port cleared extra container capacity.
+      - Customs entry 37 says Varna port cleared extra container capacity.
+      - Customs entry 38 says Varna port cleared extra container capacity.
+      - Customs entry 39 says Varna port cleared extra container capacity.
+  - id: src3
+    name: shipper-survey.md
+    paragraphs:
+      - Survey answer 0 says shippers praised capacity at Varna port.
+      - Survey answer 1 says shippers praised capacity at Varna port.
+      - Survey answer 2 says shippers praised capacity at Varna port.
+      - Survey answer 3 says shippers praised capacity at Varna port.
+      - Survey answer 4 says shippers praised capacity at Varna port.
+      - Survey answer 5 says shippers praised capacity at Varna port.
+      - Survey answer 6 says shippers praised capacity at Varna port.
+      - Survey answer 7 says shippers praised capacity at Varna port.
+      - Survey answer 8 says shippers praised capacity at Varna port.
+      - Survey answer 9 says shippers praised capacity at Varna port.
+      - Survey answer 10 says shippers praised capacity at Varna port.
+      - Survey answer 11 says shippers praised capacity at Varna port.
+      - Survey answer 12 says shippers praised capacity at Varna port.
+      - Survey answer 13 says shippers praised capacity at Varna port.
+      - Survey answer 14 says shippers praised capacity at Varna port.
+      - Survey answer 15 says shippers praised capacity at Varna port.
+      - Survey answer 16 says shippers praised capacity at Varna port.
+      - Survey answer 17 says shippers praised capacity at Varna port.
+      - Survey answer 18 says shippers praised capacity at Varna port.
+      - Survey answer 19 says shippers praised capacity at Varna port.
+      - Survey answer 20 says shippers praised capacity at Varna port.
+      - Survey answer 21 says shippers praised capacity at Varna port.
+      - Survey answer 22 says shippers praised capacity at Varna port.
+      - Survey answer 23 says shippers praised capacity at Varna port.
+      - Survey answer 24 says shippers praised capacity at Varna port.
+      - Survey answer 25 says shippers praised capacity at Varna port.
+      - Survey answer 26 says shippers praised capacity at Varna port.
+      - Survey answer 27 says shippers praised capacity at Varna port.
+      - Survey answer 28 says shippers praised capacity at Varna port.
+      - Survey answer 29 says shippers praised capacity at Varna port.
+  - id: src4
+    name: rail-brief.txt
+    paragraphs:
+      - Rail brief 0 says rail links feed Varna port capacity for shippers.
+      - Rail brief 1 says rail links feed Varna port capacity for shippers.
+      - Rail brief 2 says rail links feed Varna port capacity for shippers.
+      - Rail brief 3 says rail links feed Varna port capacity for shippers.
+      - Rail brief 4 says rail links feed Varna port capacity for shippers.
+      - Rail brief 5 says rail links feed Varna port capacity for shippers.
+      - Rail brief 6 says rail links feed Varna port capacity for shippers.
+      - Rail brief 7 says rail links feed Varna port capacity for shippers.
+      - Rail brief 8 says rail links feed Varna port capacity for shippers.
+      - Rail brief 9 says rail links feed Varna port capacity for shippers.
+      - Rail brief 10 says rail links feed Varna port capacity for shippers.
+      - Rail brief 11 says rail links feed Varna port capacity for shippers.
+      - Rail brief 12 says rail links feed Varna port capacity for shippers.
+      - Rail brief 13 says rail links feed Varna port capacity for shippers.
+      - Rail brief 14 says rail links feed Varna port capacity for shippers.
+      - Rail brief 15 says rail links feed Varna port capacity for shippers.
+      - Rail brief 16 says rail links feed Varna port capacity for shippers.
+      - Rail brief 17 says rail links feed Varna port capacity for shippers.
+      - Rail brief 18 says rail links feed Varna port capacity for shippers.
+      - Rail brief 19 says rail links feed Varna port capacity for shippers.
+pipeline:
+  digest_threshold_tokens: 2000
+  writer_unit_budget_tokens: 1500
+expect:
+  state: completed
+  status: clean
+  iterations: 0
+  gate_supported: true
+  substance: sufficient
+  failing_rules:
+    0: []
+  digested: [src2, src3]

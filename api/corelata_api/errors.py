@@ -1,0 +1,106 @@
+"""Engine exceptions → HTTP statuses, in one table; the body is always {"detail": "<one line>"}.
+Copied from Coglossa with Corelata's exception types."""
+
+import logging
+from collections.abc import Awaitable, Callable
+
+from corelata.config import ConfigError
+from corelata.ingest.base import IngestError
+from corelata.integrations.coglossa import CoglossaFetchError
+from corelata.service import ConflictError, InvalidRequestError, QueueUnavailableError
+from corelata.standards.loader import PackError
+from corelata.storage import StorageError
+from corelata.store.db import error_reason
+from corelata.store.runs import NotFoundError
+from corelata.trace import TraceError
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel
+from sqlalchemy.exc import InterfaceError, OperationalError
+
+log = logging.getLogger("corelata.api")
+
+Handler = Callable[[Request, Exception], Awaitable[JSONResponse]]
+
+
+class ErrorBody(BaseModel):
+    detail: str
+
+
+class UploadTooLargeError(Exception):
+    """The upload is larger than api.max_upload_mb (HTTP 413)."""
+
+
+_STATUS: tuple[tuple[type[Exception], int], ...] = (
+    (NotFoundError, 404),
+    (TraceError, 404),  # a claim id the report does not have
+    (ConflictError, 409),  # includes InvalidRunStateError
+    (UploadTooLargeError, 413),
+    (InvalidRequestError, 422),
+    (IngestError, 422),
+    (PackError, 422),  # an unknown or draft profile on POST /runs
+    (ConfigError, 500),
+)
+
+# An outage's driver message names hosts, ports and database roles: the log gets it, the
+# client a fixed sentence (CRL-86).
+DATABASE_DOWN = "the database is unavailable; the operator's log has the reason"
+QUEUE_DOWN = "the job queue is unavailable; the operator's log has the reason"
+# A storage message names local paths, buckets and endpoints: same rule (CRL-75).
+STORAGE_DOWN = "the file store is unavailable; see the server log"
+
+
+def _response(status: int, message: str) -> JSONResponse:
+    return JSONResponse(status_code=status, content={"detail": " ".join(message.split())})
+
+
+def _handler(status: int) -> Handler:
+    async def handle(request: Request, exc: Exception) -> JSONResponse:
+        return _response(status, str(exc))
+
+    return handle
+
+
+# Deadlock, serialization failure, lock not available: concurrent changes, not an outage.
+_BUSY_SQLSTATES = frozenset({"40P01", "40001", "55P03"})
+
+
+async def _database_down(request: Request, exc: Exception) -> JSONResponse:
+    if getattr(getattr(exc, "orig", None), "sqlstate", None) in _BUSY_SQLSTATES:
+        log.warning("database conflict: %s", error_reason(exc))
+        return _response(409, "the database was busy with a conflicting change; try again")
+    log.warning("database unavailable: %s", error_reason(exc))
+    return _response(503, DATABASE_DOWN)
+
+
+async def _queue_down(request: Request, exc: Exception) -> JSONResponse:
+    # the job queue is the database; the message already carries the driver's reason
+    log.warning("%s", exc)
+    return _response(503, QUEUE_DOWN)
+
+
+async def _storage_down(request: Request, exc: Exception) -> JSONResponse:
+    log.error("file store unavailable on %s %s: %s", request.method, request.url.path, exc)
+    return _response(500, STORAGE_DOWN)
+
+
+async def _coglossa_failed(request: Request, exc: Exception) -> JSONResponse:
+    assert isinstance(exc, CoglossaFetchError)
+    return _response(exc.status, str(exc))
+
+
+async def _internal(request: Request, exc: Exception) -> JSONResponse:
+    log.error("internal error on %s %s", request.method, request.url.path, exc_info=exc)
+    return _response(500, "internal error")
+
+
+def install_error_handlers(app: FastAPI) -> None:
+    for exc_type, status in _STATUS:
+        app.add_exception_handler(exc_type, _handler(status))
+    app.add_exception_handler(CoglossaFetchError, _coglossa_failed)
+    app.add_exception_handler(QueueUnavailableError, _queue_down)
+    app.add_exception_handler(StorageError, _storage_down)
+    # Mirrors corelata.worker.execute.DB_ERRORS (not imported: the API does not import the worker).
+    app.add_exception_handler(OperationalError, _database_down)
+    app.add_exception_handler(InterfaceError, _database_down)
+    app.add_exception_handler(Exception, _internal)

@@ -1,0 +1,17 @@
+name: badterm-fixed-one-loop
+description: A key judgment with a non-lexicon term fails icd203.tc.2 (and as.5); one revision clears it.
+statement: Varna port capacity expansion matters to shippers
+sources:
+  - id: src1
+    paragraphs:
+      - The port of Varna expanded its container capacity in 2025.
+      - Capacity expansion was financed by a state bank.
+      - Container traffic through Varna rose 40 percent.
+      - BADTERM appears in the Varna coverage.
+expect:
+  state: completed
+  status: clean
+  iterations: 1
+  failing_rules:
+    0: [icd203.as.5, icd203.tc.2]
+    1: []

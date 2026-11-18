@@ -1,0 +1,24 @@
+id: icd203.tc.7
+title: Explains change to or consistency of analytic judgments
+source: "ICD 203 (2015) D.6.e(7)"
+text: >
+  Analytic products should state how their major judgments on a topic are consistent with or
+  represent a change from those in previously published analysis, or represent initial
+  coverage of a topic.
+severity: minor
+checkability: advisory
+applies_to: [writer, auditor]
+evidence_required: >
+  Corelata v1 has no memory of prior reports; attest, and note whether the scope note says
+  this is initial coverage.
+route_to: writer
+with_prior_reports:
+  checkability: verifiable
+  evidence_required: >
+    INPUT_JSON.prior_reports holds the key judgments of this project's earlier accepted reports.
+    Pass when the draft's changes_from_previous says, for each earlier judgment on the topic of
+    one of its key judgments, whether the draft is consistent with it or changes it and why, and
+    states the earlier judgment accurately; or when no earlier judgment bears on the draft's topic
+    and the scope note says this is initial coverage. Fail when a key judgment departs from an
+    earlier judgment on its topic without saying so, when an entry misstates the earlier judgment,
+    or when an entry claims a change or a consistency the judgments do not show.

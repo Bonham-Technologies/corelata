@@ -1,0 +1,16 @@
+id: icd203.tc.4
+title: Incorporates analysis of alternatives
+source: "ICD 203 (2015) D.6.e(4)"
+text: >
+  Analysis of alternatives is the systematic evaluation of differing hypotheses to explain
+  events or phenomena, explore near-term outcomes, and imagine possible futures. Analytic
+  products should identify and assess plausible alternative hypotheses, particularly when
+  major judgments carry significant uncertainty or when a hypothesis would have major
+  consequences if it proved true.
+severity: major
+checkability: verifiable
+applies_to: [writer, auditor]
+evidence_required: >
+  At least one alternative hypothesis is stated and assessed whenever any key judgment is
+  below high confidence; each alternative says why it is less likely than the judgment.
+route_to: writer

@@ -1,0 +1,16 @@
+id: icd203.tc.2
+title: Properly expresses and explains uncertainties associated with major analytic judgments
+source: "ICD 203 (2015) D.6.e(2)"
+text: >
+  Analytic products should indicate and explain the basis for the uncertainties associated with
+  major analytic judgments, specifically the likelihood of occurrence of an event or
+  development, and the analyst's confidence in the basis for this judgment. Products should
+  use the standard terms of likelihood and should not combine a confidence level and a degree
+  of likelihood in the same sentence.
+severity: blocking
+checkability: verifiable
+applies_to: [writer, conveyor, auditor]
+evidence_required: >
+  Every key judgment carries a confidence level; every judgment claim uses a likelihood term
+  from the lexicon and no other probability wording; the basis for uncertainty is stated.
+route_to: writer

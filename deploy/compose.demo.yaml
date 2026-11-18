@@ -1,0 +1,33 @@
+# The demo: Corelata with a synthetic model, to try the stack before pointing it at model
+# servers (operator guide, "Try it first"). Reports are placeholders built from the sources.
+#   docker compose -f compose.yaml -f compose.demo.yaml up -d --wait
+# Raw `docker compose` commands with this overlay need CORELATA_DB_PASSWORD exported (`make demo`
+# sets it; ./install.sh writes it to .env).
+# The demo has its own project, so it never shares the real install's volumes.
+name: corelata-demo
+
+x-demo-config: &demo-config
+  CORELATA_CONFIG: /etc/corelata/corelata.demo.yaml
+
+services:
+  fake-openai:
+    image: corelata/app:${CORELATA_VERSION:-dev}
+    restart: unless-stopped
+    command: [corelata, fake-openai, --host, 0.0.0.0, --port, "8000", --model, fake-model]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/v1/models', timeout=5)"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    logging:
+      driver: json-file
+      options: { max-size: 50m, max-file: "5" }
+
+  migrate:
+    environment: *demo-config
+  worker:
+    environment: *demo-config
+    depends_on:
+      fake-openai: { condition: service_healthy }
+  api:
+    environment: *demo-config

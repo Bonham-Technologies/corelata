@@ -1,0 +1,123 @@
+import { useId, useState } from "react";
+import { useNavigate } from "react-router";
+import { exportUrl, reportUrl } from "../../api/client";
+import { rerunFreed, useReview } from "../../api/runs";
+import type { ReviewState } from "../../api/types";
+import { CharCount, nearLimit } from "../../components/CharCount";
+import { ConfirmDialog } from "../../components/ConfirmDialog";
+import { ErrorMessage } from "../../components/ErrorMessage";
+import { Menu } from "../../components/Menu";
+import { NOTE_MAX_LENGTH } from "../../lib/limits";
+
+/** The Download menu's items (M18 spec §5.4): today's four URLs, with plain names. */
+export function downloads(runId: string): [string, string][] {
+  return [
+    ["Word document (DOCX)", reportUrl(runId, "docx", { download: true })],
+    ["Markdown", reportUrl(runId, "md", { download: true })],
+    ["Web page (HTML)", reportUrl(runId, "html", { download: true })],
+    ["Trace (JSON)", exportUrl(runId, "trace.json")],
+  ];
+}
+
+/** The review header's actions (M18 spec §5.4): Accept, Return with note…, Download ▾. The
+ * button rules are M9–M16's: both off while a request is out or once decided, on again when the
+ * revision a return made ended without a report (R-M15-4), the note offered again then. */
+export function ReviewActions({
+  runId,
+  review,
+  onAccepted,
+}: {
+  runId: string;
+  review: ReviewState | null;
+  /** Called once the server has taken an Accept, so the page can move focus to its banner. */
+  onAccepted?: () => void;
+}) {
+  const send = useReview(runId);
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const [note, setNote] = useState("");
+  const noteId = useId();
+  const countId = useId();
+  const busy = send.isPending;
+  const accepting = busy && send.variables?.action === "accept";
+  const freed = rerunFreed(review); // R-M15-4: Return and Accept are offered again
+  const decided = review !== null && !freed;
+
+  function accept() {
+    send.mutate({ action: "accept", note: "" }, { onSuccess: () => onAccepted?.() });
+  }
+
+  function sendReturn() {
+    send.mutate(
+      { action: "return", note: note.trim() },
+      {
+        onSuccess: (result) => {
+          setOpen(false);
+          setNote("");
+          if (result.child) navigate(`/runs/${result.child.run_id}`);
+        },
+      },
+    );
+  }
+
+  return (
+    <div className="row review-actions">
+      <button type="button" className="primary" onClick={accept} disabled={busy || decided}>
+        {accepting ? "Accepting…" : "Accept"}
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          send.reset();
+          if (freed && !note) setNote(review?.note ?? "");
+          setOpen(true);
+        }}
+        disabled={busy || decided}
+      >
+        Return with note…
+      </button>
+      <Menu label="Download" button="Download ▾">
+        {(close) =>
+          downloads(runId).map(([name, href]) => (
+            <a key={href} role="menuitem" href={href} onClick={close}>
+              {name}
+            </a>
+          ))
+        }
+      </Menu>
+      {send.error && !open ? <ErrorMessage error={send.error} /> : null}
+      <ConfirmDialog
+        open={open}
+        title="Return the report to the writer"
+        confirmLabel="Return"
+        busyLabel="Returning…"
+        cancelLabel="Cancel"
+        busy={busy}
+        confirmDisabled={!note.trim()}
+        initialFocusId={noteId}
+        onConfirm={sendReturn}
+        onCancel={() => {
+          send.reset();
+          setOpen(false);
+        }}
+      >
+        {send.error ? <ErrorMessage error={send.error} /> : null}
+        <p className="muted">The note becomes guidance for the revised report.</p>
+        {note.trim() ? null : <p className="muted">A note is required.</p>}
+        <div className="field">
+          <label htmlFor={noteId}>Note for the writer</label>
+          <textarea
+            id={noteId}
+            rows={4}
+            value={note}
+            dir="auto"
+            maxLength={NOTE_MAX_LENGTH}
+            aria-describedby={nearLimit(note, NOTE_MAX_LENGTH) ? countId : undefined}
+            onChange={(e) => setNote(e.target.value)}
+          />
+          <CharCount id={countId} value={note} max={NOTE_MAX_LENGTH} />
+        </div>
+      </ConfirmDialog>
+    </div>
+  );
+}

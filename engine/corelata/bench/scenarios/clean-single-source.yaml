@@ -1,0 +1,20 @@
+name: clean-single-source
+description: Three paragraphs that support the statement produce a clean report in one pass.
+statement: Varna port capacity expansion matters to shippers
+sources:
+  - id: src1
+    name: port.txt
+    paragraphs:
+      - The port of Varna expanded its container capacity in 2025.
+      - Capacity expansion was financed by a state bank.
+      - Container traffic through Varna rose 40 percent.
+expect:
+  state: completed
+  status: clean
+  iterations: 0
+  gate_supported: true
+  substance: sufficient
+  failing_rules:
+    0: []
+  open_findings: []
+  digested: []

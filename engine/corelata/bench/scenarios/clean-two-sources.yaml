@@ -1,0 +1,22 @@
+name: clean-two-sources
+description: Two supporting sources; every source gets a sources entry and the report is clean.
+statement: Varna port capacity expansion matters to shippers
+sources:
+  - id: src1
+    paragraphs:
+      - The port of Varna expanded its container capacity in 2025.
+      - Capacity expansion was financed by a state bank.
+      - Container traffic through Varna rose 40 percent.
+  - id: src2
+    name: shippers.md
+    paragraphs:
+      - Shippers welcomed the capacity at Varna.
+      - Rail links to the port were upgraded.
+expect:
+  state: completed
+  status: clean
+  iterations: 0
+  gate_supported: true
+  substance: sufficient
+  failing_rules:
+    0: []

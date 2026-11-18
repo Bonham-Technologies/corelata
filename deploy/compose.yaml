@@ -1,0 +1,76 @@
+# Corelata on one host (spec §12). Run it from the directory this file is in:
+#   ./install.sh                  once: loads the images; creates config/corelata.yaml,
+#                                 config/packs/ and .env
+#   docker compose up -d --wait   start; migrations run first
+#   docker compose up -d --wait --force-recreate migrate api worker
+#                                 apply a change to config/ or .env (the config is read at start)
+#   docker compose exec api corelata doctor
+# The operator guide (operator-guide.md) explains every setting.
+name: corelata
+
+x-logging: &logging
+  driver: json-file
+  options: { max-size: 50m, max-file: "5" }
+
+x-app: &app
+  image: corelata/app:${CORELATA_VERSION:-dev}
+  restart: unless-stopped
+  env_file:
+    - path: .env # model-server API keys (api_key_env in the config) go here too
+      required: false
+  environment:
+    CORELATA_DATABASE_URL: postgresql://corelata:${CORELATA_DB_PASSWORD:?run ./install.sh first; it creates .env with the database password}@postgres:5432/corelata
+  volumes:
+    - ./config:/etc/corelata:ro
+    - files:/data/files
+  extra_hosts:
+    - host.docker.internal:host-gateway # a model server on this host (e.g. vLLM, Ollama)
+  logging: *logging
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: corelata
+      POSTGRES_PASSWORD: ${CORELATA_DB_PASSWORD:?run ./install.sh first; it creates .env with the database password}
+      POSTGRES_DB: corelata
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U corelata -d corelata"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    logging: *logging
+
+  migrate: # creates or upgrades the database schema, then exits; api and worker wait for it
+    <<: *app
+    restart: "no"
+    command: [corelata, migrate]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  worker:
+    <<: *app
+    command: [corelata, worker]
+    stop_grace_period: 5m # lets the running stage finish; an unfinished run is started over
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+  api:
+    <<: *app # the image's command: corelata-api serving the web app on 8080
+    ports:
+      - ${CORELATA_HTTP_BIND:-0.0.0.0}:${CORELATA_HTTP_PORT:-8080}:8080
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/api/health', timeout=5)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+
+volumes:
+  pgdata: {}
+  files: {}

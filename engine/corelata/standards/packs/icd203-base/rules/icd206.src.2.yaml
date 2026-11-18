@@ -1,0 +1,12 @@
+id: icd206.src.2
+title: Source reference citations for key judgments
+source: "ICD 206 (2015) D.3"
+text: >
+  Analytic judgments shall be supported by source reference citations that allow the reader
+  to identify the specific reporting behind each judgment.
+severity: blocking
+checkability: verifiable
+applies_to: [writer, auditor]
+evidence_required: >
+  Every key judgment lists claim ids, and every one of those claims cites source units.
+route_to: writer

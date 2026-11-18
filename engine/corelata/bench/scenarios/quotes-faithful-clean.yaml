@@ -1,0 +1,18 @@
+name: quotes-faithful-clean
+description: With evidence_quotes required, every claim quotes the first words of the unit it cites; the engine finds each quote and the report is clean without a revision.
+statement: Varna port capacity expansion matters to shippers
+pipeline:
+  evidence_quotes: required
+sources:
+  - id: src1
+    paragraphs:
+      - The port of Varna expanded its container capacity in 2025.
+      - Capacity expansion was financed by a state bank.
+      - Container traffic through Varna rose 40 percent.
+expect:
+  state: completed
+  status: clean
+  iterations: 0
+  failing_rules:
+    0: []
+  open_findings: []

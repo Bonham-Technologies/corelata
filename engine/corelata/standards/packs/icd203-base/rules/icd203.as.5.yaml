@@ -1,0 +1,12 @@
+id: icd203.as.5
+title: Implements and exhibits analytic tradecraft standards
+source: "ICD 203 (2015) D.6.e"
+text: >
+  Analytic products must implement and exhibit the nine analytic tradecraft standards.
+severity: major
+checkability: verifiable
+applies_to: [auditor]
+evidence_required: >
+  Pass when every verifiable icd203.tc.* rule passes; otherwise fail and list the failing
+  tradecraft standards.
+route_to: writer

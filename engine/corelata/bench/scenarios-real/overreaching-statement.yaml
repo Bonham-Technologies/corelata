@@ -1,0 +1,32 @@
+name: overreaching-statement
+description: >-
+  The statement asserts a decision the sources only say is under review, and the operator's own
+  advisory says every call stays in place for now. A good model rejects at the gate or passes it
+  as thin, and if it writes, scopes the report to the review and uses a likelihood term no
+  stronger than "roughly even chance" (icd203.tc.2). A weak model calls the material sufficient
+  and reports the withdrawal as fact.
+statement: The Halden Express will stop calling at Kelmar from this winter
+sources:
+  - id: src1
+    name: kelmar-chamber-statement.txt
+    paragraphs:
+      - >-
+        Kelmar Chamber of Commerce, press statement, 18 July 2026. The Chamber warns that the
+        Halden Express, a weekly feeder service, is reviewing its Kelmar call for the winter
+        schedule.
+      - >-
+        The Chamber has asked the port company to cut berth fees by 10 percent for services that
+        commit to Kelmar until March 2027.
+  - id: src2
+    name: halden-line-advisory.txt
+    paragraphs:
+      - >-
+        Halden Line, customer advisory, 1 August 2026. The winter 2026-27 schedule will be
+        published on 15 September. All current port calls remain in place until further notice.
+      - >-
+        Customers should book October sailings through the usual channels; no surcharge changes
+        are planned.
+expect:
+  state_in: [completed, gate_rejected]
+  substance_in: [thin, insufficient]
+  rules_must_pass: [icd203.tc.8, icd206.src.2, icd203.tc.2]

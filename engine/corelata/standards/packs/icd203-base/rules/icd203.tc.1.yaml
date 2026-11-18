@@ -1,0 +1,15 @@
+id: icd203.tc.1
+title: Properly describes quality and credibility of underlying sources, data, and methodologies
+source: "ICD 203 (2015) D.6.e(1)"
+text: >
+  Analytic products should identify underlying sources and methodologies on which judgments are
+  based, and use source descriptors to describe factors affecting source quality and
+  credibility, such as accuracy and completeness, possible denial and deception, age and
+  continued currency of information, and technical elements of collection.
+severity: major
+checkability: verifiable
+applies_to: [writer, auditor]
+evidence_required: >
+  The sources section has one entry per source with a descriptor from the lexicon and a
+  reliability note that addresses at least currency and completeness.
+route_to: writer

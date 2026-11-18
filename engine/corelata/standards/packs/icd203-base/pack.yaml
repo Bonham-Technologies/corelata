@@ -1,0 +1,6 @@
+name: icd203-base
+version: "1.0.0"
+description: >
+  Intelligence Community Directive 203 (Analytic Standards, 2015) and ICD 206 (Sourcing
+  Requirements) as checkable rules, with the ICD 203 estimative-language lexicon. Customers
+  extend or replace this pack on their own deployment (spec §6).

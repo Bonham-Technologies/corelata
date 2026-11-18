@@ -1,0 +1,37 @@
+name: quoted-customs-figures
+description: >-
+  With evidence_quotes required, two sources state the figures in short, quotable sentences: the
+  Halden customs office's half-year release and the rice exporters' association note. A good
+  model quotes each unit it cites word for word, so the engine finds every quote, and delivers a
+  clean report within one revision. A weak model paraphrases inside its quotes, joins sentences
+  with an ellipsis or leaves cited units unquoted, and the engine fails icd203.tc.8 and
+  icd206.src.2 ("quote not found in src1/u1", "no quote from src2/u2") until it copies the words.
+statement: Rice exports through the port of Halden fell sharply in the first half of 2026
+pipeline:
+  evidence_quotes: required
+sources:
+  - id: src1
+    name: halden-customs-release.txt
+    paragraphs:
+      - >-
+        Halden Customs Office, half-year release, 9 July 2026. Rice exports through the port of
+        Halden totalled 212,000 tonnes from January to June 2026, down 31 percent on the first
+        half of 2025.
+      - >-
+        Exports in June alone were 24,500 tonnes, the lowest monthly figure since the customs
+        office began publishing port statistics in 2011.
+  - id: src2
+    name: rice-exporters-note.md
+    paragraphs:
+      - >-
+        Halden Rice Exporters Association, note to members, 15 July 2026. The export levy of 18
+        percent introduced on 1 February 2026 is the main reason members give for shipping less.
+      - >-
+        Eleven of the association's 40 members suspended export contracts in the second quarter;
+        the association expects volumes to recover only if the levy is withdrawn.
+expect:
+  state: completed
+  status_in: [clean]
+  iterations_max: 1
+  gate_supported_in: [true]
+  rules_must_pass: [icd203.tc.8, icd206.src.2]

@@ -1,0 +1,13 @@
+id: icd203.tc.9
+title: Incorporates effective visual information where appropriate
+source: "ICD 203 (2015) D.6.e(9)"
+text: >
+  Analytic products should incorporate visual information to clarify an analytic message and
+  to complement or enhance the presentation of data and analysis.
+severity: minor
+checkability: advisory
+applies_to: [auditor]
+evidence_required: >
+  Corelata v1 generates no visuals; attest. A profile may make this verifiable once a
+  deployment renders charts or maps.
+route_to: conveyor

@@ -1,0 +1,29 @@
+likelihood:
+  - { term: almost no chance, low: 1, high: 5 }
+  - { term: very unlikely, low: 5, high: 20 }
+  - { term: unlikely, low: 20, high: 45 }
+  - { term: roughly even chance, low: 45, high: 55 }
+  - { term: likely, low: 55, high: 80 }
+  - { term: very likely, low: 80, high: 95 }
+  - { term: almost certain, low: 95, high: 99 }
+confidence_definitions:
+  high: >
+    Judgments rest on high-quality, corroborated information from multiple independent
+    sources; the reasoning admits few plausible alternatives.
+  moderate: >
+    Judgments rest on credible but incompletely corroborated information, or on sound
+    reasoning from limited information; alternative explanations remain plausible.
+  low: >
+    Judgments rest on fragmentary, uncorroborated or questionable information, or on
+    significant assumptions; alternatives are as plausible as the judgment.
+source_descriptors:
+  - open-source report
+  - open-source media article
+  - official government publication
+  - commercial database record
+  - social media post
+  - translated document
+  - technical data extract
+  - analyst-provided material
+handling_markings:
+  - UNCLASSIFIED

@@ -1,0 +1,14 @@
+id: icd203.tc.8
+title: Makes accurate judgments and assessments
+source: "ICD 203 (2015) D.6.e(8)"
+text: >
+  Analytic products should apply expertise and logic to make the most accurate judgments and
+  assessments possible, based on the information available and known information gaps.
+  Judgments should not be overstated or understated relative to the evidence.
+severity: blocking
+checkability: verifiable
+applies_to: [writer, auditor]
+evidence_required: >
+  Every claim cites at least one source unit whose text actually supports it; no judgment
+  claims more than its cited units allow. Cite the claim ids and unit refs you checked.
+route_to: writer

@@ -1,0 +1,1131 @@
+{
+  "$defs": {
+    "Agreement": {
+      "enum": [
+        "agree",
+        "minor",
+        "major",
+        "unknown"
+      ],
+      "title": "Agreement",
+      "type": "string"
+    },
+    "Block": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/BlockKind"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "text",
+        "provenance"
+      ],
+      "title": "Block",
+      "type": "object"
+    },
+    "BlockKind": {
+      "enum": [
+        "heading",
+        "paragraph",
+        "break",
+        "list_item",
+        "table_cell",
+        "footnote"
+      ],
+      "title": "BlockKind",
+      "type": "string"
+    },
+    "Candidate": {
+      "properties": {
+        "chunk_id": {
+          "title": "Chunk Id",
+          "type": "string"
+        },
+        "end": {
+          "title": "End",
+          "type": "string"
+        },
+        "model": {
+          "title": "Model",
+          "type": "string"
+        },
+        "notes": {
+          "default": "",
+          "title": "Notes",
+          "type": "string"
+        },
+        "start": {
+          "title": "Start",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "translator": {
+          "title": "Translator",
+          "type": "string"
+        }
+      },
+      "required": [
+        "chunk_id",
+        "translator",
+        "model",
+        "start",
+        "end",
+        "text"
+      ],
+      "title": "Candidate",
+      "type": "object"
+    },
+    "Chunk": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "segment_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Segment Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "segment_ids"
+      ],
+      "title": "Chunk",
+      "type": "object"
+    },
+    "ConfigSnapshot": {
+      "properties": {
+        "hash": {
+          "title": "Hash",
+          "type": "string"
+        },
+        "prompt_versions": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "Prompt Versions",
+          "type": "object"
+        },
+        "roles": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Roles",
+          "type": "object"
+        },
+        "scorer": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ScorerHealth"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "hash",
+        "roles",
+        "prompt_versions"
+      ],
+      "title": "ConfigSnapshot",
+      "type": "object"
+    },
+    "DocumentInfo": {
+      "properties": {
+        "format": {
+          "title": "Format",
+          "type": "string"
+        },
+        "sha256": {
+          "title": "Sha256",
+          "type": "string"
+        },
+        "source_path": {
+          "title": "Source Path",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_path",
+        "format",
+        "sha256"
+      ],
+      "title": "DocumentInfo",
+      "type": "object"
+    },
+    "DocumentProfile": {
+      "properties": {
+        "genre": {
+          "$ref": "#/$defs/Genre"
+        },
+        "mixed_language": {
+          "title": "Mixed Language",
+          "type": "boolean"
+        },
+        "pipeline_profile": {
+          "$ref": "#/$defs/PipelineProfile"
+        },
+        "source_lang": {
+          "title": "Source Lang",
+          "type": "string"
+        },
+        "target_lang": {
+          "title": "Target Lang",
+          "type": "string"
+        },
+        "tone_register": {
+          "title": "Tone Register",
+          "type": "string"
+        },
+        "word_count": {
+          "title": "Word Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "source_lang",
+        "target_lang",
+        "mixed_language",
+        "genre",
+        "tone_register",
+        "word_count",
+        "pipeline_profile"
+      ],
+      "title": "DocumentProfile",
+      "type": "object"
+    },
+    "Entity": {
+      "properties": {
+        "forms_of_address": {
+          "default": "",
+          "title": "Forms Of Address",
+          "type": "string"
+        },
+        "gender": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Gender"
+        },
+        "kind": {
+          "description": "person, place, organization, or other",
+          "title": "Kind",
+          "type": "string"
+        },
+        "locked": {
+          "default": false,
+          "title": "Locked",
+          "type": "boolean"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "rendering": {
+          "title": "Rendering",
+          "type": "string"
+        },
+        "speech_style": {
+          "default": "",
+          "title": "Speech Style",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "rendering",
+        "kind"
+      ],
+      "title": "Entity",
+      "type": "object"
+    },
+    "ErrorCategory": {
+      "enum": [
+        "accuracy/mistranslation",
+        "accuracy/omission",
+        "accuracy/addition",
+        "terminology",
+        "fluency",
+        "style/register",
+        "locale"
+      ],
+      "title": "ErrorCategory",
+      "type": "string"
+    },
+    "ErrorSeverity": {
+      "enum": [
+        "minor",
+        "major",
+        "critical"
+      ],
+      "title": "ErrorSeverity",
+      "type": "string"
+    },
+    "Flag": {
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/FlagCode"
+        },
+        "dismiss_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dismiss Reason"
+        },
+        "evidence": {
+          "additionalProperties": true,
+          "title": "Evidence",
+          "type": "object"
+        },
+        "explanation": {
+          "title": "Explanation",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/FlagStatus",
+          "default": "open"
+        }
+      },
+      "required": [
+        "code",
+        "explanation"
+      ],
+      "title": "Flag",
+      "type": "object"
+    },
+    "FlagCode": {
+      "enum": [
+        "low_meaning",
+        "style_drift",
+        "agent_disagreement",
+        "terminology_violation",
+        "possible_omission",
+        "cultural_or_wordplay",
+        "engine_error",
+        "low_reliability_language",
+        "unscored"
+      ],
+      "title": "FlagCode",
+      "type": "string"
+    },
+    "FlagStatus": {
+      "enum": [
+        "open",
+        "accepted",
+        "dismissed",
+        "resolved"
+      ],
+      "title": "FlagStatus",
+      "type": "string"
+    },
+    "Genre": {
+      "enum": [
+        "literary_prose",
+        "poetry",
+        "technical",
+        "academic",
+        "legal",
+        "news",
+        "correspondence",
+        "social_media",
+        "transcript",
+        "other"
+      ],
+      "title": "Genre",
+      "type": "string"
+    },
+    "GlossaryEntry": {
+      "properties": {
+        "locked": {
+          "default": false,
+          "title": "Locked",
+          "type": "boolean"
+        },
+        "notes": {
+          "default": "",
+          "title": "Notes",
+          "type": "string"
+        },
+        "rendering": {
+          "description": "Target-language rendering to use",
+          "title": "Rendering",
+          "type": "string"
+        },
+        "term": {
+          "description": "Source-language term exactly as it appears",
+          "title": "Term",
+          "type": "string"
+        }
+      },
+      "required": [
+        "term",
+        "rendering"
+      ],
+      "title": "GlossaryEntry",
+      "type": "object"
+    },
+    "Guide": {
+      "properties": {
+        "cultural_references": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Cultural References",
+          "type": "array"
+        },
+        "entities": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Entity"
+          },
+          "title": "Entities",
+          "type": "array"
+        },
+        "glossary": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/GlossaryEntry"
+          },
+          "title": "Glossary",
+          "type": "array"
+        },
+        "style_guide": {
+          "title": "Style Guide",
+          "type": "string"
+        },
+        "summary": {
+          "title": "Summary",
+          "type": "string"
+        }
+      },
+      "required": [
+        "summary",
+        "style_guide"
+      ],
+      "title": "Guide",
+      "type": "object"
+    },
+    "JudgeError": {
+      "properties": {
+        "category": {
+          "$ref": "#/$defs/ErrorCategory"
+        },
+        "excerpt": {
+          "default": "",
+          "description": "Exact text from the translation that contains the error; empty for omissions",
+          "title": "Excerpt",
+          "type": "string"
+        },
+        "explanation": {
+          "title": "Explanation",
+          "type": "string"
+        },
+        "severity": {
+          "$ref": "#/$defs/ErrorSeverity"
+        }
+      },
+      "required": [
+        "category",
+        "severity",
+        "explanation"
+      ],
+      "title": "JudgeError",
+      "type": "object"
+    },
+    "LLMCallRecord": {
+      "properties": {
+        "attempt": {
+          "title": "Attempt",
+          "type": "integer"
+        },
+        "backend": {
+          "title": "Backend",
+          "type": "string"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error"
+        },
+        "latency_ms": {
+          "default": 0,
+          "title": "Latency Ms",
+          "type": "integer"
+        },
+        "model": {
+          "title": "Model",
+          "type": "string"
+        },
+        "ok": {
+          "title": "Ok",
+          "type": "boolean"
+        },
+        "prompt_id": {
+          "title": "Prompt Id",
+          "type": "string"
+        },
+        "prompt_version": {
+          "title": "Prompt Version",
+          "type": "integer"
+        },
+        "request": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Request"
+        },
+        "response": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Response"
+        },
+        "role": {
+          "title": "Role",
+          "type": "string"
+        },
+        "tokens_in": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tokens In"
+        },
+        "tokens_out": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tokens Out"
+        }
+      },
+      "required": [
+        "role",
+        "backend",
+        "model",
+        "prompt_id",
+        "prompt_version",
+        "attempt",
+        "ok"
+      ],
+      "title": "LLMCallRecord",
+      "type": "object"
+    },
+    "PipelineProfile": {
+      "enum": [
+        "short",
+        "standard",
+        "long-form"
+      ],
+      "title": "PipelineProfile",
+      "type": "string"
+    },
+    "Provenance": {
+      "properties": {
+        "index": {
+          "title": "Index",
+          "type": "integer"
+        },
+        "locator": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Locator"
+        },
+        "page": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Page"
+        },
+        "source_path": {
+          "title": "Source Path",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_path",
+        "index"
+      ],
+      "title": "Provenance",
+      "type": "object"
+    },
+    "Reliability": {
+      "enum": [
+        "A",
+        "B",
+        "C",
+        "unscored"
+      ],
+      "title": "Reliability",
+      "type": "string"
+    },
+    "Revision": {
+      "description": "One change to a span's text. Span.text is always the latest revision.",
+      "properties": {
+        "after": {
+          "title": "After",
+          "type": "string"
+        },
+        "before": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Before"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/RevisionSource"
+        },
+        "span_id": {
+          "title": "Span Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "span_id",
+        "source",
+        "after",
+        "reason"
+      ],
+      "title": "Revision",
+      "type": "object"
+    },
+    "RevisionSource": {
+      "enum": [
+        "engine",
+        "sweep",
+        "user"
+      ],
+      "title": "RevisionSource",
+      "type": "string"
+    },
+    "RunError": {
+      "properties": {
+        "chunk_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Chunk Id"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "role": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Role"
+        },
+        "stage": {
+          "title": "Stage",
+          "type": "string"
+        }
+      },
+      "required": [
+        "stage",
+        "message"
+      ],
+      "title": "RunError",
+      "type": "object"
+    },
+    "RunStatus": {
+      "enum": [
+        "complete",
+        "complete_with_errors"
+      ],
+      "title": "RunStatus",
+      "type": "string"
+    },
+    "ScorerHealth": {
+      "properties": {
+        "device": {
+          "title": "Device",
+          "type": "string"
+        },
+        "embed_model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Embed Model"
+        },
+        "qe_model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Qe Model"
+        },
+        "status": {
+          "const": "ok",
+          "default": "ok",
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "device"
+      ],
+      "title": "ScorerHealth",
+      "type": "object"
+    },
+    "Segment": {
+      "properties": {
+        "block_id": {
+          "title": "Block Id",
+          "type": "string"
+        },
+        "end": {
+          "title": "End",
+          "type": "integer"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "start": {
+          "title": "Start",
+          "type": "integer"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "block_id",
+        "start",
+        "end",
+        "text"
+      ],
+      "title": "Segment",
+      "type": "object"
+    },
+    "Span": {
+      "properties": {
+        "agreement": {
+          "$ref": "#/$defs/Agreement"
+        },
+        "back_translation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Back Translation"
+        },
+        "chosen_from": {
+          "title": "Chosen From",
+          "type": "string"
+        },
+        "chunk_id": {
+          "title": "Chunk Id",
+          "type": "string"
+        },
+        "end": {
+          "title": "End",
+          "type": "string"
+        },
+        "flags": {
+          "items": {
+            "$ref": "#/$defs/Flag"
+          },
+          "title": "Flags",
+          "type": "array"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "issues": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Issues",
+          "type": "array"
+        },
+        "judge_errors": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/JudgeError"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Judge Errors"
+        },
+        "rationale": {
+          "default": "",
+          "title": "Rationale",
+          "type": "string"
+        },
+        "score": {
+          "$ref": "#/$defs/SpanScore"
+        },
+        "start": {
+          "title": "Start",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "chunk_id",
+        "start",
+        "end",
+        "text",
+        "agreement",
+        "chosen_from",
+        "score"
+      ],
+      "title": "Span",
+      "type": "object"
+    },
+    "SpanScore": {
+      "properties": {
+        "meaning": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Meaning"
+        },
+        "reliability": {
+          "$ref": "#/$defs/Reliability",
+          "default": "unscored"
+        },
+        "signals": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Signals",
+          "type": "object"
+        },
+        "style": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Style"
+        }
+      },
+      "required": [
+        "signals"
+      ],
+      "title": "SpanScore",
+      "type": "object"
+    },
+    "Usage": {
+      "properties": {
+        "by_role": {
+          "additionalProperties": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object"
+          },
+          "title": "By Role",
+          "type": "object"
+        },
+        "calls": {
+          "title": "Calls",
+          "type": "integer"
+        },
+        "tokens_in": {
+          "title": "Tokens In",
+          "type": "integer"
+        },
+        "tokens_out": {
+          "title": "Tokens Out",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "calls",
+        "tokens_in",
+        "tokens_out",
+        "by_role"
+      ],
+      "title": "Usage",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "blocks": {
+      "items": {
+        "$ref": "#/$defs/Block"
+      },
+      "title": "Blocks",
+      "type": "array"
+    },
+    "candidates": {
+      "items": {
+        "$ref": "#/$defs/Candidate"
+      },
+      "title": "Candidates",
+      "type": "array"
+    },
+    "chunks": {
+      "items": {
+        "$ref": "#/$defs/Chunk"
+      },
+      "title": "Chunks",
+      "type": "array"
+    },
+    "coglossa_version": {
+      "title": "Coglossa Version",
+      "type": "string"
+    },
+    "config": {
+      "$ref": "#/$defs/ConfigSnapshot"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "document": {
+      "$ref": "#/$defs/DocumentInfo"
+    },
+    "errors": {
+      "items": {
+        "$ref": "#/$defs/RunError"
+      },
+      "title": "Errors",
+      "type": "array"
+    },
+    "guide": {
+      "$ref": "#/$defs/Guide"
+    },
+    "guide_proposals": {
+      "items": {
+        "$ref": "#/$defs/GlossaryEntry"
+      },
+      "title": "Guide Proposals",
+      "type": "array"
+    },
+    "language_tier": {
+      "$ref": "#/$defs/Reliability",
+      "default": "unscored"
+    },
+    "llm_calls": {
+      "items": {
+        "$ref": "#/$defs/LLMCallRecord"
+      },
+      "title": "Llm Calls",
+      "type": "array"
+    },
+    "notices": {
+      "items": {
+        "$ref": "#/$defs/Flag"
+      },
+      "title": "Notices",
+      "type": "array"
+    },
+    "profile": {
+      "$ref": "#/$defs/DocumentProfile"
+    },
+    "revisions": {
+      "items": {
+        "$ref": "#/$defs/Revision"
+      },
+      "title": "Revisions",
+      "type": "array"
+    },
+    "run_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Run Id"
+    },
+    "schema_version": {
+      "const": "1",
+      "default": "1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "segments": {
+      "items": {
+        "$ref": "#/$defs/Segment"
+      },
+      "title": "Segments",
+      "type": "array"
+    },
+    "spans": {
+      "items": {
+        "$ref": "#/$defs/Span"
+      },
+      "title": "Spans",
+      "type": "array"
+    },
+    "status": {
+      "$ref": "#/$defs/RunStatus"
+    },
+    "usage": {
+      "$ref": "#/$defs/Usage"
+    }
+  },
+  "required": [
+    "coglossa_version",
+    "created_at",
+    "status",
+    "document",
+    "profile",
+    "guide",
+    "blocks",
+    "segments",
+    "chunks",
+    "candidates",
+    "spans",
+    "usage",
+    "config"
+  ],
+  "title": "Report",
+  "type": "object"
+}

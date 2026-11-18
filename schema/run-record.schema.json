@@ -1,0 +1,1288 @@
+{
+  "$defs": {
+    "Alternative": {
+      "properties": {
+        "assessment": {
+          "title": "Assessment",
+          "type": "string"
+        },
+        "claim_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Claim Ids",
+          "type": "array"
+        },
+        "hypothesis": {
+          "title": "Hypothesis",
+          "type": "string"
+        }
+      },
+      "required": [
+        "hypothesis",
+        "assessment"
+      ],
+      "title": "Alternative",
+      "type": "object"
+    },
+    "BlockKind": {
+      "enum": [
+        "heading",
+        "paragraph",
+        "break",
+        "list_item",
+        "table_cell",
+        "footnote"
+      ],
+      "title": "BlockKind",
+      "type": "string"
+    },
+    "ChangeKind": {
+      "enum": [
+        "consistent",
+        "changed"
+      ],
+      "title": "ChangeKind",
+      "type": "string"
+    },
+    "Claim": {
+      "properties": {
+        "evidence": {
+          "description": "Unit refs (<source_id>/<unit_id>) the claim rests on",
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "id": {
+          "description": "Short id such as c1; unique within the report",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/ClaimKind"
+        },
+        "likelihood_term": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "For judgments: the estimative term used, from the lexicon",
+          "title": "Likelihood Term"
+        },
+        "quotes": {
+          "description": "Verbatim spans of the cited units that support the claim",
+          "items": {
+            "$ref": "#/$defs/Quote"
+          },
+          "title": "Quotes",
+          "type": "array"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "text",
+        "kind"
+      ],
+      "title": "Claim",
+      "type": "object"
+    },
+    "ClaimKind": {
+      "enum": [
+        "fact",
+        "judgment",
+        "assumption"
+      ],
+      "title": "ClaimKind",
+      "type": "string"
+    },
+    "Confidence": {
+      "enum": [
+        "high",
+        "moderate",
+        "low"
+      ],
+      "title": "Confidence",
+      "type": "string"
+    },
+    "Digest": {
+      "properties": {
+        "sections": {
+          "items": {
+            "$ref": "#/$defs/DigestSection"
+          },
+          "title": "Sections",
+          "type": "array"
+        },
+        "source_id": {
+          "title": "Source Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_id",
+        "sections"
+      ],
+      "title": "Digest",
+      "type": "object"
+    },
+    "DigestSection": {
+      "properties": {
+        "summary": {
+          "title": "Summary",
+          "type": "string"
+        },
+        "unit_refs": {
+          "description": "The units this section covers",
+          "items": {
+            "type": "string"
+          },
+          "title": "Unit Refs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "summary",
+        "unit_refs"
+      ],
+      "title": "DigestSection",
+      "type": "object"
+    },
+    "DraftRecord": {
+      "properties": {
+        "iteration": {
+          "title": "Iteration",
+          "type": "integer"
+        },
+        "report": {
+          "$ref": "#/$defs/ReportBody"
+        },
+        "role": {
+          "title": "Role",
+          "type": "string"
+        }
+      },
+      "required": [
+        "role",
+        "iteration",
+        "report"
+      ],
+      "title": "DraftRecord",
+      "type": "object"
+    },
+    "Finding": {
+      "properties": {
+        "cited_units": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Cited Units",
+          "type": "array"
+        },
+        "claim_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Claim Ids",
+          "type": "array"
+        },
+        "evidence": {
+          "description": "What in the draft (or missing from it) decided this",
+          "title": "Evidence",
+          "type": "string"
+        },
+        "iteration": {
+          "title": "Iteration",
+          "type": "integer"
+        },
+        "recommendation": {
+          "default": "",
+          "title": "Recommendation",
+          "type": "string"
+        },
+        "route_to": {
+          "title": "Route To",
+          "type": "string"
+        },
+        "rule_id": {
+          "title": "Rule Id",
+          "type": "string"
+        },
+        "severity": {
+          "title": "Severity",
+          "type": "string"
+        },
+        "verdict": {
+          "$ref": "#/$defs/Verdict"
+        }
+      },
+      "required": [
+        "rule_id",
+        "verdict",
+        "evidence",
+        "severity",
+        "route_to",
+        "iteration"
+      ],
+      "title": "Finding",
+      "type": "object"
+    },
+    "GateVerdict": {
+      "properties": {
+        "evidence": {
+          "description": "Unit refs that matter most",
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "reasons": {
+          "description": "One sentence each; what supports or undermines",
+          "items": {
+            "type": "string"
+          },
+          "title": "Reasons",
+          "type": "array"
+        },
+        "substance": {
+          "$ref": "#/$defs/Substance"
+        },
+        "suggested_scope": {
+          "default": "",
+          "description": "A scope note the writer must include if thin",
+          "title": "Suggested Scope",
+          "type": "string"
+        },
+        "supported": {
+          "description": "The sources support the value statement",
+          "title": "Supported",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "supported",
+        "substance",
+        "reasons"
+      ],
+      "title": "GateVerdict",
+      "type": "object"
+    },
+    "JudgmentChange": {
+      "description": "How the report stands against one key judgment of an earlier accepted report of its\nproject (CRL-97, ICD 203 D.6.e(7)).",
+      "properties": {
+        "change": {
+          "$ref": "#/$defs/ChangeKind"
+        },
+        "claim_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Claim Ids",
+          "type": "array"
+        },
+        "explanation": {
+          "description": "What in this report agrees with the earlier judgment or departs from it, and why",
+          "title": "Explanation",
+          "type": "string"
+        },
+        "prior_judgment": {
+          "description": "The earlier key judgment, as it was stated",
+          "title": "Prior Judgment",
+          "type": "string"
+        },
+        "prior_run_id": {
+          "description": "The earlier report's run_id in INPUT_JSON.prior_reports",
+          "title": "Prior Run Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "prior_run_id",
+        "prior_judgment",
+        "change",
+        "explanation"
+      ],
+      "title": "JudgmentChange",
+      "type": "object"
+    },
+    "KeyJudgment": {
+      "properties": {
+        "claim_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Claim Ids",
+          "type": "array"
+        },
+        "confidence": {
+          "$ref": "#/$defs/Confidence"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text",
+        "confidence",
+        "claim_ids"
+      ],
+      "title": "KeyJudgment",
+      "type": "object"
+    },
+    "LLMCallRecord": {
+      "properties": {
+        "attempt": {
+          "title": "Attempt",
+          "type": "integer"
+        },
+        "backend": {
+          "title": "Backend",
+          "type": "string"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error"
+        },
+        "latency_ms": {
+          "default": 0,
+          "title": "Latency Ms",
+          "type": "integer"
+        },
+        "model": {
+          "title": "Model",
+          "type": "string"
+        },
+        "ok": {
+          "title": "Ok",
+          "type": "boolean"
+        },
+        "prompt_id": {
+          "title": "Prompt Id",
+          "type": "string"
+        },
+        "prompt_version": {
+          "title": "Prompt Version",
+          "type": "integer"
+        },
+        "request": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Request"
+        },
+        "response": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Response"
+        },
+        "role": {
+          "title": "Role",
+          "type": "string"
+        },
+        "tokens_in": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tokens In"
+        },
+        "tokens_out": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tokens Out"
+        }
+      },
+      "required": [
+        "role",
+        "backend",
+        "model",
+        "prompt_id",
+        "prompt_version",
+        "attempt",
+        "ok"
+      ],
+      "title": "LLMCallRecord",
+      "type": "object"
+    },
+    "Paragraph": {
+      "properties": {
+        "claim_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Claim Ids",
+          "type": "array"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Paragraph",
+      "type": "object"
+    },
+    "PriorJudgment": {
+      "properties": {
+        "confidence": {
+          "$ref": "#/$defs/Confidence"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text",
+        "confidence"
+      ],
+      "title": "PriorJudgment",
+      "type": "object"
+    },
+    "PriorReport": {
+      "description": "An earlier accepted report as a run was given it (CRL-97): its key judgments, and whether\n`pipeline.prior_judgments.budget_tokens` left it out (`cut`, oldest first).",
+      "properties": {
+        "accepted_at": {
+          "format": "date-time",
+          "title": "Accepted At",
+          "type": "string"
+        },
+        "cut": {
+          "default": false,
+          "title": "Cut",
+          "type": "boolean"
+        },
+        "key_judgments": {
+          "items": {
+            "$ref": "#/$defs/PriorJudgment"
+          },
+          "title": "Key Judgments",
+          "type": "array"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "run_id",
+        "title",
+        "accepted_at",
+        "key_judgments"
+      ],
+      "title": "PriorReport",
+      "type": "object"
+    },
+    "PriorReportRef": {
+      "description": "An earlier accepted report of the run's project (CRL-97): its run id, title and when it\nwas accepted.",
+      "properties": {
+        "accepted_at": {
+          "format": "date-time",
+          "title": "Accepted At",
+          "type": "string"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "run_id",
+        "title",
+        "accepted_at"
+      ],
+      "title": "PriorReportRef",
+      "type": "object"
+    },
+    "Quote": {
+      "description": "Words copied verbatim from one of the units a claim cites.",
+      "properties": {
+        "ref": {
+          "description": "The unit ref the words are copied from, one of the claim's evidence",
+          "title": "Ref",
+          "type": "string"
+        },
+        "text": {
+          "description": "Words copied verbatim from that unit: one contiguous span, no ellipses",
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ref",
+        "text"
+      ],
+      "title": "Quote",
+      "type": "object"
+    },
+    "Report": {
+      "properties": {
+        "alternatives": {
+          "items": {
+            "$ref": "#/$defs/Alternative"
+          },
+          "title": "Alternatives",
+          "type": "array"
+        },
+        "analysis": {
+          "items": {
+            "$ref": "#/$defs/Section"
+          },
+          "title": "Analysis",
+          "type": "array"
+        },
+        "changes_from_previous": {
+          "description": "How the key judgments stand against those of the project's earlier reports",
+          "items": {
+            "$ref": "#/$defs/JudgmentChange"
+          },
+          "title": "Changes From Previous",
+          "type": "array"
+        },
+        "claims": {
+          "items": {
+            "$ref": "#/$defs/Claim"
+          },
+          "title": "Claims",
+          "type": "array"
+        },
+        "gaps_and_indicators": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Gaps And Indicators",
+          "type": "array"
+        },
+        "handling_marking": {
+          "title": "Handling Marking",
+          "type": "string"
+        },
+        "key_judgments": {
+          "items": {
+            "$ref": "#/$defs/KeyJudgment"
+          },
+          "title": "Key Judgments",
+          "type": "array"
+        },
+        "metadata": {
+          "$ref": "#/$defs/ReportMetadata"
+        },
+        "scope_note": {
+          "title": "Scope Note",
+          "type": "string"
+        },
+        "sources": {
+          "items": {
+            "$ref": "#/$defs/SourceEntry"
+          },
+          "title": "Sources",
+          "type": "array"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "handling_marking",
+        "key_judgments",
+        "scope_note",
+        "sources",
+        "analysis",
+        "alternatives",
+        "gaps_and_indicators",
+        "claims",
+        "metadata"
+      ],
+      "title": "Report",
+      "type": "object"
+    },
+    "ReportBody": {
+      "description": "What the writer and conveyor produce. `Report` adds engine-owned metadata.",
+      "properties": {
+        "alternatives": {
+          "items": {
+            "$ref": "#/$defs/Alternative"
+          },
+          "title": "Alternatives",
+          "type": "array"
+        },
+        "analysis": {
+          "items": {
+            "$ref": "#/$defs/Section"
+          },
+          "title": "Analysis",
+          "type": "array"
+        },
+        "changes_from_previous": {
+          "description": "How the key judgments stand against those of the project's earlier reports",
+          "items": {
+            "$ref": "#/$defs/JudgmentChange"
+          },
+          "title": "Changes From Previous",
+          "type": "array"
+        },
+        "claims": {
+          "items": {
+            "$ref": "#/$defs/Claim"
+          },
+          "title": "Claims",
+          "type": "array"
+        },
+        "gaps_and_indicators": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Gaps And Indicators",
+          "type": "array"
+        },
+        "handling_marking": {
+          "title": "Handling Marking",
+          "type": "string"
+        },
+        "key_judgments": {
+          "items": {
+            "$ref": "#/$defs/KeyJudgment"
+          },
+          "title": "Key Judgments",
+          "type": "array"
+        },
+        "scope_note": {
+          "title": "Scope Note",
+          "type": "string"
+        },
+        "sources": {
+          "items": {
+            "$ref": "#/$defs/SourceEntry"
+          },
+          "title": "Sources",
+          "type": "array"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "handling_marking",
+        "key_judgments",
+        "scope_note",
+        "sources",
+        "analysis",
+        "alternatives",
+        "gaps_and_indicators",
+        "claims"
+      ],
+      "title": "ReportBody",
+      "type": "object"
+    },
+    "ReportMetadata": {
+      "properties": {
+        "degradations": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Degradations",
+          "type": "array"
+        },
+        "iteration": {
+          "default": 0,
+          "title": "Iteration",
+          "type": "integer"
+        },
+        "open_findings": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Open Findings",
+          "type": "array"
+        },
+        "pack_hash": {
+          "title": "Pack Hash",
+          "type": "string"
+        },
+        "pack_name": {
+          "title": "Pack Name",
+          "type": "string"
+        },
+        "prior_reports": {
+          "items": {
+            "$ref": "#/$defs/PriorReportRef"
+          },
+          "title": "Prior Reports",
+          "type": "array"
+        },
+        "profile": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Profile"
+        },
+        "run_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Run Id"
+        },
+        "status": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReportStatus"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "pack_name",
+        "pack_hash"
+      ],
+      "title": "ReportMetadata",
+      "type": "object"
+    },
+    "ReportStatus": {
+      "enum": [
+        "clean",
+        "findings_open"
+      ],
+      "title": "ReportStatus",
+      "type": "string"
+    },
+    "RunState": {
+      "enum": [
+        "created",
+        "ingesting",
+        "gating",
+        "drafting",
+        "conveying",
+        "auditing",
+        "rendering",
+        "completed",
+        "gate_rejected",
+        "failed",
+        "cancelled"
+      ],
+      "title": "RunState",
+      "type": "string"
+    },
+    "Section": {
+      "properties": {
+        "heading": {
+          "title": "Heading",
+          "type": "string"
+        },
+        "paragraphs": {
+          "items": {
+            "$ref": "#/$defs/Paragraph"
+          },
+          "title": "Paragraphs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "heading",
+        "paragraphs"
+      ],
+      "title": "Section",
+      "type": "object"
+    },
+    "Source": {
+      "properties": {
+        "format": {
+          "title": "Format",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/SourceKind"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "provenance": {
+          "additionalProperties": true,
+          "title": "Provenance",
+          "type": "object"
+        },
+        "sha256": {
+          "title": "Sha256",
+          "type": "string"
+        },
+        "units": {
+          "items": {
+            "$ref": "#/$defs/SourceUnit"
+          },
+          "title": "Units",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "name",
+        "format",
+        "sha256",
+        "units"
+      ],
+      "title": "Source",
+      "type": "object"
+    },
+    "SourceEntry": {
+      "properties": {
+        "descriptor": {
+          "description": "A source descriptor phrase from the lexicon",
+          "title": "Descriptor",
+          "type": "string"
+        },
+        "reliability_note": {
+          "default": "",
+          "title": "Reliability Note",
+          "type": "string"
+        },
+        "source_id": {
+          "title": "Source Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_id",
+        "descriptor"
+      ],
+      "title": "SourceEntry",
+      "type": "object"
+    },
+    "SourceKind": {
+      "enum": [
+        "file",
+        "coglossa_export"
+      ],
+      "title": "SourceKind",
+      "type": "string"
+    },
+    "SourceUnit": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/BlockKind"
+        },
+        "locator": {
+          "title": "Locator",
+          "type": "string"
+        },
+        "meta": {
+          "additionalProperties": true,
+          "title": "Meta",
+          "type": "object"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "text",
+        "locator",
+        "kind"
+      ],
+      "title": "SourceUnit",
+      "type": "object"
+    },
+    "StageResult": {
+      "properties": {
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error"
+        },
+        "finished_at": {
+          "format": "date-time",
+          "title": "Finished At",
+          "type": "string"
+        },
+        "iteration": {
+          "title": "Iteration",
+          "type": "integer"
+        },
+        "ok": {
+          "title": "Ok",
+          "type": "boolean"
+        },
+        "output": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Output"
+        },
+        "stage": {
+          "title": "Stage",
+          "type": "string"
+        },
+        "started_at": {
+          "format": "date-time",
+          "title": "Started At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "stage",
+        "iteration",
+        "ok",
+        "started_at",
+        "finished_at"
+      ],
+      "title": "StageResult",
+      "type": "object"
+    },
+    "Substance": {
+      "enum": [
+        "sufficient",
+        "thin",
+        "insufficient"
+      ],
+      "title": "Substance",
+      "type": "string"
+    },
+    "Usage": {
+      "properties": {
+        "by_role": {
+          "additionalProperties": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object"
+          },
+          "title": "By Role",
+          "type": "object"
+        },
+        "calls": {
+          "title": "Calls",
+          "type": "integer"
+        },
+        "tokens_in": {
+          "title": "Tokens In",
+          "type": "integer"
+        },
+        "tokens_out": {
+          "title": "Tokens Out",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "calls",
+        "tokens_in",
+        "tokens_out",
+        "by_role"
+      ],
+      "title": "Usage",
+      "type": "object"
+    },
+    "Verdict": {
+      "enum": [
+        "pass",
+        "fail",
+        "not_applicable",
+        "attested"
+      ],
+      "title": "Verdict",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "config_hash": {
+      "title": "Config Hash",
+      "type": "string"
+    },
+    "corelata_version": {
+      "title": "Corelata Version",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "digests": {
+      "items": {
+        "$ref": "#/$defs/Digest"
+      },
+      "title": "Digests",
+      "type": "array"
+    },
+    "drafts": {
+      "items": {
+        "$ref": "#/$defs/DraftRecord"
+      },
+      "title": "Drafts",
+      "type": "array"
+    },
+    "error": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Error"
+    },
+    "extra_guidance": {
+      "default": "",
+      "title": "Extra Guidance",
+      "type": "string"
+    },
+    "findings": {
+      "items": {
+        "$ref": "#/$defs/Finding"
+      },
+      "title": "Findings",
+      "type": "array"
+    },
+    "gate": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/GateVerdict"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "iterations": {
+      "default": 0,
+      "title": "Iterations",
+      "type": "integer"
+    },
+    "llm_calls": {
+      "items": {
+        "$ref": "#/$defs/LLMCallRecord"
+      },
+      "title": "Llm Calls",
+      "type": "array"
+    },
+    "max_iterations": {
+      "title": "Max Iterations",
+      "type": "integer"
+    },
+    "pack_hash": {
+      "title": "Pack Hash",
+      "type": "string"
+    },
+    "pack_name": {
+      "title": "Pack Name",
+      "type": "string"
+    },
+    "pack_snapshot": {
+      "additionalProperties": true,
+      "title": "Pack Snapshot",
+      "type": "object"
+    },
+    "parent_run_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Parent Run Id"
+    },
+    "prior_reports": {
+      "items": {
+        "$ref": "#/$defs/PriorReport"
+      },
+      "title": "Prior Reports",
+      "type": "array"
+    },
+    "profile": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Profile"
+    },
+    "prompt_versions": {
+      "additionalProperties": {
+        "type": "integer"
+      },
+      "title": "Prompt Versions",
+      "type": "object"
+    },
+    "report": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Report"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "run_id": {
+      "title": "Run Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "1",
+      "default": "1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "sources": {
+      "items": {
+        "$ref": "#/$defs/Source"
+      },
+      "title": "Sources",
+      "type": "array"
+    },
+    "stages": {
+      "items": {
+        "$ref": "#/$defs/StageResult"
+      },
+      "title": "Stages",
+      "type": "array"
+    },
+    "state": {
+      "$ref": "#/$defs/RunState",
+      "default": "created"
+    },
+    "status": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ReportStatus"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "usage": {
+      "$ref": "#/$defs/Usage"
+    },
+    "value_statement": {
+      "title": "Value Statement",
+      "type": "string"
+    }
+  },
+  "required": [
+    "corelata_version",
+    "run_id",
+    "created_at",
+    "value_statement",
+    "pack_name",
+    "pack_hash",
+    "pack_snapshot",
+    "config_hash",
+    "prompt_versions",
+    "max_iterations",
+    "usage"
+  ],
+  "title": "RunRecord",
+  "type": "object"
+}

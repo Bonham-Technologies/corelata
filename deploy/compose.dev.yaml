@@ -1,0 +1,16 @@
+# Development and test database only; the deployable compose file arrives in M5.
+name: corelata-dev
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: corelata
+      POSTGRES_PASSWORD: corelata
+      POSTGRES_DB: corelata
+    ports: ["127.0.0.1:55433:5432"]
+    tmpfs: [/var/lib/postgresql/data]  # throwaway: tests create and drop their own databases
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U corelata"]
+      interval: 2s
+      timeout: 3s
+      retries: 30

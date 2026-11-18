@@ -1,0 +1,14 @@
+id: icd203.tc.3
+title: Properly distinguishes between underlying intelligence information and analysts' assumptions and judgments
+source: "ICD 203 (2015) D.6.e(3)"
+text: >
+  Analytic products should clearly distinguish statements that convey underlying intelligence
+  information used in analysis from statements that convey assumptions or judgments.
+  Assumptions should be explicitly stated and their implications for the analysis explained.
+severity: major
+checkability: verifiable
+applies_to: [writer, auditor]
+evidence_required: >
+  Each claim's kind (fact, judgment, assumption) matches its wording; every assumption is
+  stated as such in the analysis and its implication is given.
+route_to: writer

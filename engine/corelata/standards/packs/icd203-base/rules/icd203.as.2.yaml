@@ -1,0 +1,12 @@
+id: icd203.as.2
+title: Independent of political consideration
+source: "ICD 203 (2015) D.6.b"
+text: >
+  Analytic assessments must not be distorted by, nor shaped for, advocacy of a particular
+  audience, agenda, or policy viewpoint.
+severity: major
+checkability: advisory
+applies_to: [writer, auditor]
+evidence_required: >
+  Note any passage that advocates a policy outcome rather than assessing a situation.
+route_to: writer

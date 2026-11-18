@@ -1,0 +1,14 @@
+id: icd203.tc.6
+title: Uses clear and logical argumentation
+source: "ICD 203 (2015) D.6.e(6)"
+text: >
+  Analytic products should present a clear main analytic message up front. Products should
+  provide the key reasons for the main analytic message and show how the evidence supports
+  the judgments. Language and syntax should convey meaning unambiguously.
+severity: major
+checkability: verifiable
+applies_to: [writer, conveyor, auditor]
+evidence_required: >
+  Key judgments come first; each analysis paragraph ties to the claims it supports; no
+  paragraph contradicts a key judgment; sentences are unambiguous.
+route_to: conveyor

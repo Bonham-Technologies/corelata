@@ -1,0 +1,19 @@
+name: quotes-fabricated-fixed-one-loop
+description: With evidence_quotes required, the writer takes the statement's quotation as the key judgment claim's quote, words no unit contains; the engine fails icd203.tc.8 and icd206.src.2 ("quote not found in src1/u1") and the writer quotes the unit in one revision.
+statement: Varna's harbour master said the port "will close to all tankers by March"
+pipeline:
+  evidence_quotes: required
+sources:
+  - id: src1
+    paragraphs:
+      - The Varna harbour master announced that tanker berths will be restricted from March.
+      - The restriction follows an inspection of the port's oil terminal.
+      - Container traffic through the port is not affected.
+expect:
+  state: completed
+  status: clean
+  iterations: 1
+  failing_rules:
+    0: [icd203.tc.8, icd206.src.2]
+    1: []
+  open_findings: []

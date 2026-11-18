@@ -1,0 +1,86 @@
+{
+  "$defs": {
+    "ProfileSummary": {
+      "properties": {
+        "draft": {
+          "title": "Draft",
+          "type": "boolean"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "tone": {
+          "title": "Tone",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "draft",
+        "tone"
+      ],
+      "title": "ProfileSummary",
+      "type": "object"
+    }
+  },
+  "description": "One entry of `GET /api/packs` (spec §10.1): a pack directory as found, built-in packs\nincluded. `name` is the directory name, which is what `load_pack` takes.",
+  "properties": {
+    "builtin": {
+      "title": "Builtin",
+      "type": "boolean"
+    },
+    "description": {
+      "title": "Description",
+      "type": "string"
+    },
+    "error": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Error"
+    },
+    "extends": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Extends"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "profiles": {
+      "items": {
+        "$ref": "#/$defs/ProfileSummary"
+      },
+      "title": "Profiles",
+      "type": "array"
+    },
+    "version": {
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "version",
+    "extends",
+    "description",
+    "builtin",
+    "profiles"
+  ],
+  "title": "PackSummary",
+  "type": "object"
+}

@@ -1,0 +1,13 @@
+section_order:
+  - title
+  - handling_marking
+  - key_judgments
+  - scope_note
+  - sources
+  - analysis
+  - alternatives
+  - gaps_and_indicators
+key_judgments: { min: 1, max: 5 }
+analysis_max_words: 1200
+alternatives_required_unless_all_high: true
+gaps_required: true
