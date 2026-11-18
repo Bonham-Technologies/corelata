@@ -198,6 +198,28 @@ jobs:
           -W "ignore:Using \`httpx\` with \`starlette.testclient\` is deprecated:starlette.exceptions.StarletteDeprecationWarning"
         working-directory: engine
       - run: uv run --no-project --with-requirements deploy/hosted/modal/requirements.txt python deploy/hosted/modal/check_app.py
+  site:
+    # The public site (site/, CRL-81): links, page metadata, JSON-LD, CSP, vercel.json headers
+    # and axe at 1280 and 360 px (site/README.md § Check). It borrows Playwright and axe from web/.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          package_json_file: web/package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+        working-directory: web
+      - run: pnpm exec playwright install --with-deps chromium
+        working-directory: web
+      - run: make site-check
   airgap:
     # Pull requests only: a push to main is a merged pull request that already passed, and the
     # release workflow runs the same test again before it publishes a bundle.
@@ -219,7 +241,7 @@ jobs:
     # A fork's pull request never runs on the self-hosted runner (CRL-105).
     runs-on: ${{ !github.event.pull_request.head.repo.fork && vars.RUNS_ON && fromJSON(vars.RUNS_ON) || 'ubuntu-24.04' }}
     timeout-minutes: 5
-    needs: [engine, api, web, e2e, deploy, hosted-web, hosted-modal, airgap]
+    needs: [engine, api, web, e2e, deploy, hosted-web, hosted-modal, site, airgap]
     if: always()
     concurrency:
       group: ci-status-${{ github.event.pull_request.number || github.ref }}
