@@ -17,6 +17,7 @@ import { fileURLToPath } from "node:url";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, "public");
 const ORIGIN = "https://corelata.com";
+const REPO_URL = "https://github.com/Bonham-Technologies/corelata";
 const MAX_BYTES = 6 * 1024 * 1024;
 // Product exports copied verbatim from a run: link-checked and audited, but they are not site
 // pages, so they carry no description or canonical of their own.
@@ -318,7 +319,9 @@ async function checkPage(browser, base, file) {
         const target = new URL(url, base + pathname);
         if (target.origin !== new URL(base).origin) {
           if (what !== "A") problems.push(`${what} loads from another origin: ${url}`);
-          if (target.hostname === "github.com") problems.push(`links to GitHub: ${url}`);
+          // The only GitHub link the site may carry is the public repository itself.
+          if (target.hostname === "github.com" && target.href.replace(/\/$/, "") !== REPO_URL)
+            problems.push(`links to GitHub other than the repository: ${url}`);
           continue;
         }
         const targetFile = fileFor(target.pathname);

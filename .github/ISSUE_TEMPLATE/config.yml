@@ -1,6 +1,6 @@
 blank_issues_enabled: true
 contact_links:
-  # When the repo goes public and Discussions is on, add above the next entry:
+  # If Discussions is turned on, add above the next entry:
   # - name: Questions & ideas
   #   url: https://github.com/Bonham-Technologies/corelata/discussions
   #   about: Ask questions or float ideas in Discussions before opening an issue.
