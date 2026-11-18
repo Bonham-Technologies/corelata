@@ -18,6 +18,8 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy.exc import InterfaceError, OperationalError
 
+from corelata_api.headers import SECURITY_HEADERS
+
 log = logging.getLogger("corelata.api")
 
 Handler = Callable[[Request, Exception], Awaitable[JSONResponse]]
@@ -91,7 +93,10 @@ async def _coglossa_failed(request: Request, exc: Exception) -> JSONResponse:
 
 async def _internal(request: Request, exc: Exception) -> JSONResponse:
     log.error("internal error on %s %s", request.method, request.url.path, exc_info=exc)
-    return _response(500, "internal error")
+    # sent by ServerErrorMiddleware, outside SecurityHeadersMiddleware (CRL-68)
+    response = _response(500, "internal error")
+    response.headers.update(SECURITY_HEADERS)
+    return response
 
 
 def install_error_handlers(app: FastAPI) -> None:

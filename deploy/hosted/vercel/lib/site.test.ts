@@ -15,15 +15,30 @@ describe("vercel.json", () => {
     headers: { source: string; headers: { key: string; value: string }[] }[];
   };
 
-  it("sends the operator guide's sample Content-Security-Policy on every path, word for word", () => {
+  it("sends the operator guide's sample Content-Security-Policy on every page, word for word", () => {
     // The guide's nginx line, which api/tests/test_csp_proxy.py pins for the e2e proxy too.
     const guide = read(join(REPO, "docs", "operator-guide.md"));
     const sample = /add_header Content-Security-Policy "([^"]+)" always;/.exec(guide)?.[1];
     expect(sample).toBeTruthy();
-    const everyPath = config.headers.filter((h) => h.source === "/(.*)");
-    expect(everyPath).toHaveLength(1);
-    const policies = everyPath[0].headers.filter((h) => h.key === "Content-Security-Policy");
+    // every path but the API's, whose HTML reports carry their own sandbox policy (CRL-68)
+    const pages = config.headers.filter((h) => h.source === "/((?!api/).*)");
+    expect(pages).toHaveLength(1);
+    const policies = pages[0].headers.filter((h) => h.key === "Content-Security-Policy");
     expect(policies.map((h) => h.value)).toEqual([sample]);
+    const keys = config.headers.flatMap((h) => h.headers.map((x) => [h.source, x.key]));
+    expect(keys.filter(([, key]) => key === "Content-Security-Policy")).toEqual([
+      ["/((?!api/).*)", "Content-Security-Policy"],
+    ]);
+  });
+
+  it("adds the defence-in-depth headers the API sends, and turns off powerful features (CRL-68)", () => {
+    const everyPath = config.headers.find((h) => h.source === "/(.*)");
+    const byKey = Object.fromEntries((everyPath?.headers ?? []).map((h) => [h.key, h.value]));
+    expect(byKey["X-Content-Type-Options"]).toBe("nosniff");
+    expect(byKey["Referrer-Policy"]).toBe("same-origin");
+    for (const feature of ["camera", "microphone", "geolocation", "payment", "usb"]) {
+      expect(byKey["Permissions-Policy"]).toContain(`${feature}=()`);
+    }
   });
 });
 

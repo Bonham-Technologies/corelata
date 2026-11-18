@@ -18,6 +18,7 @@ from docx import Document
 from pydantic import TypeAdapter
 from sqlalchemy import event
 
+from corelata_api.headers import REPORT_CSP
 from corelata_api.routes import reports
 from tests.conftest import (
     STATEMENT,
@@ -85,6 +86,34 @@ async def test_stored_report_bytes_match_the_export_row(api):
     assert default.headers["content-type"] == "text/html; charset=utf-8"
     docx = await api.client.get(f"/api/runs/{run['run_id']}/report", params={"format": "docx"})
     assert Document(io.BytesIO(docx.content)).paragraphs
+
+
+async def test_html_reports_and_exports_carry_a_sandbox_policy(api):
+    """CRL-68: an HTML report opened at the app's origin runs sandboxed, with no script and
+    nothing loaded but its inline stylesheet; the other formats carry no policy of their own."""
+    run = await _completed(api)
+    base = f"/api/runs/{run['run_id']}"
+    for path, params in (
+        (f"{base}/report", {"format": "html"}),
+        (f"{base}/report", {"format": "html", "with_claim_ids": "true"}),
+        (f"{base}/report", {"format": "html", "download": "true"}),
+        (f"{base}/exports/report.html", {}),
+    ):
+        response = await api.client.get(path, params=params)
+        assert response.status_code == 200, (path, params)
+        assert response.headers["content-security-policy"] == REPORT_CSP, (path, params)
+    # the policy the operator guide states, word for word
+    assert REPORT_CSP == (
+        "sandbox; default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'"
+    )
+    for path, params in (
+        (f"{base}/report", {"format": "md"}),
+        (f"{base}/report", {"format": "json"}),
+        (f"{base}/exports/trace.json", {}),
+    ):
+        response = await api.client.get(path, params=params)
+        assert "content-security-policy" not in response.headers, (path, params)
+        assert response.headers["x-content-type-options"] == "nosniff"
 
 
 async def test_claim_ids_re_render(api):
