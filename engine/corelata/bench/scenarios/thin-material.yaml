@@ -1,0 +1,15 @@
+name: thin-material
+description: One supporting paragraph passes the gate as thin; the writer must carry the suggested scope.
+statement: Varna port capacity expansion matters to shippers
+sources:
+  - id: src1
+    paragraphs:
+      - The port of Varna expanded its container capacity in 2025.
+expect:
+  state: completed
+  status: clean
+  iterations: 0
+  gate_supported: true
+  substance: thin
+  failing_rules:
+    0: []

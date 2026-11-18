@@ -1,0 +1,13 @@
+name: gate-rejected
+description: Sources that do not address the statement end the run at the gate with no report.
+statement: Lunar helium mining
+sources:
+  - id: src1
+    paragraphs:
+      - The port of Varna expanded its container capacity in 2025.
+      - Capacity expansion was financed by a state bank.
+expect:
+  state: gate_rejected
+  gate_supported: false
+  substance: insufficient
+  iterations: 0

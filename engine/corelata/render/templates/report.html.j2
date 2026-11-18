@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ report.title }}</title>
+<style>{{ css }}</style>
+</head>
+<body class="corelata-report">
+{% macro ids(claim_ids) -%}
+{% if with_claim_ids and claim_ids %}<sup class="claim-ids">{{ claim_ids | join(", ") }}</sup>{% endif %}
+{%- endmacro %}
+<article>
+{% set ns = namespace(open=false) %}
+{% for b in blocks %}
+{% if b.kind == "marking" %}
+{% if ns.open %}
+</section>
+{% set ns.open = false %}
+{% endif %}
+{% if loop.last %}
+<p class="marking bottom">{{ b.text }}</p>
+{% else %}
+<p class="marking">{{ b.text }}</p>
+{% endif %}
+{% elif b.kind == "title" %}
+<h1>{{ b.text }}</h1>
+{% elif b.kind == "heading" %}
+{% if ns.open %}
+</section>
+{% endif %}
+{% set ns.open = true %}
+{% if b.text in appendix_titles %}
+<section class="appendix">
+{% else %}
+<section>
+{% endif %}
+<h2>{{ b.label }}</h2>
+{% elif b.kind == "para" %}
+<p data-claim-ids="{{ b.claim_ids | join(' ') }}">{{ b.text }}{{ ids(b.claim_ids) }}</p>
+{% elif b.kind == "bullets" %}
+<ul class="{{ b.role }}">
+{% for it in b.items %}
+<li data-claim-ids="{{ it.claim_ids | join(' ') }}">{% if it.lead %}<strong>{{ it.lead }}</strong> {% endif %}{{ it.text }}{{ ids(it.claim_ids) }}</li>
+{% endfor %}
+</ul>
+{% endif %}
+{% endfor %}
+</article>
+<footer class="meta">Corelata run {{ meta.run_id or "-" }} · pack {{ meta.pack_name }} {{ meta.pack_hash }}{% if meta.profile %} · profile {{ meta.profile }}{% endif %} · status {{ meta.status.value if meta.status else "unknown" }} · iteration {{ meta.iteration }}</footer>
+</body>
+</html>

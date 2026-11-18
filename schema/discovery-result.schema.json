@@ -1,0 +1,49 @@
+{
+  "$defs": {
+    "CandidateStatement": {
+      "properties": {
+        "audience": {
+          "title": "Audience",
+          "type": "string"
+        },
+        "confidence_note": {
+          "default": "",
+          "title": "Confidence Note",
+          "type": "string"
+        },
+        "evidence": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text",
+        "audience"
+      ],
+      "title": "CandidateStatement",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "candidates": {
+      "items": {
+        "$ref": "#/$defs/CandidateStatement"
+      },
+      "maxItems": 5,
+      "title": "Candidates",
+      "type": "array"
+    }
+  },
+  "required": [
+    "candidates"
+  ],
+  "title": "DiscoveryResult",
+  "type": "object"
+}

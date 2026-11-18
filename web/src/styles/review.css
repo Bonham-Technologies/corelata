@@ -1,0 +1,163 @@
+/* Review (spec §5.4): the header row, the banner, the report frame and the tabs beside it. */
+.review {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.review-header h1 {
+  margin: 0;
+}
+
+.review-header .statement-shown,
+.review-header .revision-of {
+  margin-top: var(--space-2);
+}
+
+.review-header .revision-of .statement-shown {
+  margin-top: 0;
+}
+
+.pill {
+  display: inline-flex;
+  padding: var(--space-1) var(--space-3);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius-2);
+  background: var(--surface-2);
+}
+
+.banner {
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius-2);
+  background: var(--surface-2);
+}
+
+.banner p {
+  margin: 0;
+}
+
+.review-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--review-side-width);
+  gap: var(--space-4);
+  align-items: start;
+}
+
+/* The report keeps its own stylesheet inside the frame; the app's surface shows behind it, in
+   either theme (R-M18-2). */
+.report-frame {
+  width: 100%;
+  height: calc(100vh - var(--topbar-height) - 14rem);
+  min-height: var(--frame-min-height);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius-2);
+  background: var(--surface);
+}
+
+.side-pane {
+  min-width: 0;
+}
+
+.tabs {
+  display: flex;
+  gap: var(--space-1);
+  border-bottom: var(--border-width) solid var(--border);
+}
+
+.tabs [role="tab"] {
+  border: 0;
+  border-bottom: 0.1875rem solid transparent;
+  border-radius: 0;
+  background: transparent;
+}
+
+.tabs [role="tab"][aria-selected="true"] {
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+
+.tabpanel {
+  padding: var(--space-3) 0;
+}
+
+.claims,
+.rules {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.claims .claim {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  text-align: start;
+  border: var(--border-width) solid transparent;
+  background: transparent;
+}
+
+.claims .claim:hover {
+  background: var(--surface-2);
+}
+
+.claims .claim[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--selected);
+}
+
+.claim-id {
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.claim-meta {
+  font-size: var(--text-sm);
+}
+
+.evidence blockquote {
+  margin: var(--space-1) 0 var(--space-3);
+  padding-inline-start: var(--space-3);
+  border-inline-start: 0.1875rem solid var(--border);
+}
+
+/* the words the selected claim quotes from this unit (CRL-93) */
+.evidence mark {
+  background: var(--warn-tint-strong);
+  color: var(--text);
+}
+
+.rule {
+  padding: var(--space-3) 0;
+  border-bottom: var(--border-width) solid var(--border);
+}
+
+.rule p {
+  margin: 0 0 var(--space-1);
+}
+
+.verdict-fail {
+  color: var(--danger);
+}
+
+.verdict-pass {
+  color: var(--ok);
+}
+
+.verdict-attested,
+.verdict-not_applicable {
+  color: var(--text-muted);
+}
+
+.process table,
+.sources-tab table {
+  font-size: var(--text-sm);
+}
+
+@media (max-width: 1099px) {
+  .review-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

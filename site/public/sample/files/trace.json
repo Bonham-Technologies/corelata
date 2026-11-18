@@ -1,0 +1,1634 @@
+{
+  "schema_version": "1",
+  "corelata_version": "0.1.8",
+  "run_id": "6756ba82-e4a7-4613-a204-a51852bb33c1",
+  "created_at": "2026-11-06T11:37:42.892153Z",
+  "state": "completed",
+  "status": "clean",
+  "value_statement": "The port of Varna's 2025 container expansion, financed by a state bank, is already raising traffic; shippers and the port authority should plan for higher volumes.",
+  "profile": null,
+  "parent_run_id": null,
+  "extra_guidance": "",
+  "pack_name": "icd203-base",
+  "pack_hash": "cf6fc9be4160e0e0",
+  "pack_snapshot": {
+    "name": "icd203-base",
+    "tone": "",
+    "rules": [
+      {
+        "id": "icd203.as.1",
+        "text": "Analysts must perform their functions with objectivity and with awareness of their own assumptions and reasoning. They must employ reasoning techniques and practical mechanisms that reveal and mitigate bias.\n",
+        "title": "Objective",
+        "source": "ICD 203 (2015) D.6.a",
+        "route_to": "writer",
+        "severity": "major",
+        "applies_to": [
+          "writer",
+          "conveyor",
+          "auditor"
+        ],
+        "checkability": "advisory",
+        "evidence_required": "Note whether the draft states its assumptions and reasoning explicitly and avoids loaded or one-sided language.\n"
+      },
+      {
+        "id": "icd203.as.2",
+        "text": "Analytic assessments must not be distorted by, nor shaped for, advocacy of a particular audience, agenda, or policy viewpoint.\n",
+        "title": "Independent of political consideration",
+        "source": "ICD 203 (2015) D.6.b",
+        "route_to": "writer",
+        "severity": "major",
+        "applies_to": [
+          "writer",
+          "auditor"
+        ],
+        "checkability": "advisory",
+        "evidence_required": "Note any passage that advocates a policy outcome rather than assessing a situation.\n"
+      },
+      {
+        "id": "icd203.as.3",
+        "text": "Analysis must be disseminated in time to be actionable by customers.\n",
+        "title": "Timely",
+        "source": "ICD 203 (2015) D.6.c",
+        "route_to": "conveyor",
+        "severity": "minor",
+        "applies_to": [
+          "auditor"
+        ],
+        "checkability": "advisory",
+        "evidence_required": "Timeliness cannot be judged from the text alone; attest and note the date range of the sources if the draft states one.\n"
+      },
+      {
+        "id": "icd203.as.4",
+        "text": "Analysis should be informed by all relevant information available. Analytic elements should identify and address critical information gaps.\n",
+        "title": "Based on all available sources of intelligence information",
+        "source": "ICD 203 (2015) D.6.d",
+        "route_to": "writer",
+        "severity": "major",
+        "applies_to": [
+          "writer",
+          "auditor"
+        ],
+        "checkability": "verifiable",
+        "evidence_required": "Every provided source is either cited by at least one claim or explicitly set aside in the scope note with a reason, and the gaps section names the information that is missing.\n"
+      },
+      {
+        "id": "icd203.as.5",
+        "text": "Analytic products must implement and exhibit the nine analytic tradecraft standards.\n",
+        "title": "Implements and exhibits analytic tradecraft standards",
+        "source": "ICD 203 (2015) D.6.e",
+        "route_to": "writer",
+        "severity": "major",
+        "applies_to": [
+          "auditor"
+        ],
+        "checkability": "verifiable",
+        "evidence_required": "Pass when every verifiable icd203.tc.* rule passes; otherwise fail and list the failing tradecraft standards.\n"
+      },
+      {
+        "id": "icd203.tc.1",
+        "text": "Analytic products should identify underlying sources and methodologies on which judgments are based, and use source descriptors to describe factors affecting source quality and credibility, such as accuracy and completeness, possible denial and deception, age and continued currency of information, and technical elements of collection.\n",
+        "title": "Properly describes quality and credibility of underlying sources, data, and methodologies",
+        "source": "ICD 203 (2015) D.6.e(1)",
+        "route_to": "writer",
+        "severity": "major",
+        "applies_to": [
+          "writer",
+          "auditor"
+        ],
+        "checkability": "verifiable",
+        "evidence_required": "The sources section has one entry per source with a descriptor from the lexicon and a reliability note that addresses at least currency and completeness.\n"
+      },
+      {
+        "id": "icd203.tc.2",
+        "text": "Analytic products should indicate and explain the basis for the uncertainties associated with major analytic judgments, specifically the likelihood of occurrence of an event or development, and the analyst's confidence in the basis for this judgment. Products should use the standard terms of likelihood and should not combine a confidence level and a degree of likelihood in the same sentence.\n",
+        "title": "Properly expresses and explains uncertainties associated with major analytic judgments",
+        "source": "ICD 203 (2015) D.6.e(2)",
+        "route_to": "writer",
+        "severity": "blocking",
+        "applies_to": [
+          "writer",
+          "conveyor",
+          "auditor"
+        ],
+        "checkability": "verifiable",
+        "evidence_required": "Every key judgment carries a confidence level; every judgment claim uses a likelihood term from the lexicon and no other probability wording; the basis for uncertainty is stated.\n"
+      },
+      {
+        "id": "icd203.tc.3",
+        "text": "Analytic products should clearly distinguish statements that convey underlying intelligence information used in analysis from statements that convey assumptions or judgments. Assumptions should be explicitly stated and their implications for the analysis explained.\n",
+        "title": "Properly distinguishes between underlying intelligence information and analysts' assumptions and judgments",
+        "source": "ICD 203 (2015) D.6.e(3)",
+        "route_to": "writer",
+        "severity": "major",
+        "applies_to": [
+          "writer",
+          "auditor"
+        ],
+        "checkability": "verifiable",
+        "evidence_required": "Each claim's kind (fact, judgment, assumption) matches its wording; every assumption is stated as such in the analysis and its implication is given.\n"
+      },
+      {
+        "id": "icd203.tc.4",
+        "text": "Analysis of alternatives is the systematic evaluation of differing hypotheses to explain events or phenomena, explore near-term outcomes, and imagine possible futures. Analytic products should identify and assess plausible alternative hypotheses, particularly when major judgments carry significant uncertainty or when a hypothesis would have major consequences if it proved true.\n",
+        "title": "Incorporates analysis of alternatives",
+        "source": "ICD 203 (2015) D.6.e(4)",
+        "route_to": "writer",
+        "severity": "major",
+        "applies_to": [
+          "writer",
+          "auditor"
+        ],
+        "checkability": "verifiable",
+        "evidence_required": "At least one alternative hypothesis is stated and assessed whenever any key judgment is below high confidence; each alternative says why it is less likely than the judgment.\n"
+      },
+      {
+        "id": "icd203.tc.5",
+        "text": "Analytic products should provide information and insight on issues relevant to the customers and address the implications of the information and analysis they provide.\n",
+        "title": "Demonstrates customer relevance and addresses implications",
+        "source": "ICD 203 (2015) D.6.e(5)",
+        "route_to": "conveyor",
+        "severity": "major",
+        "applies_to": [
+          "writer",
+          "conveyor",
+          "auditor"
+        ],
+        "checkability": "verifiable",
+        "evidence_required": "The key judgments answer the value statement the analyst supplied, name the audience it serves, and state what the judgments imply for that audience.\n"
+      },
+      {
+        "id": "icd203.tc.6",
+        "text": "Analytic products should present a clear main analytic message up front. Products should provide the key reasons for the main analytic message and show how the evidence supports the judgments. Language and syntax should convey meaning unambiguously.\n",
+        "title": "Uses clear and logical argumentation",
+        "source": "ICD 203 (2015) D.6.e(6)",
+        "route_to": "conveyor",
+        "severity": "major",
+        "applies_to": [
+          "writer",
+          "conveyor",
+          "auditor"
+        ],
+        "checkability": "verifiable",
+        "evidence_required": "Key judgments come first; each analysis paragraph ties to the claims it supports; no paragraph contradicts a key judgment; sentences are unambiguous.\n"
+      },
+      {
+        "id": "icd203.tc.7",
+        "text": "Analytic products should state how their major judgments on a topic are consistent with or represent a change from those in previously published analysis, or represent initial coverage of a topic.\n",
+        "title": "Explains change to or consistency of analytic judgments",
+        "source": "ICD 203 (2015) D.6.e(7)",
+        "route_to": "writer",
+        "severity": "minor",
+        "applies_to": [
+          "writer",
+          "auditor"
+        ],
+        "checkability": "advisory",
+        "evidence_required": "Corelata v1 has no memory of prior reports; attest, and note whether the scope note says this is initial coverage.\n"
+      },
+      {
+        "id": "icd203.tc.8",
+        "text": "Analytic products should apply expertise and logic to make the most accurate judgments and assessments possible, based on the information available and known information gaps. Judgments should not be overstated or understated relative to the evidence.\n",
+        "title": "Makes accurate judgments and assessments",
+        "source": "ICD 203 (2015) D.6.e(8)",
+        "route_to": "writer",
+        "severity": "blocking",
+        "applies_to": [
+          "writer",
+          "auditor"
+        ],
+        "checkability": "verifiable",
+        "evidence_required": "Every claim cites at least one source unit whose text actually supports it; no judgment claims more than its cited units allow. Cite the claim ids and unit refs you checked.\n"
+      },
+      {
+        "id": "icd203.tc.9",
+        "text": "Analytic products should incorporate visual information to clarify an analytic message and to complement or enhance the presentation of data and analysis.\n",
+        "title": "Incorporates effective visual information where appropriate",
+        "source": "ICD 203 (2015) D.6.e(9)",
+        "route_to": "conveyor",
+        "severity": "minor",
+        "applies_to": [
+          "auditor"
+        ],
+        "checkability": "advisory",
+        "evidence_required": "Corelata v1 generates no visuals; attest. A profile may make this verifiable once a deployment renders charts or maps.\n"
+      },
+      {
+        "id": "icd206.src.1",
+        "text": "Analytic products shall include a source summary statement that characterises the body of sourcing used, its strengths and weaknesses, and how it supports the key judgments.\n",
+        "title": "Source summary statement present",
+        "source": "ICD 206 (2015) D.2",
+        "route_to": "writer",
+        "severity": "major",
+        "applies_to": [
+          "writer",
+          "auditor"
+        ],
+        "checkability": "verifiable",
+        "evidence_required": "The scope note or sources section contains a summary of the sourcing as a whole, not only per-source entries.\n"
+      },
+      {
+        "id": "icd206.src.2",
+        "text": "Analytic judgments shall be supported by source reference citations that allow the reader to identify the specific reporting behind each judgment.\n",
+        "title": "Source reference citations for key judgments",
+        "source": "ICD 206 (2015) D.3",
+        "route_to": "writer",
+        "severity": "blocking",
+        "applies_to": [
+          "writer",
+          "auditor"
+        ],
+        "checkability": "verifiable",
+        "evidence_required": "Every key judgment lists claim ids, and every one of those claims cites source units.\n"
+      },
+      {
+        "id": "icd206.src.3",
+        "text": "Source descriptors shall use consistent, approved terminology so that readers across products understand source type and reliability the same way.\n",
+        "title": "Source descriptors from the approved lexicon",
+        "source": "ICD 206 (2015) D.4",
+        "route_to": "conveyor",
+        "severity": "minor",
+        "applies_to": [
+          "writer",
+          "conveyor",
+          "auditor"
+        ],
+        "checkability": "verifiable",
+        "evidence_required": "Every entry in the sources section uses a descriptor from the lexicon's source_descriptors.\n"
+      }
+    ],
+    "format": {
+      "heading_style": "plain",
+      "docx_reference": null
+    },
+    "lexicon": {
+      "likelihood": [
+        {
+          "low": 1,
+          "high": 5,
+          "term": "almost no chance"
+        },
+        {
+          "low": 5,
+          "high": 20,
+          "term": "very unlikely"
+        },
+        {
+          "low": 20,
+          "high": 45,
+          "term": "unlikely"
+        },
+        {
+          "low": 45,
+          "high": 55,
+          "term": "roughly even chance"
+        },
+        {
+          "low": 55,
+          "high": 80,
+          "term": "likely"
+        },
+        {
+          "low": 80,
+          "high": 95,
+          "term": "very likely"
+        },
+        {
+          "low": 95,
+          "high": 99,
+          "term": "almost certain"
+        }
+      ],
+      "handling_markings": [
+        "UNCLASSIFIED"
+      ],
+      "source_descriptors": [
+        "open-source report",
+        "open-source media article",
+        "official government publication",
+        "commercial database record",
+        "social media post",
+        "translated document",
+        "technical data extract",
+        "analyst-provided material"
+      ],
+      "confidence_definitions": {
+        "low": "Judgments rest on fragmentary, uncorroborated or questionable information, or on significant assumptions; alternatives are as plausible as the judgment.\n",
+        "high": "Judgments rest on high-quality, corroborated information from multiple independent sources; the reasoning admits few plausible alternatives.\n",
+        "moderate": "Judgments rest on credible but incompletely corroborated information, or on sound reasoning from limited information; alternative explanations remain plausible.\n"
+      }
+    },
+    "profile": null,
+    "version": "1.0.0",
+    "template": {
+      "gaps_required": true,
+      "key_judgments": {
+        "max": 5,
+        "min": 1
+      },
+      "section_order": [
+        "title",
+        "handling_marking",
+        "key_judgments",
+        "scope_note",
+        "sources",
+        "analysis",
+        "alternatives",
+        "gaps_and_indicators"
+      ],
+      "analysis_max_words": 1200,
+      "alternatives_required_unless_all_high": true
+    }
+  },
+  "config_hash": "1151d4334ee7e5d0",
+  "prompt_versions": {
+    "gate": 1,
+    "digest": 1,
+    "writer": 1,
+    "auditor": 2,
+    "conveyor": 1,
+    "discover": 1
+  },
+  "sources": [
+    {
+      "id": "src1",
+      "kind": "file",
+      "name": "varna-port.txt",
+      "format": "txt",
+      "sha256": "6d559cdc9efbf9ab20edb7194f4809803cdf15c7feabec984dbfdc5fe58c31b0",
+      "provenance": {},
+      "units": [
+        {
+          "id": "u1",
+          "text": "The port of Varna expanded its container capacity in 2025.",
+          "locator": "para 1",
+          "kind": "paragraph",
+          "meta": {}
+        },
+        {
+          "id": "u2",
+          "text": "Capacity expansion was financed by a state bank.",
+          "locator": "para 2",
+          "kind": "paragraph",
+          "meta": {}
+        },
+        {
+          "id": "u3",
+          "text": "Container traffic through Varna rose 40 percent.",
+          "locator": "para 3",
+          "kind": "paragraph",
+          "meta": {}
+        }
+      ]
+    },
+    {
+      "id": "src2",
+      "kind": "file",
+      "name": "trade-note.txt",
+      "format": "txt",
+      "sha256": "b1fe2895def603ec414b126da3f2d357f902a1c2326e233dcb42ad861c166841",
+      "provenance": {},
+      "units": [
+        {
+          "id": "u1",
+          "text": "A trade newsletter repeats, without naming a source, that the terminal will reach full capacity early. UNSOURCED",
+          "locator": "para 1",
+          "kind": "paragraph",
+          "meta": {}
+        }
+      ]
+    }
+  ],
+  "digests": [],
+  "gate": {
+    "supported": true,
+    "substance": "sufficient",
+    "reasons": [
+      "7 of 16 key terms appear in the sources."
+    ],
+    "evidence": [
+      "src1/u2",
+      "src1/u1",
+      "src1/u3"
+    ],
+    "suggested_scope": ""
+  },
+  "stages": [
+    {
+      "stage": "ingesting",
+      "iteration": 0,
+      "ok": true,
+      "output": {
+        "digested": []
+      },
+      "error": null,
+      "started_at": "2026-11-06T11:37:42.953244Z",
+      "finished_at": "2026-11-06T11:37:42.953354Z"
+    },
+    {
+      "stage": "gating",
+      "iteration": 0,
+      "ok": true,
+      "output": {
+        "reasons": [
+          "7 of 16 key terms appear in the sources."
+        ],
+        "evidence": [
+          "src1/u2",
+          "src1/u1",
+          "src1/u3"
+        ],
+        "substance": "sufficient",
+        "supported": true,
+        "suggested_scope": ""
+      },
+      "error": null,
+      "started_at": "2026-11-06T11:37:42.968111Z",
+      "finished_at": "2026-11-06T11:37:42.991093Z"
+    },
+    {
+      "stage": "drafting",
+      "iteration": 0,
+      "ok": true,
+      "output": {
+        "title": "Synthetic assessment: The port of Varna's 2025 container expan",
+        "claims": 5,
+        "withheld_units": 0
+      },
+      "error": null,
+      "started_at": "2026-11-06T11:37:43.006844Z",
+      "finished_at": "2026-11-06T11:37:43.016859Z"
+    },
+    {
+      "stage": "conveying",
+      "iteration": 0,
+      "ok": true,
+      "output": {
+        "title": "Conveyed: Synthetic assessment: The port of Varna's 2025 container expan"
+      },
+      "error": null,
+      "started_at": "2026-11-06T11:37:43.027865Z",
+      "finished_at": "2026-11-06T11:37:43.035498Z"
+    },
+    {
+      "stage": "auditing",
+      "iteration": 0,
+      "ok": true,
+      "output": {
+        "open": [
+          "icd203.as.5@0",
+          "icd203.tc.8@0",
+          "icd206.src.2@0"
+        ],
+        "summary": "Synthetic audit."
+      },
+      "error": null,
+      "started_at": "2026-11-06T11:37:43.046128Z",
+      "finished_at": "2026-11-06T11:37:43.054381Z"
+    },
+    {
+      "stage": "drafting",
+      "iteration": 1,
+      "ok": true,
+      "output": {
+        "title": "Synthetic assessment: The port of Varna's 2025 container expan",
+        "claims": 4,
+        "withheld_units": 0
+      },
+      "error": null,
+      "started_at": "2026-11-06T11:37:43.064993Z",
+      "finished_at": "2026-11-06T11:37:43.073466Z"
+    },
+    {
+      "stage": "conveying",
+      "iteration": 1,
+      "ok": true,
+      "output": {
+        "title": "Conveyed: Synthetic assessment: The port of Varna's 2025 container expan"
+      },
+      "error": null,
+      "started_at": "2026-11-06T11:37:43.085082Z",
+      "finished_at": "2026-11-06T11:37:43.092775Z"
+    },
+    {
+      "stage": "auditing",
+      "iteration": 1,
+      "ok": true,
+      "output": {
+        "open": [],
+        "summary": "Synthetic audit."
+      },
+      "error": null,
+      "started_at": "2026-11-06T11:37:43.103886Z",
+      "finished_at": "2026-11-06T11:37:43.111963Z"
+    },
+    {
+      "stage": "rendering",
+      "iteration": 1,
+      "ok": true,
+      "output": {
+        "status": "clean"
+      },
+      "error": null,
+      "started_at": "2026-11-06T11:37:43.122578Z",
+      "finished_at": "2026-11-06T11:37:43.122669Z"
+    }
+  ],
+  "drafts": [
+    {
+      "role": "writer",
+      "iteration": 0,
+      "report": {
+        "title": "Synthetic assessment: The port of Varna's 2025 container expan",
+        "handling_marking": "UNCLASSIFIED",
+        "key_judgments": [
+          {
+            "text": "The port of Varna's 2025 container expansion, financed by a state bank, is already raising traffic; shippers and the port authority should plan for higher volumes.",
+            "confidence": "moderate",
+            "claim_ids": [
+              "c0"
+            ]
+          }
+        ],
+        "scope_note": "Synthetic scope note covering all sources.",
+        "sources": [
+          {
+            "source_id": "src1",
+            "descriptor": "open-source report",
+            "reliability_note": "Synthetic: current and complete."
+          },
+          {
+            "source_id": "src2",
+            "descriptor": "open-source report",
+            "reliability_note": "Synthetic: current and complete."
+          }
+        ],
+        "analysis": [
+          {
+            "heading": "Analysis",
+            "paragraphs": [
+              {
+                "text": "It is likely that The port of Varna's 2025 container expansion, financed by a state bank, is already raising traffic; shippers and the port authority should plan for higher volumes.",
+                "claim_ids": [
+                  "c0"
+                ]
+              },
+              {
+                "text": "Source states: Capacity expansion was financed by a state bank.",
+                "claim_ids": [
+                  "c1"
+                ]
+              },
+              {
+                "text": "Source states: The port of Varna expanded its container capacity in 2025.",
+                "claim_ids": [
+                  "c2"
+                ]
+              },
+              {
+                "text": "Source states: Container traffic through Varna rose 40 percent.",
+                "claim_ids": [
+                  "c3"
+                ]
+              },
+              {
+                "text": "An unsourced assertion.",
+                "claim_ids": [
+                  "c99"
+                ]
+              }
+            ]
+          }
+        ],
+        "alternatives": [
+          {
+            "hypothesis": "The opposite holds.",
+            "assessment": "Less likely.",
+            "claim_ids": []
+          }
+        ],
+        "gaps_and_indicators": [
+          "Synthetic gap."
+        ],
+        "claims": [
+          {
+            "id": "c0",
+            "text": "It is likely that The port of Varna's 2025 container expansion, financed by a state bank, is already raising traffic; shippers and the port authority should plan for higher volumes.",
+            "kind": "judgment",
+            "evidence": [
+              "src1/u2"
+            ],
+            "likelihood_term": "likely"
+          },
+          {
+            "id": "c1",
+            "text": "Source states: Capacity expansion was financed by a state bank.",
+            "kind": "fact",
+            "evidence": [
+              "src1/u2"
+            ],
+            "likelihood_term": null
+          },
+          {
+            "id": "c2",
+            "text": "Source states: The port of Varna expanded its container capacity in 2025.",
+            "kind": "fact",
+            "evidence": [
+              "src1/u1"
+            ],
+            "likelihood_term": null
+          },
+          {
+            "id": "c3",
+            "text": "Source states: Container traffic through Varna rose 40 percent.",
+            "kind": "fact",
+            "evidence": [
+              "src1/u3"
+            ],
+            "likelihood_term": null
+          },
+          {
+            "id": "c99",
+            "text": "An unsourced assertion.",
+            "kind": "fact",
+            "evidence": [],
+            "likelihood_term": null
+          }
+        ]
+      }
+    },
+    {
+      "role": "conveyor",
+      "iteration": 0,
+      "report": {
+        "title": "Conveyed: Synthetic assessment: The port of Varna's 2025 container expan",
+        "handling_marking": "UNCLASSIFIED",
+        "key_judgments": [
+          {
+            "text": "The port of Varna's 2025 container expansion, financed by a state bank, is already raising traffic; shippers and the port authority should plan for higher volumes.",
+            "confidence": "moderate",
+            "claim_ids": [
+              "c0"
+            ]
+          }
+        ],
+        "scope_note": "Synthetic scope note covering all sources.",
+        "sources": [
+          {
+            "source_id": "src1",
+            "descriptor": "open-source report",
+            "reliability_note": "Synthetic: current and complete."
+          },
+          {
+            "source_id": "src2",
+            "descriptor": "open-source report",
+            "reliability_note": "Synthetic: current and complete."
+          }
+        ],
+        "analysis": [
+          {
+            "heading": "Analysis",
+            "paragraphs": [
+              {
+                "text": "It is likely that The port of Varna's 2025 container expansion, financed by a state bank, is already raising traffic; shippers and the port authority should plan for higher volumes.",
+                "claim_ids": [
+                  "c0"
+                ]
+              },
+              {
+                "text": "Source states: Capacity expansion was financed by a state bank.",
+                "claim_ids": [
+                  "c1"
+                ]
+              },
+              {
+                "text": "Source states: The port of Varna expanded its container capacity in 2025.",
+                "claim_ids": [
+                  "c2"
+                ]
+              },
+              {
+                "text": "Source states: Container traffic through Varna rose 40 percent.",
+                "claim_ids": [
+                  "c3"
+                ]
+              },
+              {
+                "text": "An unsourced assertion.",
+                "claim_ids": [
+                  "c99"
+                ]
+              }
+            ]
+          }
+        ],
+        "alternatives": [
+          {
+            "hypothesis": "The opposite holds.",
+            "assessment": "Less likely.",
+            "claim_ids": []
+          }
+        ],
+        "gaps_and_indicators": [
+          "Synthetic gap."
+        ],
+        "claims": [
+          {
+            "id": "c0",
+            "text": "It is likely that The port of Varna's 2025 container expansion, financed by a state bank, is already raising traffic; shippers and the port authority should plan for higher volumes.",
+            "kind": "judgment",
+            "evidence": [
+              "src1/u2"
+            ],
+            "likelihood_term": "likely"
+          },
+          {
+            "id": "c1",
+            "text": "Source states: Capacity expansion was financed by a state bank.",
+            "kind": "fact",
+            "evidence": [
+              "src1/u2"
+            ],
+            "likelihood_term": null
+          },
+          {
+            "id": "c2",
+            "text": "Source states: The port of Varna expanded its container capacity in 2025.",
+            "kind": "fact",
+            "evidence": [
+              "src1/u1"
+            ],
+            "likelihood_term": null
+          },
+          {
+            "id": "c3",
+            "text": "Source states: Container traffic through Varna rose 40 percent.",
+            "kind": "fact",
+            "evidence": [
+              "src1/u3"
+            ],
+            "likelihood_term": null
+          },
+          {
+            "id": "c99",
+            "text": "An unsourced assertion.",
+            "kind": "fact",
+            "evidence": [],
+            "likelihood_term": null
+          }
+        ]
+      }
+    },
+    {
+      "role": "writer",
+      "iteration": 1,
+      "report": {
+        "title": "Synthetic assessment: The port of Varna's 2025 container expan",
+        "handling_marking": "UNCLASSIFIED",
+        "key_judgments": [
+          {
+            "text": "The port of Varna's 2025 container expansion, financed by a state bank, is already raising traffic; shippers and the port authority should plan for higher volumes.",
+            "confidence": "moderate",
+            "claim_ids": [
+              "c0"
+            ]
+          }
+        ],
+        "scope_note": "Synthetic scope note covering all sources.",
+        "sources": [
+          {
+            "source_id": "src1",
+            "descriptor": "open-source report",
+            "reliability_note": "Synthetic: current and complete."
+          },
+          {
+            "source_id": "src2",
+            "descriptor": "open-source report",
+            "reliability_note": "Synthetic: current and complete."
+          }
+        ],
+        "analysis": [
+          {
+            "heading": "Analysis",
+            "paragraphs": [
+              {
+                "text": "It is likely that The port of Varna's 2025 container expansion, financed by a state bank, is already raising traffic; shippers and the port authority should plan for higher volumes.",
+                "claim_ids": [
+                  "c0"
+                ]
+              },
+              {
+                "text": "Source states: Capacity expansion was financed by a state bank.",
+                "claim_ids": [
+                  "c1"
+                ]
+              },
+              {
+                "text": "Source states: The port of Varna expanded its container capacity in 2025.",
+                "claim_ids": [
+                  "c2"
+                ]
+              },
+              {
+                "text": "Source states: Container traffic through Varna rose 40 percent.",
+                "claim_ids": [
+                  "c3"
+                ]
+              }
+            ]
+          }
+        ],
+        "alternatives": [
+          {
+            "hypothesis": "The opposite holds.",
+            "assessment": "Less likely.",
+            "claim_ids": []
+          }
+        ],
+        "gaps_and_indicators": [
+          "Synthetic gap."
+        ],
+        "claims": [
+          {
+            "id": "c0",
+            "text": "It is likely that The port of Varna's 2025 container expansion, financed by a state bank, is already raising traffic; shippers and the port authority should plan for higher volumes.",
+            "kind": "judgment",
+            "evidence": [
+              "src1/u2"
+            ],
+            "likelihood_term": "likely"
+          },
+          {
+            "id": "c1",
+            "text": "Source states: Capacity expansion was financed by a state bank.",
+            "kind": "fact",
+            "evidence": [
+              "src1/u2"
+            ],
+            "likelihood_term": null
+          },
+          {
+            "id": "c2",
+            "text": "Source states: The port of Varna expanded its container capacity in 2025.",
+            "kind": "fact",
+            "evidence": [
+              "src1/u1"
+            ],
+            "likelihood_term": null
+          },
+          {
+            "id": "c3",
+            "text": "Source states: Container traffic through Varna rose 40 percent.",
+            "kind": "fact",
+            "evidence": [
+              "src1/u3"
+            ],
+            "likelihood_term": null
+          }
+        ]
+      }
+    },
+    {
+      "role": "conveyor",
+      "iteration": 1,
+      "report": {
+        "title": "Conveyed: Synthetic assessment: The port of Varna's 2025 container expan",
+        "handling_marking": "UNCLASSIFIED",
+        "key_judgments": [
+          {
+            "text": "The port of Varna's 2025 container expansion, financed by a state bank, is already raising traffic; shippers and the port authority should plan for higher volumes.",
+            "confidence": "moderate",
+            "claim_ids": [
+              "c0"
+            ]
+          }
+        ],
+        "scope_note": "Synthetic scope note covering all sources.",
+        "sources": [
+          {
+            "source_id": "src1",
+            "descriptor": "open-source report",
+            "reliability_note": "Synthetic: current and complete."
+          },
+          {
+            "source_id": "src2",
+            "descriptor": "open-source report",
+            "reliability_note": "Synthetic: current and complete."
+          }
+        ],
+        "analysis": [
+          {
+            "heading": "Analysis",
+            "paragraphs": [
+              {
+                "text": "It is likely that The port of Varna's 2025 container expansion, financed by a state bank, is already raising traffic; shippers and the port authority should plan for higher volumes.",
+                "claim_ids": [
+                  "c0"
+                ]
+              },
+              {
+                "text": "Source states: Capacity expansion was financed by a state bank.",
+                "claim_ids": [
+                  "c1"
+                ]
+              },
+              {
+                "text": "Source states: The port of Varna expanded its container capacity in 2025.",
+                "claim_ids": [
+                  "c2"
+                ]
+              },
+              {
+                "text": "Source states: Container traffic through Varna rose 40 percent.",
+                "claim_ids": [
+                  "c3"
+                ]
+              }
+            ]
+          }
+        ],
+        "alternatives": [
+          {
+            "hypothesis": "The opposite holds.",
+            "assessment": "Less likely.",
+            "claim_ids": []
+          }
+        ],
+        "gaps_and_indicators": [
+          "Synthetic gap."
+        ],
+        "claims": [
+          {
+            "id": "c0",
+            "text": "It is likely that The port of Varna's 2025 container expansion, financed by a state bank, is already raising traffic; shippers and the port authority should plan for higher volumes.",
+            "kind": "judgment",
+            "evidence": [
+              "src1/u2"
+            ],
+            "likelihood_term": "likely"
+          },
+          {
+            "id": "c1",
+            "text": "Source states: Capacity expansion was financed by a state bank.",
+            "kind": "fact",
+            "evidence": [
+              "src1/u2"
+            ],
+            "likelihood_term": null
+          },
+          {
+            "id": "c2",
+            "text": "Source states: The port of Varna expanded its container capacity in 2025.",
+            "kind": "fact",
+            "evidence": [
+              "src1/u1"
+            ],
+            "likelihood_term": null
+          },
+          {
+            "id": "c3",
+            "text": "Source states: Container traffic through Varna rose 40 percent.",
+            "kind": "fact",
+            "evidence": [
+              "src1/u3"
+            ],
+            "likelihood_term": null
+          }
+        ]
+      }
+    }
+  ],
+  "findings": [
+    {
+      "rule_id": "icd203.as.1",
+      "verdict": "attested",
+      "evidence": "Synthetic attestation.",
+      "cited_units": [],
+      "claim_ids": [],
+      "recommendation": "",
+      "severity": "major",
+      "route_to": "writer",
+      "iteration": 0
+    },
+    {
+      "rule_id": "icd203.as.2",
+      "verdict": "attested",
+      "evidence": "Synthetic attestation.",
+      "cited_units": [],
+      "claim_ids": [],
+      "recommendation": "",
+      "severity": "major",
+      "route_to": "writer",
+      "iteration": 0
+    },
+    {
+      "rule_id": "icd203.as.3",
+      "verdict": "attested",
+      "evidence": "Synthetic attestation.",
+      "cited_units": [],
+      "claim_ids": [],
+      "recommendation": "",
+      "severity": "minor",
+      "route_to": "conveyor",
+      "iteration": 0
+    },
+    {
+      "rule_id": "icd203.as.4",
+      "verdict": "pass",
+      "evidence": "Synthetic check passed.",
+      "cited_units": [],
+      "claim_ids": [],
+      "recommendation": "",
+      "severity": "major",
+      "route_to": "writer",
+      "iteration": 0
+    },
+    {
+      "rule_id": "icd203.as.5",
+      "verdict": "fail",
+      "evidence": "A tradecraft standard fails.",
+      "cited_units": [],
+      "claim_ids": [
+        "c99"
+      ],
+      "recommendation": "Resolve the failing tradecraft findings.",
+      "severity": "major",
+      "route_to": "writer",
+      "iteration": 0
+    },
+    {
+      "rule_id": "icd203.tc.1",
+      "verdict": "pass",
+      "evidence": "Synthetic check passed.",
+      "cited_units": [],
+      "claim_ids": [],
+      "recommendation": "",
+      "severity": "major",
+      "route_to": "writer",
+      "iteration": 0
+    },
+    {
+      "rule_id": "icd203.tc.2",
+      "verdict": "pass",
+      "evidence": "Synthetic check passed.",
+      "cited_units": [],
+      "claim_ids": [],
+      "recommendation": "",
+      "severity": "blocking",
+      "route_to": "writer",
+      "iteration": 0
+    },
+    {
+      "rule_id": "icd203.tc.3",
+      "verdict": "pass",
+      "evidence": "Synthetic check passed.",
+      "cited_units": [],
+      "claim_ids": [],
+      "recommendation": "",
+      "severity": "major",
+      "route_to": "writer",
+      "iteration": 0
+    },
+    {
+      "rule_id": "icd203.tc.4",
+      "verdict": "pass",
+      "evidence": "Synthetic check passed.",
+      "cited_units": [],
+      "claim_ids": [],
+      "recommendation": "",
+      "severity": "major",
+      "route_to": "writer",
+      "iteration": 0
+    },
+    {
+      "rule_id": "icd203.tc.5",
+      "verdict": "pass",
+      "evidence": "Synthetic check passed.",
+      "cited_units": [],
+      "claim_ids": [],
+      "recommendation": "",
+      "severity": "major",
+      "route_to": "conveyor",
+      "iteration": 0
+    },
+    {
+      "rule_id": "icd203.tc.6",
+      "verdict": "pass",
+      "evidence": "Synthetic check passed.",
+      "cited_units": [],
+      "claim_ids": [],
+      "recommendation": "",
+      "severity": "major",
+      "route_to": "conveyor",
+      "iteration": 0
+    },
+    {
+      "rule_id": "icd203.tc.7",
+      "verdict": "attested",
+      "evidence": "Synthetic attestation.",
+      "cited_units": [],
+      "claim_ids": [],
+      "recommendation": "",
+      "severity": "minor",
+      "route_to": "writer",
+      "iteration": 0
+    },
+    {
+      "rule_id": "icd203.tc.8",
+      "verdict": "fail",
+      "evidence": "Claims without evidence: c99.",
+      "cited_units": [],
+      "claim_ids": [
+        "c99"
+      ],
+      "recommendation": "Cite a source unit for each claim or remove it.",
+      "severity": "blocking",
+      "route_to": "writer",
+      "iteration": 0
+    },
+    {
+      "rule_id": "icd203.tc.9",
+      "verdict": "attested",
+      "evidence": "Synthetic attestation.",
+      "cited_units": [],
+      "claim_ids": [],
+      "recommendation": "",
+      "severity": "minor",
+      "route_to": "conveyor",
+      "iteration": 0
+    },
+    {
+      "rule_id": "icd206.src.1",
+      "verdict": "pass",
+      "evidence": "Synthetic check passed.",
+      "cited_units": [],
+      "claim_ids": [],
+      "recommendation": "",
+      "severity": "major",
+      "route_to": "writer",
+      "iteration": 0
+    },
+    {
+      "rule_id": "icd206.src.2",
+      "verdict": "fail",
+      "evidence": "Claims without evidence: c99.",
+      "cited_units": [],
+      "claim_ids": [
+        "c99"
+      ],
+      "recommendation": "Cite a source unit for each claim or remove it.",
+      "severity": "blocking",
+      "route_to": "writer",
+      "iteration": 0
+    },
+    {
+      "rule_id": "icd206.src.3",
+      "verdict": "pass",
+      "evidence": "Synthetic check passed.",
+      "cited_units": [],
+      "claim_ids": [],
+      "recommendation": "",
+      "severity": "minor",
+      "route_to": "conveyor",
+      "iteration": 0
+    },
+    {
+      "rule_id": "icd203.as.1",
+      "verdict": "attested",
+      "evidence": "Synthetic attestation.",
+      "cited_units": [],
+      "claim_ids": [],
+      "recommendation": "",
+      "severity": "major",
+      "route_to": "writer",
+      "iteration": 1
+    },
+    {
+      "rule_id": "icd203.as.2",
+      "verdict": "attested",
+      "evidence": "Synthetic attestation.",
+      "cited_units": [],
+      "claim_ids": [],
+      "recommendation": "",
+      "severity": "major",
+      "route_to": "writer",
+      "iteration": 1
+    },
+    {
+      "rule_id": "icd203.as.3",
+      "verdict": "attested",
+      "evidence": "Synthetic attestation.",
+      "cited_units": [],
+      "claim_ids": [],
+      "recommendation": "",
+      "severity": "minor",
+      "route_to": "conveyor",
+      "iteration": 1
+    },
+    {
+      "rule_id": "icd203.as.4",
+      "verdict": "pass",
+      "evidence": "Synthetic check passed.",
+      "cited_units": [],
+      "claim_ids": [],
+      "recommendation": "",
+      "severity": "major",
+      "route_to": "writer",
+      "iteration": 1
+    },
+    {
+      "rule_id": "icd203.as.5",
+      "verdict": "pass",
+      "evidence": "Synthetic check passed.",
+      "cited_units": [],
+      "claim_ids": [],
+      "recommendation": "",
+      "severity": "major",
+      "route_to": "writer",
+      "iteration": 1
+    },
+    {
+      "rule_id": "icd203.tc.1",
+      "verdict": "pass",
+      "evidence": "Synthetic check passed.",
+      "cited_units": [],
+      "claim_ids": [],
+      "recommendation": "",
+      "severity": "major",
+      "route_to": "writer",
+      "iteration": 1
+    },
+    {
+      "rule_id": "icd203.tc.2",
+      "verdict": "pass",
+      "evidence": "Synthetic check passed.",
+      "cited_units": [],
+      "claim_ids": [],
+      "recommendation": "",
+      "severity": "blocking",
+      "route_to": "writer",
+      "iteration": 1
+    },
+    {
+      "rule_id": "icd203.tc.3",
+      "verdict": "pass",
+      "evidence": "Synthetic check passed.",
+      "cited_units": [],
+      "claim_ids": [],
+      "recommendation": "",
+      "severity": "major",
+      "route_to": "writer",
+      "iteration": 1
+    },
+    {
+      "rule_id": "icd203.tc.4",
+      "verdict": "pass",
+      "evidence": "Synthetic check passed.",
+      "cited_units": [],
+      "claim_ids": [],
+      "recommendation": "",
+      "severity": "major",
+      "route_to": "writer",
+      "iteration": 1
+    },
+    {
+      "rule_id": "icd203.tc.5",
+      "verdict": "pass",
+      "evidence": "Synthetic check passed.",
+      "cited_units": [],
+      "claim_ids": [],
+      "recommendation": "",
+      "severity": "major",
+      "route_to": "conveyor",
+      "iteration": 1
+    },
+    {
+      "rule_id": "icd203.tc.6",
+      "verdict": "pass",
+      "evidence": "Synthetic check passed.",
+      "cited_units": [],
+      "claim_ids": [],
+      "recommendation": "",
+      "severity": "major",
+      "route_to": "conveyor",
+      "iteration": 1
+    },
+    {
+      "rule_id": "icd203.tc.7",
+      "verdict": "attested",
+      "evidence": "Synthetic attestation.",
+      "cited_units": [],
+      "claim_ids": [],
+      "recommendation": "",
+      "severity": "minor",
+      "route_to": "writer",
+      "iteration": 1
+    },
+    {
+      "rule_id": "icd203.tc.8",
+      "verdict": "pass",
+      "evidence": "Synthetic check passed.",
+      "cited_units": [],
+      "claim_ids": [],
+      "recommendation": "",
+      "severity": "blocking",
+      "route_to": "writer",
+      "iteration": 1
+    },
+    {
+      "rule_id": "icd203.tc.9",
+      "verdict": "attested",
+      "evidence": "Synthetic attestation.",
+      "cited_units": [],
+      "claim_ids": [],
+      "recommendation": "",
+      "severity": "minor",
+      "route_to": "conveyor",
+      "iteration": 1
+    },
+    {
+      "rule_id": "icd206.src.1",
+      "verdict": "pass",
+      "evidence": "Synthetic check passed.",
+      "cited_units": [],
+      "claim_ids": [],
+      "recommendation": "",
+      "severity": "major",
+      "route_to": "writer",
+      "iteration": 1
+    },
+    {
+      "rule_id": "icd206.src.2",
+      "verdict": "pass",
+      "evidence": "Synthetic check passed.",
+      "cited_units": [],
+      "claim_ids": [],
+      "recommendation": "",
+      "severity": "blocking",
+      "route_to": "writer",
+      "iteration": 1
+    },
+    {
+      "rule_id": "icd206.src.3",
+      "verdict": "pass",
+      "evidence": "Synthetic check passed.",
+      "cited_units": [],
+      "claim_ids": [],
+      "recommendation": "",
+      "severity": "minor",
+      "route_to": "conveyor",
+      "iteration": 1
+    }
+  ],
+  "report": {
+    "title": "Conveyed: Synthetic assessment: The port of Varna's 2025 container expan",
+    "handling_marking": "UNCLASSIFIED",
+    "key_judgments": [
+      {
+        "text": "The port of Varna's 2025 container expansion, financed by a state bank, is already raising traffic; shippers and the port authority should plan for higher volumes.",
+        "confidence": "moderate",
+        "claim_ids": [
+          "c0"
+        ]
+      }
+    ],
+    "scope_note": "Synthetic scope note covering all sources.",
+    "sources": [
+      {
+        "source_id": "src1",
+        "descriptor": "open-source report",
+        "reliability_note": "Synthetic: current and complete."
+      },
+      {
+        "source_id": "src2",
+        "descriptor": "open-source report",
+        "reliability_note": "Synthetic: current and complete."
+      }
+    ],
+    "analysis": [
+      {
+        "heading": "Analysis",
+        "paragraphs": [
+          {
+            "text": "It is likely that The port of Varna's 2025 container expansion, financed by a state bank, is already raising traffic; shippers and the port authority should plan for higher volumes.",
+            "claim_ids": [
+              "c0"
+            ]
+          },
+          {
+            "text": "Source states: Capacity expansion was financed by a state bank.",
+            "claim_ids": [
+              "c1"
+            ]
+          },
+          {
+            "text": "Source states: The port of Varna expanded its container capacity in 2025.",
+            "claim_ids": [
+              "c2"
+            ]
+          },
+          {
+            "text": "Source states: Container traffic through Varna rose 40 percent.",
+            "claim_ids": [
+              "c3"
+            ]
+          }
+        ]
+      }
+    ],
+    "alternatives": [
+      {
+        "hypothesis": "The opposite holds.",
+        "assessment": "Less likely.",
+        "claim_ids": []
+      }
+    ],
+    "gaps_and_indicators": [
+      "Synthetic gap."
+    ],
+    "claims": [
+      {
+        "id": "c0",
+        "text": "It is likely that The port of Varna's 2025 container expansion, financed by a state bank, is already raising traffic; shippers and the port authority should plan for higher volumes.",
+        "kind": "judgment",
+        "evidence": [
+          "src1/u2"
+        ],
+        "likelihood_term": "likely"
+      },
+      {
+        "id": "c1",
+        "text": "Source states: Capacity expansion was financed by a state bank.",
+        "kind": "fact",
+        "evidence": [
+          "src1/u2"
+        ],
+        "likelihood_term": null
+      },
+      {
+        "id": "c2",
+        "text": "Source states: The port of Varna expanded its container capacity in 2025.",
+        "kind": "fact",
+        "evidence": [
+          "src1/u1"
+        ],
+        "likelihood_term": null
+      },
+      {
+        "id": "c3",
+        "text": "Source states: Container traffic through Varna rose 40 percent.",
+        "kind": "fact",
+        "evidence": [
+          "src1/u3"
+        ],
+        "likelihood_term": null
+      }
+    ],
+    "metadata": {
+      "run_id": "6756ba82-e4a7-4613-a204-a51852bb33c1",
+      "pack_name": "icd203-base",
+      "pack_hash": "cf6fc9be4160e0e0",
+      "profile": null,
+      "iteration": 1,
+      "status": "clean",
+      "open_findings": [],
+      "degradations": []
+    }
+  },
+  "iterations": 1,
+  "max_iterations": 2,
+  "usage": {
+    "calls": 7,
+    "tokens_in": 70,
+    "tokens_out": 70,
+    "by_role": {
+      "gate": {
+        "calls": 1,
+        "tokens_in": 10,
+        "tokens_out": 10
+      },
+      "writer": {
+        "calls": 2,
+        "tokens_in": 20,
+        "tokens_out": 20
+      },
+      "conveyor": {
+        "calls": 2,
+        "tokens_in": 20,
+        "tokens_out": 20
+      },
+      "auditor": {
+        "calls": 2,
+        "tokens_in": 20,
+        "tokens_out": 20
+      }
+    }
+  },
+  "llm_calls": [
+    {
+      "role": "gate",
+      "backend": "local",
+      "model": "fake-model",
+      "prompt_id": "gate",
+      "prompt_version": 1,
+      "attempt": 1,
+      "ok": true,
+      "latency_ms": 19,
+      "tokens_in": 10,
+      "tokens_out": 10,
+      "error": null,
+      "request": null,
+      "response": null
+    },
+    {
+      "role": "writer",
+      "backend": "local",
+      "model": "fake-model",
+      "prompt_id": "writer",
+      "prompt_version": 1,
+      "attempt": 1,
+      "ok": true,
+      "latency_ms": 2,
+      "tokens_in": 10,
+      "tokens_out": 10,
+      "error": null,
+      "request": null,
+      "response": null
+    },
+    {
+      "role": "conveyor",
+      "backend": "local",
+      "model": "fake-model",
+      "prompt_id": "conveyor",
+      "prompt_version": 1,
+      "attempt": 1,
+      "ok": true,
+      "latency_ms": 2,
+      "tokens_in": 10,
+      "tokens_out": 10,
+      "error": null,
+      "request": null,
+      "response": null
+    },
+    {
+      "role": "auditor",
+      "backend": "local",
+      "model": "fake-model",
+      "prompt_id": "auditor",
+      "prompt_version": 2,
+      "attempt": 1,
+      "ok": true,
+      "latency_ms": 2,
+      "tokens_in": 10,
+      "tokens_out": 10,
+      "error": null,
+      "request": null,
+      "response": null
+    },
+    {
+      "role": "writer",
+      "backend": "local",
+      "model": "fake-model",
+      "prompt_id": "writer",
+      "prompt_version": 1,
+      "attempt": 1,
+      "ok": true,
+      "latency_ms": 2,
+      "tokens_in": 10,
+      "tokens_out": 10,
+      "error": null,
+      "request": null,
+      "response": null
+    },
+    {
+      "role": "conveyor",
+      "backend": "local",
+      "model": "fake-model",
+      "prompt_id": "conveyor",
+      "prompt_version": 1,
+      "attempt": 1,
+      "ok": true,
+      "latency_ms": 2,
+      "tokens_in": 10,
+      "tokens_out": 10,
+      "error": null,
+      "request": null,
+      "response": null
+    },
+    {
+      "role": "auditor",
+      "backend": "local",
+      "model": "fake-model",
+      "prompt_id": "auditor",
+      "prompt_version": 2,
+      "attempt": 1,
+      "ok": true,
+      "latency_ms": 2,
+      "tokens_in": 10,
+      "tokens_out": 10,
+      "error": null,
+      "request": null,
+      "response": null
+    }
+  ],
+  "error": null
+}

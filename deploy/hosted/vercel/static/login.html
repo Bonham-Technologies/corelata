@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in – Corelata</title>
+<script>
+  (function () {
+    var c = "system";
+    try { c = localStorage.getItem("corelata.theme") || "system"; } catch { c = "system"; }
+    if (c !== "light" && c !== "dark") {
+      c = typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    }
+    document.documentElement.dataset.theme = c;
+  })();
+</script>
+<style>
+  /* The colours are web/src/styles/tokens.css's (M18); lib/site.test.ts checks they match. */
+  :root, :root[data-theme="light"] {
+    color-scheme: light;
+    --bg: #faf8f5; --surface: #ffffff; --border-strong: #8a8378; --text: #1f2328;
+    --text-muted: #5c6370; --accent: #3554d1; --accent-text: #ffffff; --danger: #b42318;
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #15171c; --surface: #1b1e25; --border-strong: #6b7385; --text: #e6e8ee;
+    --text-muted: #9aa3b5; --accent: #7d97ff; --accent-text: #0d1020; --danger: #ff8a80;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 1rem;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg); color: var(--text);
+  }
+  main {
+    width: 100%; max-width: 22rem; padding: 1.5rem; background: var(--surface);
+    border: 1px solid var(--border-strong); border-radius: 0.625rem;
+  }
+  h1 { margin: 0 0 1rem; font-size: 1.5rem; }
+  label { display: block; margin-bottom: 0.75rem; font-size: 0.9rem; color: var(--text-muted); }
+  input {
+    display: block; width: 100%; margin-top: 0.25rem; padding: 0.55rem 0.65rem; font: inherit;
+    color: var(--text); background: var(--surface);
+    border: 1px solid var(--border-strong); border-radius: 0.375rem;
+  }
+  input:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button {
+    width: 100%; margin-top: 0.5rem; padding: 0.6rem; font: inherit; font-weight: 600;
+    border: 0; border-radius: 0.375rem; cursor: pointer; background: var(--accent); color: var(--accent-text);
+  }
+  .error { margin: 0 0 0.75rem; color: var(--danger); font-size: 0.9rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Sign in to Corelata</h1>
+  <p class="error" id="login-error" role="alert" hidden>Wrong name or password.</p>
+  <form method="post" action="/login">
+    <label>Name
+      <input name="name" type="text" autocomplete="username" required autofocus>
+    </label>
+    <label>Password
+      <input name="password" type="password" autocomplete="current-password" required>
+    </label>
+    <button type="submit">Sign in</button>
+  </form>
+</main>
+<script>
+  // An alert shown while the page loads is not reliably announced, so the name field also
+  // carries the error as its description: moving focus there reads it out with the label.
+  if (location.search.includes("failed=1")) {
+    var name = document.querySelector("input[name=name]");
+    document.querySelector(".error").hidden = false;
+    name.setAttribute("aria-describedby", "login-error");
+    name.focus();
+  }
+</script>
+</body>
+</html>

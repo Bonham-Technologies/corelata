@@ -1,0 +1,199 @@
+/* Copied from Coglossa's web/src/styles/shell.css (spec §2.2, §3): the frame. Divergences:
+   project rows instead of set rows, no row menu, a sidebar footer with the version. */
+.shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  height: var(--topbar-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: 0 var(--space-4);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.brand {
+  font-weight: 700;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.topbar-actions .user {
+  color: var(--text-muted);
+}
+
+.workspace {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+/* The sidebar is sticky and one viewport tall, so below it, on a page that scrolls, the column
+   would show the page's own background. The workspace paints the sidebar's column (surface and
+   right border) for the whole page height too, so the column is unbroken in a full-page
+   capture and in overscroll. Corelata's divergence; Coglossa has the strip. */
+@media (min-width: 900px) {
+  .workspace {
+    background: linear-gradient(
+      to right,
+      var(--surface) calc(var(--sidebar-width) - 1px),
+      var(--border) calc(var(--sidebar-width) - 1px) var(--sidebar-width),
+      transparent var(--sidebar-width)
+    );
+  }
+}
+
+.sidebar {
+  position: sticky;
+  top: var(--topbar-height);
+  width: var(--sidebar-width);
+  height: calc(100vh - var(--topbar-height));
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+}
+
+/* The projects scroll; the version stays at the foot, outside the navigation landmark. */
+.sidebar-nav {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-3);
+}
+
+.sidebar .new {
+  width: 100%;
+  justify-content: center;
+  margin-bottom: var(--space-3);
+}
+
+.sidebar input[type="search"] {
+  width: 100%;
+  margin-bottom: var(--space-3);
+}
+
+.sidebar .group {
+  margin: var(--space-3) 0 var(--space-1);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.sidebar-foot {
+  margin: 0;
+  padding: var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.sidebar ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.project-row {
+  display: flex;
+  align-items: center;
+  border-radius: var(--radius-1);
+}
+
+.project-row:hover {
+  background: var(--surface-2);
+}
+
+.project-link {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-2);
+  border-radius: var(--radius-1);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.project-link[aria-current="page"] {
+  background: var(--selected);
+}
+
+.project-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status {
+  font-size: var(--text-sm);
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-5) var(--space-6);
+}
+
+/* Focus lands here after a sidebar link; it is a target, not a control. */
+.main:focus {
+  outline: none;
+}
+
+.shortcuts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-1) var(--space-4);
+}
+
+.shortcuts dd {
+  margin: 0;
+}
+
+kbd {
+  padding: 0 var(--space-1);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-1);
+  background: var(--surface-2);
+  font-size: var(--text-sm);
+}
+
+.narrow-only {
+  display: none;
+}
+
+@media (max-width: 899px) {
+  .narrow-only {
+    display: inline-flex;
+  }
+
+  .sidebar {
+    position: fixed;
+    left: 0;
+    z-index: 15;
+    display: none;
+    box-shadow: var(--shadow);
+  }
+
+  .sidebar.open {
+    display: flex;
+  }
+
+  .main {
+    padding: var(--space-4);
+  }
+}

@@ -1,0 +1,57 @@
+# Hosted demo (docs/superpowers/specs/2026-10-20-corelata-design-system-and-hosted-demo.md).
+# Placeholder values (dollar sign, braces, NAME) come from the Modal Secret corelata-hosted when a
+# container starts (deploy/hosted/modal/settings.py); no secret is in this file.
+# The config has no database pool-size setting; see README.md for the connection budget.
+backends:
+  openrouter:
+    base_url: https://openrouter.ai/api/v1
+    api_key_env: OPENROUTER_API_KEY
+    max_concurrency: 4
+    timeout_s: 300
+models:
+  writer-model:            # the gate, the writer and the editor: the bench pair (M12–M17)
+    backend: openrouter
+    name: openai/gpt-4.1-mini
+    context_window: 128000
+    structured_output: json_schema
+    max_output_tokens: 8192
+    temperature: 0.2
+  auditor-model:           # a different family for the standards check (spec §4.4)
+    backend: openrouter
+    name: google/gemini-2.5-flash
+    context_window: 128000
+    structured_output: json_schema
+    max_output_tokens: 8192
+    temperature: 0.1
+roles:
+  gate:     { model: writer-model }
+  writer:   { model: writer-model }
+  conveyor: { model: writer-model }
+  auditor:  { model: auditor-model }
+  profiler: { model: writer-model }
+standards:
+  default_pack: icd203-base   # packs_dir unset: the base pack built into the engine
+pipeline:
+  max_iterations: 2
+database:
+  url_env: CORELATA_DATABASE_URL
+storage:
+  kind: s3
+  endpoint_url: ${CORELATA_S3_ENDPOINT}
+  region: ${CORELATA_S3_REGION}
+  bucket: corelata-files
+worker:
+  concurrency: 4
+  stalled_after_s: 120
+  discovery_start_deadline_s: 600
+  kick_url: ${CORELATA_KICK_URL}
+  kick_token_env: CORELATA_KICK_TOKEN
+  extra_headers_env: { Modal-Key: CORELATA_MODAL_KEY, Modal-Secret: CORELATA_MODAL_SECRET }
+api:
+  max_upload_mb: 4
+  progress_poll_s: 1.0
+auth:
+  mode: trusted_header
+  header: X-Remote-User
+  proxy_secret_env: CORELATA_PROXY_SECRET
+  logout_url: /logout

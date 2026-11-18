@@ -1,0 +1,51 @@
+# Corelata configuration (operator guide, "Configuration"). install.sh copies this file to
+# config/corelata.yaml once and never overwrites it. Edit that copy, then apply it with
+#   docker compose up -d --wait --force-recreate migrate api worker
+# Any OpenAI-compatible server works: vLLM, Ollama, TGI, llama.cpp server, LM Studio.
+backends:
+  local:
+    base_url: http://host.docker.internal:8000/v1   # a server on this host; or http://<server>:8000/v1
+    # api_key_env: CORELATA_LOCAL_KEY    # name of a variable in .env, if the server needs a key
+    max_concurrency: 4
+    timeout_s: 120
+
+models:
+  strong:                          # the key is how roles refer to the model
+    backend: local
+    name: Qwen/Qwen3-32B           # the model id the server expects
+    context_window: 32768
+    structured_output: json_schema # json_schema | json_object | none
+    max_output_tokens: 8192
+    temperature: 0.2
+
+roles:                             # spec §4.4; one model per role
+  gate:     { model: strong }
+  writer:   { model: strong }
+  conveyor: { model: strong }
+  auditor:  { model: strong }      # a different model family from the writer is better when you have one
+
+standards:                         # spec §6: your packs live in config/packs (mounted read-only)
+  packs_dir: /etc/corelata/packs
+  default_pack: icd203-base        # tune or replace it in config/packs/icd203-base
+  # default_profile: team-east     # a profile from config/packs/<pack>/profiles
+
+pipeline:                          # spec §7
+  max_iterations: 2                # audit loop bound; the report is delivered either way
+  digest_threshold_tokens: 6000
+  digest_chunk_tokens: 4000
+  writer_unit_budget_tokens: 16000
+  gate_unit_budget_tokens: 12000
+
+storage: { path: /data/files }     # the `files` volume: uploaded sources, reference documents, exports
+worker:
+  concurrency: 2                    # jobs at once: runs and discoveries share them (a discovery goes first)
+  stalled_after_s: 900              # requeue a job after its worker is silent this long
+  job_retention_days: 30            # days failed/cancelled jobs are kept
+  discovery_deadline_s: 600         # seconds a discovery may work once the worker starts it
+  discovery_start_deadline_s: 3600  # seconds a discovery may wait for the worker to start it
+api: { max_upload_mb: 200, progress_poll_s: 1.0, render_cache_mb: 64 }
+auth: { mode: none }               # trusted_header when a reverse proxy signs people in (operator guide)
+# auth: { mode: trusted_header, header: X-Remote-User, logout_url: /oauth2/sign_out }
+# integrations:
+#   coglossa: { base_url: http://coglossa-api:8080, api_key_env: CORELATA_COGLOSSA_KEY }
+# The database is set by the containers (CORELATA_DATABASE_URL); do not add a database section.

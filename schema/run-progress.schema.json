@@ -1,0 +1,391 @@
+{
+  "$defs": {
+    "ReportStatus": {
+      "enum": [
+        "clean",
+        "findings_open"
+      ],
+      "title": "ReportStatus",
+      "type": "string"
+    },
+    "ReviewDecision": {
+      "enum": [
+        "accepted",
+        "returned"
+      ],
+      "title": "ReviewDecision",
+      "type": "string"
+    },
+    "ReviewState": {
+      "description": "What a reviewer decided about a completed run (spec §10.1), from its review events and the\nreruns they created. A return whose rerun is live or completed wins over an accept: the rerun\nsupersedes the accepted report (R-M9-1). A rerun that ended any other way spent nothing\n(R-M15-1): the latest event decides, and the run can be returned or accepted again.",
+      "properties": {
+        "actor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Actor"
+        },
+        "at": {
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        },
+        "child_error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Child Error"
+        },
+        "child_run_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Child Run Id"
+        },
+        "child_state": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RunState"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "decision": {
+          "$ref": "#/$defs/ReviewDecision"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        }
+      },
+      "required": [
+        "decision",
+        "at"
+      ],
+      "title": "ReviewState",
+      "type": "object"
+    },
+    "RunState": {
+      "enum": [
+        "created",
+        "ingesting",
+        "gating",
+        "drafting",
+        "conveying",
+        "auditing",
+        "rendering",
+        "completed",
+        "gate_rejected",
+        "failed",
+        "cancelled"
+      ],
+      "title": "RunState",
+      "type": "string"
+    },
+    "StageResult": {
+      "properties": {
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error"
+        },
+        "finished_at": {
+          "format": "date-time",
+          "title": "Finished At",
+          "type": "string"
+        },
+        "iteration": {
+          "title": "Iteration",
+          "type": "integer"
+        },
+        "ok": {
+          "title": "Ok",
+          "type": "boolean"
+        },
+        "output": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Output"
+        },
+        "stage": {
+          "title": "Stage",
+          "type": "string"
+        },
+        "started_at": {
+          "format": "date-time",
+          "title": "Started At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "stage",
+        "iteration",
+        "ok",
+        "started_at",
+        "finished_at"
+      ],
+      "title": "StageResult",
+      "type": "object"
+    },
+    "Usage": {
+      "properties": {
+        "by_role": {
+          "additionalProperties": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object"
+          },
+          "title": "By Role",
+          "type": "object"
+        },
+        "calls": {
+          "title": "Calls",
+          "type": "integer"
+        },
+        "tokens_in": {
+          "title": "Tokens In",
+          "type": "integer"
+        },
+        "tokens_out": {
+          "title": "Tokens Out",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "calls",
+        "tokens_in",
+        "tokens_out",
+        "by_role"
+      ],
+      "title": "Usage",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "attempts": {
+      "default": 0,
+      "title": "Attempts",
+      "type": "integer"
+    },
+    "cancel_requested": {
+      "default": false,
+      "title": "Cancel Requested",
+      "type": "boolean"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "error": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Error"
+    },
+    "export_error": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Export Error"
+    },
+    "finished_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Finished At"
+    },
+    "iteration": {
+      "title": "Iteration",
+      "type": "integer"
+    },
+    "max_iterations": {
+      "title": "Max Iterations",
+      "type": "integer"
+    },
+    "parent_run_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Parent Run Id"
+    },
+    "profile": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The team profile the run used; null for the deployment's default.",
+      "title": "Profile"
+    },
+    "project_id": {
+      "title": "Project Id",
+      "type": "string"
+    },
+    "review": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ReviewState"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "run_id": {
+      "title": "Run Id",
+      "type": "string"
+    },
+    "source_ids": {
+      "description": "The project sources the run used, in the run's order (source `src<n>` of its trace is the n-th). A source deleted since is left out.",
+      "items": {
+        "type": "string"
+      },
+      "title": "Source Ids",
+      "type": "array"
+    },
+    "stages": {
+      "items": {
+        "$ref": "#/$defs/StageResult"
+      },
+      "title": "Stages",
+      "type": "array"
+    },
+    "started_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Started At"
+    },
+    "state": {
+      "$ref": "#/$defs/RunState"
+    },
+    "status": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ReportStatus"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "usage": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Usage"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "value_statement": {
+      "description": "The value statement the run was given.",
+      "title": "Value Statement",
+      "type": "string"
+    },
+    "worker_gone": {
+      "default": false,
+      "description": "The worker that took the run is gone: its heartbeat is `worker.stalled_after_s` old or its worker row was deleted, so the run is not moving. It starts over when a running worker re-queues its job; a cancel ends it at once (CRL-49, CRL-69). False for a run that ended, and for one no worker has taken yet.",
+      "title": "Worker Gone",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "run_id",
+    "project_id",
+    "state",
+    "value_statement",
+    "source_ids",
+    "iteration",
+    "max_iterations",
+    "created_at"
+  ],
+  "title": "RunProgress",
+  "type": "object"
+}

@@ -1,0 +1,28 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:01.700
+New report: Corelata asks which project the report is for.
+
+00:00:01.700 --> 00:00:04.900
+A new project, "Varna port".
+
+00:00:04.900 --> 00:00:07.000
+Its source, varna-port.txt, is uploaded and selected.
+
+00:00:07.000 --> 00:00:12.800
+The value statement: what the report is for and why it matters.
+
+00:00:12.800 --> 00:00:16.000
+Write the report. The run goes through its steps unattended; on the synthetic test model it takes under a second.
+
+00:00:16.000 --> 00:00:17.700
+The finished report, ready to review.
+
+00:00:17.700 --> 00:00:20.500
+Claims: choosing a claim highlights it in the report and lists its evidence.
+
+00:00:20.500 --> 00:00:23.300
+Standards: the auditor's verdict on every rule of the pack.
+
+00:00:23.300 --> 00:00:27.100
+Sources: each source with its SHA-256, and the pack the report was checked against.

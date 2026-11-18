@@ -1,0 +1,406 @@
+{
+  "$defs": {
+    "BenchSummary": {
+      "properties": {
+        "duration_s": {
+          "title": "Duration S",
+          "type": "number"
+        },
+        "errors": {
+          "title": "Errors",
+          "type": "integer"
+        },
+        "full_agreement": {
+          "$ref": "#/$defs/Rate"
+        },
+        "gate_agreement": {
+          "$ref": "#/$defs/Rate"
+        },
+        "rule_agreement": {
+          "$ref": "#/$defs/Rate"
+        },
+        "runs": {
+          "title": "Runs",
+          "type": "integer"
+        },
+        "scenarios": {
+          "title": "Scenarios",
+          "type": "integer"
+        },
+        "state_agreement": {
+          "$ref": "#/$defs/Rate"
+        },
+        "tokens_in": {
+          "title": "Tokens In",
+          "type": "integer"
+        },
+        "tokens_out": {
+          "title": "Tokens Out",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "scenarios",
+        "runs",
+        "errors",
+        "full_agreement",
+        "gate_agreement",
+        "rule_agreement",
+        "state_agreement",
+        "tokens_in",
+        "tokens_out",
+        "duration_s"
+      ],
+      "title": "BenchSummary",
+      "type": "object"
+    },
+    "GateResult": {
+      "description": "The gate's verdict in one run (R-M12-6), so a reader sees why a run stopped there.",
+      "properties": {
+        "reasons": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Reasons",
+          "type": "array"
+        },
+        "substance": {
+          "$ref": "#/$defs/Substance"
+        },
+        "supported": {
+          "title": "Supported",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "supported",
+        "substance"
+      ],
+      "title": "GateResult",
+      "type": "object"
+    },
+    "Rate": {
+      "description": "Agreements over decided cases; a case the scenario does not specify is not counted.",
+      "properties": {
+        "agree": {
+          "default": 0,
+          "title": "Agree",
+          "type": "integer"
+        },
+        "ratio": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "readOnly": true,
+          "title": "Ratio"
+        },
+        "total": {
+          "default": 0,
+          "title": "Total",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "ratio"
+      ],
+      "title": "Rate",
+      "type": "object"
+    },
+    "ReportStatus": {
+      "enum": [
+        "clean",
+        "findings_open"
+      ],
+      "title": "ReportStatus",
+      "type": "string"
+    },
+    "RuleTally": {
+      "description": "How one rule behaved across every audited iteration the scenarios specify.",
+      "properties": {
+        "expected": {
+          "default": 0,
+          "title": "Expected",
+          "type": "integer"
+        },
+        "hit": {
+          "default": 0,
+          "title": "Hit",
+          "type": "integer"
+        },
+        "missed": {
+          "default": 0,
+          "title": "Missed",
+          "type": "integer"
+        },
+        "unexpected": {
+          "default": 0,
+          "title": "Unexpected",
+          "type": "integer"
+        }
+      },
+      "title": "RuleTally",
+      "type": "object"
+    },
+    "RunResult": {
+      "properties": {
+        "calls": {
+          "default": 0,
+          "title": "Calls",
+          "type": "integer"
+        },
+        "duration_s": {
+          "default": 0.0,
+          "title": "Duration S",
+          "type": "number"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error"
+        },
+        "gate": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GateResult"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "gate_agree": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Gate Agree"
+        },
+        "iterations": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Iterations"
+        },
+        "mismatches": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Mismatches",
+          "type": "array"
+        },
+        "ok": {
+          "title": "Ok",
+          "type": "boolean"
+        },
+        "repeat": {
+          "title": "Repeat",
+          "type": "integer"
+        },
+        "rules_agree": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rules Agree"
+        },
+        "state": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RunState"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "state_agree": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "State Agree"
+        },
+        "status": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReportStatus"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "tokens_in": {
+          "default": 0,
+          "title": "Tokens In",
+          "type": "integer"
+        },
+        "tokens_out": {
+          "default": 0,
+          "title": "Tokens Out",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "repeat",
+        "ok"
+      ],
+      "title": "RunResult",
+      "type": "object"
+    },
+    "RunState": {
+      "enum": [
+        "created",
+        "ingesting",
+        "gating",
+        "drafting",
+        "conveying",
+        "auditing",
+        "rendering",
+        "completed",
+        "gate_rejected",
+        "failed",
+        "cancelled"
+      ],
+      "title": "RunState",
+      "type": "string"
+    },
+    "ScenarioResult": {
+      "properties": {
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "runs": {
+          "items": {
+            "$ref": "#/$defs/RunResult"
+          },
+          "title": "Runs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "description",
+        "runs"
+      ],
+      "title": "ScenarioResult",
+      "type": "object"
+    },
+    "Substance": {
+      "enum": [
+        "sufficient",
+        "thin",
+        "insufficient"
+      ],
+      "title": "Substance",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "config_hash": {
+      "title": "Config Hash",
+      "type": "string"
+    },
+    "corelata_version": {
+      "title": "Corelata Version",
+      "type": "string"
+    },
+    "finished_at": {
+      "format": "date-time",
+      "title": "Finished At",
+      "type": "string"
+    },
+    "models": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Models",
+      "type": "object"
+    },
+    "repeat": {
+      "title": "Repeat",
+      "type": "integer"
+    },
+    "rules": {
+      "additionalProperties": {
+        "$ref": "#/$defs/RuleTally"
+      },
+      "title": "Rules",
+      "type": "object"
+    },
+    "scenarios": {
+      "items": {
+        "$ref": "#/$defs/ScenarioResult"
+      },
+      "title": "Scenarios",
+      "type": "array"
+    },
+    "scenarios_dir": {
+      "title": "Scenarios Dir",
+      "type": "string"
+    },
+    "started_at": {
+      "format": "date-time",
+      "title": "Started At",
+      "type": "string"
+    },
+    "summary": {
+      "$ref": "#/$defs/BenchSummary"
+    }
+  },
+  "required": [
+    "corelata_version",
+    "started_at",
+    "finished_at",
+    "config_hash",
+    "models",
+    "scenarios_dir",
+    "repeat",
+    "scenarios",
+    "rules",
+    "summary"
+  ],
+  "title": "BenchReport",
+  "type": "object"
+}

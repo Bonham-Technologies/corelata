@@ -1,0 +1,72 @@
+name: release
+# A tag v<version> publishes the offline bundle (spec §12) as a GitHub release: the tar, its
+# .sha256, the manifest and SHA256SUMS (the tar and the manifest). The tag must name the package
+# version, and the bundle must pass the air-gap install test on the runner before anything is
+# published.
+on:
+  push:
+    tags: ["v*"]
+permissions:
+  contents: write
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60 # the air-gap test (~15 min), then the bundle build
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # bundle.sh names the bundle after the tag at HEAD
+          fetch-tags: true
+      - name: the tag names the package version
+        run: |
+          tag=${GITHUB_REF_NAME#v}
+          pkg=$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' engine/corelata/__init__.py)
+          if [ "$tag" != "$pkg" ]; then
+            echo "tag $GITHUB_REF_NAME does not match engine/corelata/__init__.py version $pkg;" \
+              "bump the package version first" >&2
+            exit 1
+          fi
+      - name: free disk space for the images and the bundle
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h /
+      - name: the bundle installs and runs on a sealed network
+        run: make airgap-test
+      - name: build the release bundle
+        run: |
+          deploy/bundle.sh --keep-stage
+          deploy/tests/check-bundle.sh "dist/corelata-${GITHUB_REF_NAME#v}-linux-amd64.tar"
+      - name: release notes and the manifest beside the tar
+        run: |
+          v=${GITHUB_REF_NAME#v}
+          cp "dist/corelata-$v/manifest.json" "dist/corelata-$v-manifest.json"
+          (cd dist && sha256sum "corelata-$v-linux-amd64.tar" "corelata-$v-manifest.json" >SHA256SUMS)
+          {
+            echo "Corelata $v, the offline bundle for linux/amd64 (spec §12)."
+            echo
+            echo "Verify, unpack and install (operator-guide.md section 3, shipped in the bundle):"
+            echo
+            echo '```sh'
+            echo "sha256sum -c corelata-$v-linux-amd64.tar.sha256"
+            echo "sha256sum -c SHA256SUMS --ignore-missing"
+            echo "tar -xf corelata-$v-linux-amd64.tar && cd corelata-$v && ./install.sh"
+            echo '```'
+            echo
+            echo "SHA-256: \`$(cut -d' ' -f1 "dist/corelata-$v-linux-amd64.tar.sha256")\`"
+            echo
+            echo "Built from $(git rev-parse --short HEAD); manifest attached."
+          } >dist/notes.md
+      - name: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v=${GITHUB_REF_NAME#v}
+          gh release create "$GITHUB_REF_NAME" \
+            "dist/corelata-$v-linux-amd64.tar" \
+            "dist/corelata-$v-linux-amd64.tar.sha256" \
+            "dist/corelata-$v-manifest.json" \
+            dist/SHA256SUMS \
+            --verify-tag --title "Corelata $v" --notes-file dist/notes.md

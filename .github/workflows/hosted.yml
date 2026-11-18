@@ -1,0 +1,89 @@
+name: hosted
+# The hosted demo (deploy/hosted/README.md; copied from Coglossa). Deploys after `ci` passes on a
+# push to main, or by hand; skips with a notice until the owner adds MODAL_TOKEN_ID and
+# VERCEL_TOKEN to the `hosted` Environment (until then the controller deploys by hand, spec §23.5).
+on:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+concurrency: { group: hosted-deploy, cancel-in-progress: false }
+permissions:
+  contents: read
+jobs:
+  deploy:
+    # A fork PR from a branch named main also matches the branches filter, so require a push from this repo.
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') || (
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-24.04
+    # The deploy secrets belong in the `hosted` Environment with the owner as required reviewer
+    # (deploy/hosted/README.md). A missing Environment is created on first use with no protection.
+    environment: hosted
+    timeout-minutes: 30
+    env:
+      MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+      MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      CORELATA_SMOKE_PASSWORD: ${{ secrets.CORELATA_SMOKE_PASSWORD }}
+      # the Modal workspace proxy-auth token: the smoke test reaches the API with it
+      CORELATA_MODAL_KEY: ${{ secrets.CORELATA_MODAL_KEY }}
+      CORELATA_MODAL_SECRET: ${{ secrets.CORELATA_MODAL_SECRET }}
+      SITE_URL: ${{ vars.CORELATA_SITE_URL }}
+      API_ORIGIN: ${{ vars.CORELATA_API_ORIGIN }}
+    steps:
+      - name: skip without deploy secrets
+        id: gate
+        run: |
+          if [ -z "$MODAL_TOKEN_ID" ] || [ -z "$VERCEL_TOKEN" ]; then
+            echo "::notice::hosted deploy skipped: MODAL_TOKEN_ID or VERCEL_TOKEN is not set"
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.gate.outputs.run == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          persist-credentials: false
+      - if: steps.gate.outputs.run == 'true'
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          python-version: "3.12"
+      - if: steps.gate.outputs.run == 'true'
+        name: deploy the backend
+        # migrations first: the new code never runs against the old schema; the seed last
+        run: |
+          uv run --with-requirements deploy/hosted/modal/requirements.txt modal run deploy/hosted/modal/app.py::migrate
+          uv run --with-requirements deploy/hosted/modal/requirements.txt modal deploy deploy/hosted/modal/app.py
+          uv run --with-requirements deploy/hosted/modal/requirements.txt modal run deploy/hosted/modal/app.py::seed
+      - if: steps.gate.outputs.run == 'true'
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          package_json_file: deploy/hosted/vercel/package.json
+      - if: steps.gate.outputs.run == 'true'
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+      - if: steps.gate.outputs.run == 'true'
+        name: deploy the front door
+        run: |
+          deploy/hosted/vercel/build.sh
+          cd deploy/hosted/vercel
+          npx --yes vercel@61.1.0 deploy --prod --yes --token "$VERCEL_TOKEN"
+      - if: steps.gate.outputs.run == 'true' && env.CORELATA_SMOKE_PASSWORD != '' && env.SITE_URL != '' && env.API_ORIGIN != ''
+        name: smoke test
+        run: uv run --with httpx python deploy/hosted/smoke.py --site "$SITE_URL" --api-origin "$API_ORIGIN" --user ci
+      - if: steps.gate.outputs.run == 'true' && (env.CORELATA_SMOKE_PASSWORD == '' || env.SITE_URL == '' || env.API_ORIGIN == '')
+        name: smoke test inputs missing
+        run: |
+          missing=""
+          [ -n "$CORELATA_SMOKE_PASSWORD" ] || missing="$missing CORELATA_SMOKE_PASSWORD (secret)"
+          [ -n "$SITE_URL" ] || missing="$missing CORELATA_SITE_URL (variable)"
+          [ -n "$API_ORIGIN" ] || missing="$missing CORELATA_API_ORIGIN (variable)"
+          echo "::warning::deployed, but the smoke test did not run; missing:$missing"

@@ -1,0 +1,720 @@
+{
+  "$defs": {
+    "CallSummary": {
+      "description": "An LLMCallRecord without its request and response bodies (the trace download has them).",
+      "properties": {
+        "attempt": {
+          "title": "Attempt",
+          "type": "integer"
+        },
+        "backend": {
+          "title": "Backend",
+          "type": "string"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Error"
+        },
+        "latency_ms": {
+          "title": "Latency Ms",
+          "type": "integer"
+        },
+        "model": {
+          "title": "Model",
+          "type": "string"
+        },
+        "ok": {
+          "title": "Ok",
+          "type": "boolean"
+        },
+        "prompt_id": {
+          "title": "Prompt Id",
+          "type": "string"
+        },
+        "prompt_version": {
+          "title": "Prompt Version",
+          "type": "integer"
+        },
+        "role": {
+          "title": "Role",
+          "type": "string"
+        },
+        "tokens_in": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Tokens In"
+        },
+        "tokens_out": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Tokens Out"
+        }
+      },
+      "required": [
+        "role",
+        "backend",
+        "model",
+        "prompt_id",
+        "prompt_version",
+        "attempt",
+        "ok",
+        "latency_ms",
+        "tokens_in",
+        "tokens_out",
+        "error"
+      ],
+      "title": "CallSummary",
+      "type": "object"
+    },
+    "Confidence": {
+      "enum": [
+        "high",
+        "moderate",
+        "low"
+      ],
+      "title": "Confidence",
+      "type": "string"
+    },
+    "DraftChanges": {
+      "properties": {
+        "claims_added": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Claims Added",
+          "type": "array"
+        },
+        "claims_removed": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Claims Removed",
+          "type": "array"
+        },
+        "claims_reworded": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Claims Reworded",
+          "type": "array"
+        },
+        "key_judgments_changed": {
+          "title": "Key Judgments Changed",
+          "type": "boolean"
+        },
+        "sections_changed": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Sections Changed",
+          "type": "array"
+        },
+        "title_changed": {
+          "title": "Title Changed",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "title_changed",
+        "claims_added",
+        "claims_removed",
+        "claims_reworded",
+        "key_judgments_changed",
+        "sections_changed"
+      ],
+      "title": "DraftChanges",
+      "type": "object"
+    },
+    "DraftStep": {
+      "properties": {
+        "changes": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DraftChanges"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "iteration": {
+          "title": "Iteration",
+          "type": "integer"
+        },
+        "role": {
+          "title": "Role",
+          "type": "string"
+        }
+      },
+      "required": [
+        "role",
+        "iteration",
+        "changes"
+      ],
+      "title": "DraftStep",
+      "type": "object"
+    },
+    "Finding": {
+      "properties": {
+        "cited_units": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Cited Units",
+          "type": "array"
+        },
+        "claim_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Claim Ids",
+          "type": "array"
+        },
+        "evidence": {
+          "description": "What in the draft (or missing from it) decided this",
+          "title": "Evidence",
+          "type": "string"
+        },
+        "iteration": {
+          "title": "Iteration",
+          "type": "integer"
+        },
+        "recommendation": {
+          "default": "",
+          "title": "Recommendation",
+          "type": "string"
+        },
+        "route_to": {
+          "title": "Route To",
+          "type": "string"
+        },
+        "rule_id": {
+          "title": "Rule Id",
+          "type": "string"
+        },
+        "severity": {
+          "title": "Severity",
+          "type": "string"
+        },
+        "verdict": {
+          "$ref": "#/$defs/Verdict"
+        }
+      },
+      "required": [
+        "rule_id",
+        "verdict",
+        "evidence",
+        "severity",
+        "route_to",
+        "iteration"
+      ],
+      "title": "Finding",
+      "type": "object"
+    },
+    "GateVerdict": {
+      "properties": {
+        "evidence": {
+          "description": "Unit refs that matter most",
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "reasons": {
+          "description": "One sentence each; what supports or undermines",
+          "items": {
+            "type": "string"
+          },
+          "title": "Reasons",
+          "type": "array"
+        },
+        "substance": {
+          "$ref": "#/$defs/Substance"
+        },
+        "suggested_scope": {
+          "default": "",
+          "description": "A scope note the writer must include if thin",
+          "title": "Suggested Scope",
+          "type": "string"
+        },
+        "supported": {
+          "description": "The sources support the value statement",
+          "title": "Supported",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "supported",
+        "substance",
+        "reasons"
+      ],
+      "title": "GateVerdict",
+      "type": "object"
+    },
+    "IterationFindings": {
+      "properties": {
+        "attested": {
+          "title": "Attested",
+          "type": "integer"
+        },
+        "failed": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Failed",
+          "type": "array"
+        },
+        "iteration": {
+          "title": "Iteration",
+          "type": "integer"
+        },
+        "not_applicable": {
+          "title": "Not Applicable",
+          "type": "integer"
+        },
+        "open": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Open",
+          "type": "array"
+        },
+        "passed": {
+          "title": "Passed",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "iteration",
+        "failed",
+        "open",
+        "passed",
+        "attested",
+        "not_applicable"
+      ],
+      "title": "IterationFindings",
+      "type": "object"
+    },
+    "PriorJudgment": {
+      "properties": {
+        "confidence": {
+          "$ref": "#/$defs/Confidence"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text",
+        "confidence"
+      ],
+      "title": "PriorJudgment",
+      "type": "object"
+    },
+    "PriorReport": {
+      "description": "An earlier accepted report as a run was given it (CRL-97): its key judgments, and whether\n`pipeline.prior_judgments.budget_tokens` left it out (`cut`, oldest first).",
+      "properties": {
+        "accepted_at": {
+          "format": "date-time",
+          "title": "Accepted At",
+          "type": "string"
+        },
+        "cut": {
+          "default": false,
+          "title": "Cut",
+          "type": "boolean"
+        },
+        "key_judgments": {
+          "items": {
+            "$ref": "#/$defs/PriorJudgment"
+          },
+          "title": "Key Judgments",
+          "type": "array"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "run_id",
+        "title",
+        "accepted_at",
+        "key_judgments"
+      ],
+      "title": "PriorReport",
+      "type": "object"
+    },
+    "ReportStatus": {
+      "enum": [
+        "clean",
+        "findings_open"
+      ],
+      "title": "ReportStatus",
+      "type": "string"
+    },
+    "RunState": {
+      "enum": [
+        "created",
+        "ingesting",
+        "gating",
+        "drafting",
+        "conveying",
+        "auditing",
+        "rendering",
+        "completed",
+        "gate_rejected",
+        "failed",
+        "cancelled"
+      ],
+      "title": "RunState",
+      "type": "string"
+    },
+    "SourceKind": {
+      "enum": [
+        "file",
+        "coglossa_export"
+      ],
+      "title": "SourceKind",
+      "type": "string"
+    },
+    "SourceSummary": {
+      "properties": {
+        "coglossa_run_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Coglossa Run Id"
+        },
+        "digested": {
+          "title": "Digested",
+          "type": "boolean"
+        },
+        "format": {
+          "title": "Format",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/SourceKind"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "sha256": {
+          "title": "Sha256",
+          "type": "string"
+        },
+        "units": {
+          "title": "Units",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "kind",
+        "format",
+        "sha256",
+        "units",
+        "digested",
+        "coglossa_run_id"
+      ],
+      "title": "SourceSummary",
+      "type": "object"
+    },
+    "StageLine": {
+      "properties": {
+        "duration_ms": {
+          "title": "Duration Ms",
+          "type": "integer"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Error"
+        },
+        "iteration": {
+          "title": "Iteration",
+          "type": "integer"
+        },
+        "ok": {
+          "title": "Ok",
+          "type": "boolean"
+        },
+        "stage": {
+          "title": "Stage",
+          "type": "string"
+        }
+      },
+      "required": [
+        "stage",
+        "iteration",
+        "ok",
+        "duration_ms",
+        "error"
+      ],
+      "title": "StageLine",
+      "type": "object"
+    },
+    "Substance": {
+      "enum": [
+        "sufficient",
+        "thin",
+        "insufficient"
+      ],
+      "title": "Substance",
+      "type": "string"
+    },
+    "TraceSummary": {
+      "properties": {
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Error"
+        },
+        "findings": {
+          "items": {
+            "$ref": "#/$defs/IterationFindings"
+          },
+          "title": "Findings",
+          "type": "array"
+        },
+        "gate": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GateVerdict"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "iterations": {
+          "title": "Iterations",
+          "type": "integer"
+        },
+        "max_iterations": {
+          "title": "Max Iterations",
+          "type": "integer"
+        },
+        "open_findings": {
+          "items": {
+            "$ref": "#/$defs/Finding"
+          },
+          "title": "Open Findings",
+          "type": "array"
+        },
+        "pack_hash": {
+          "title": "Pack Hash",
+          "type": "string"
+        },
+        "pack_name": {
+          "title": "Pack Name",
+          "type": "string"
+        },
+        "prior_reports": {
+          "items": {
+            "$ref": "#/$defs/PriorReport"
+          },
+          "title": "Prior Reports",
+          "type": "array"
+        },
+        "profile": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Profile"
+        },
+        "prompt_versions": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "Prompt Versions",
+          "type": "object"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "sources": {
+          "items": {
+            "$ref": "#/$defs/SourceSummary"
+          },
+          "title": "Sources",
+          "type": "array"
+        },
+        "stages": {
+          "items": {
+            "$ref": "#/$defs/StageLine"
+          },
+          "title": "Stages",
+          "type": "array"
+        },
+        "state": {
+          "$ref": "#/$defs/RunState"
+        },
+        "status": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReportStatus"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "usage": {
+          "$ref": "#/$defs/Usage"
+        },
+        "value_statement": {
+          "title": "Value Statement",
+          "type": "string"
+        }
+      },
+      "required": [
+        "run_id",
+        "state",
+        "status",
+        "error",
+        "value_statement",
+        "pack_name",
+        "pack_hash",
+        "profile",
+        "iterations",
+        "max_iterations",
+        "sources",
+        "gate",
+        "stages",
+        "findings",
+        "open_findings",
+        "usage",
+        "prompt_versions"
+      ],
+      "title": "TraceSummary",
+      "type": "object"
+    },
+    "Usage": {
+      "properties": {
+        "by_role": {
+          "additionalProperties": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object"
+          },
+          "title": "By Role",
+          "type": "object"
+        },
+        "calls": {
+          "title": "Calls",
+          "type": "integer"
+        },
+        "tokens_in": {
+          "title": "Tokens In",
+          "type": "integer"
+        },
+        "tokens_out": {
+          "title": "Tokens Out",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "calls",
+        "tokens_in",
+        "tokens_out",
+        "by_role"
+      ],
+      "title": "Usage",
+      "type": "object"
+    },
+    "Verdict": {
+      "enum": [
+        "pass",
+        "fail",
+        "not_applicable",
+        "attested"
+      ],
+      "title": "Verdict",
+      "type": "string"
+    }
+  },
+  "description": "`GET /api/runs/{id}/trace` (spec §10.1): the summary plus what the Process tab shows\n(spec §10.3) — how each draft changed the one before it, and every model call.",
+  "properties": {
+    "calls": {
+      "items": {
+        "$ref": "#/$defs/CallSummary"
+      },
+      "title": "Calls",
+      "type": "array"
+    },
+    "drafts": {
+      "items": {
+        "$ref": "#/$defs/DraftStep"
+      },
+      "title": "Drafts",
+      "type": "array"
+    },
+    "summary": {
+      "$ref": "#/$defs/TraceSummary"
+    }
+  },
+  "required": [
+    "summary",
+    "drafts",
+    "calls"
+  ],
+  "title": "RunTrace",
+  "type": "object"
+}

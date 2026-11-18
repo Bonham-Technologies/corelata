@@ -1,0 +1,53 @@
+name: corroborated-port-expansion
+description: >-
+  Three independent sources that agree (the Tarvos port authority, Kelmar's chamber of commerce
+  and a forwarders' survey), with dates and figures, support the statement. A good model passes
+  the gate as sufficient, cites a unit for every fact and judgment, weighs Kelmar's planned 2027
+  dredging as the alternative and delivers a clean report within one revision. A weak model
+  leaves its analytic judgments uncited (icd203.tc.8, icd206.src.2), drops the alternative
+  (icd203.tc.4) or spends every revision.
+statement: The expansion of Tarvos container port is drawing regional shipping away from Kelmar
+sources:
+  - id: src1
+    name: tarvos-port-authority-bulletin.txt
+    paragraphs:
+      - >-
+        Tarvos Port Authority, quarterly bulletin, 3 July 2026. The second container terminal at
+        Tarvos (Terminal B) entered full service on 12 May 2026, raising the port's annual
+        handling capacity from 1.1 million to 1.9 million TEU.
+      - >-
+        Container throughput in April to June 2026 reached 352,000 TEU, 38 percent more than in
+        the same quarter of 2025. The authority attributes most of the rise to three Asia-Europe
+        services that moved their regional call from Kelmar to Tarvos in May.
+      - >-
+        Average waiting time for container ships at anchor fell from 31 hours in the first
+        quarter to 9 hours in the second.
+  - id: src2
+    name: kelmar-chamber-statement.txt
+    paragraphs:
+      - >-
+        Kelmar Chamber of Commerce, press statement, 18 July 2026. Container volumes at Kelmar in
+        June 2026 were 61,000 TEU, 22 percent below June 2025 and the steepest monthly fall since
+        the port opened its deep-water berth in 2019.
+      - >-
+        The Chamber names the move of the Orion Line and Marisco services to Tarvos as the main
+        cause, and warns that a third service, the Halden Express, is reviewing its Kelmar call
+        for the winter schedule.
+  - id: src3
+    name: forwarders-survey.md
+    paragraphs:
+      - >-
+        Northern Freight Forwarders Association, member survey published 25 July 2026; 142 firms
+        responded. 61 percent said they had moved at least some regional import volume from
+        Kelmar to Tarvos since May.
+      - >-
+        The reasons most often given were shorter waiting times (74 percent of those who moved)
+        and the new rail shuttle from Tarvos to the inland terminal at Dorran (52 percent). 19
+        percent expect to move volume back if Kelmar completes its planned berth dredging in 2027.
+expect:
+  state: completed
+  status_in: [clean]
+  iterations_max: 1
+  gate_supported_in: [true]
+  substance_in: [sufficient]
+  rules_must_pass: [icd203.tc.8, icd206.src.2, icd206.src.1, icd203.tc.4]

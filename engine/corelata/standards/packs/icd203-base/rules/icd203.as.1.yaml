@@ -1,0 +1,14 @@
+id: icd203.as.1
+title: Objective
+source: "ICD 203 (2015) D.6.a"
+text: >
+  Analysts must perform their functions with objectivity and with awareness of their own
+  assumptions and reasoning. They must employ reasoning techniques and practical mechanisms
+  that reveal and mitigate bias.
+severity: major
+checkability: advisory
+applies_to: [writer, conveyor, auditor]
+evidence_required: >
+  Note whether the draft states its assumptions and reasoning explicitly and avoids
+  loaded or one-sided language.
+route_to: writer

@@ -1,0 +1,29 @@
+name: off-topic-sources
+description: >-
+  Both sources are about the Tarvos port authority and the harbour, but neither mentions
+  ownership, a sale or privatisation. A good model rejects at the gate (supported false) and its
+  reasons say the sources do not address the statement. A weak model accepts because the names
+  match and writes a report that speculates about a sale.
+statement: The Tarvos Port Authority plans to privatise its container terminals
+sources:
+  - id: src1
+    name: tarvos-cruise-season.txt
+    paragraphs:
+      - >-
+        Tarvos Port Authority, press release, 14 June 2026. The cruise season opened with 41 calls
+        scheduled between June and September, eight more than in 2025.
+      - >-
+        A new canopy for the passenger terminal, paid for by the city of Tarvos, will be finished
+        in August. The authority expects 96,000 cruise passengers this year.
+  - id: src2
+    name: harbour-master-notice.txt
+    paragraphs:
+      - >-
+        Notice to fishing vessels, Tarvos harbour master, 20 June 2026. The inner fishing basin
+        will be closed for dredging from 1 to 19 September 2026.
+      - >-
+        Vessels under 12 metres may use the temporary pontoons at the north mole during the
+        closure.
+expect:
+  state: gate_rejected
+  gate_supported: false

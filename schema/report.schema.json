@@ -1,0 +1,449 @@
+{
+  "$defs": {
+    "Alternative": {
+      "properties": {
+        "assessment": {
+          "title": "Assessment",
+          "type": "string"
+        },
+        "claim_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Claim Ids",
+          "type": "array"
+        },
+        "hypothesis": {
+          "title": "Hypothesis",
+          "type": "string"
+        }
+      },
+      "required": [
+        "hypothesis",
+        "assessment"
+      ],
+      "title": "Alternative",
+      "type": "object"
+    },
+    "ChangeKind": {
+      "enum": [
+        "consistent",
+        "changed"
+      ],
+      "title": "ChangeKind",
+      "type": "string"
+    },
+    "Claim": {
+      "properties": {
+        "evidence": {
+          "description": "Unit refs (<source_id>/<unit_id>) the claim rests on",
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "id": {
+          "description": "Short id such as c1; unique within the report",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/ClaimKind"
+        },
+        "likelihood_term": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "For judgments: the estimative term used, from the lexicon",
+          "title": "Likelihood Term"
+        },
+        "quotes": {
+          "description": "Verbatim spans of the cited units that support the claim",
+          "items": {
+            "$ref": "#/$defs/Quote"
+          },
+          "title": "Quotes",
+          "type": "array"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "text",
+        "kind"
+      ],
+      "title": "Claim",
+      "type": "object"
+    },
+    "ClaimKind": {
+      "enum": [
+        "fact",
+        "judgment",
+        "assumption"
+      ],
+      "title": "ClaimKind",
+      "type": "string"
+    },
+    "Confidence": {
+      "enum": [
+        "high",
+        "moderate",
+        "low"
+      ],
+      "title": "Confidence",
+      "type": "string"
+    },
+    "JudgmentChange": {
+      "description": "How the report stands against one key judgment of an earlier accepted report of its\nproject (CRL-97, ICD 203 D.6.e(7)).",
+      "properties": {
+        "change": {
+          "$ref": "#/$defs/ChangeKind"
+        },
+        "claim_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Claim Ids",
+          "type": "array"
+        },
+        "explanation": {
+          "description": "What in this report agrees with the earlier judgment or departs from it, and why",
+          "title": "Explanation",
+          "type": "string"
+        },
+        "prior_judgment": {
+          "description": "The earlier key judgment, as it was stated",
+          "title": "Prior Judgment",
+          "type": "string"
+        },
+        "prior_run_id": {
+          "description": "The earlier report's run_id in INPUT_JSON.prior_reports",
+          "title": "Prior Run Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "prior_run_id",
+        "prior_judgment",
+        "change",
+        "explanation"
+      ],
+      "title": "JudgmentChange",
+      "type": "object"
+    },
+    "KeyJudgment": {
+      "properties": {
+        "claim_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Claim Ids",
+          "type": "array"
+        },
+        "confidence": {
+          "$ref": "#/$defs/Confidence"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text",
+        "confidence",
+        "claim_ids"
+      ],
+      "title": "KeyJudgment",
+      "type": "object"
+    },
+    "Paragraph": {
+      "properties": {
+        "claim_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Claim Ids",
+          "type": "array"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Paragraph",
+      "type": "object"
+    },
+    "PriorReportRef": {
+      "description": "An earlier accepted report of the run's project (CRL-97): its run id, title and when it\nwas accepted.",
+      "properties": {
+        "accepted_at": {
+          "format": "date-time",
+          "title": "Accepted At",
+          "type": "string"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "run_id",
+        "title",
+        "accepted_at"
+      ],
+      "title": "PriorReportRef",
+      "type": "object"
+    },
+    "Quote": {
+      "description": "Words copied verbatim from one of the units a claim cites.",
+      "properties": {
+        "ref": {
+          "description": "The unit ref the words are copied from, one of the claim's evidence",
+          "title": "Ref",
+          "type": "string"
+        },
+        "text": {
+          "description": "Words copied verbatim from that unit: one contiguous span, no ellipses",
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ref",
+        "text"
+      ],
+      "title": "Quote",
+      "type": "object"
+    },
+    "ReportMetadata": {
+      "properties": {
+        "degradations": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Degradations",
+          "type": "array"
+        },
+        "iteration": {
+          "default": 0,
+          "title": "Iteration",
+          "type": "integer"
+        },
+        "open_findings": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Open Findings",
+          "type": "array"
+        },
+        "pack_hash": {
+          "title": "Pack Hash",
+          "type": "string"
+        },
+        "pack_name": {
+          "title": "Pack Name",
+          "type": "string"
+        },
+        "prior_reports": {
+          "items": {
+            "$ref": "#/$defs/PriorReportRef"
+          },
+          "title": "Prior Reports",
+          "type": "array"
+        },
+        "profile": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Profile"
+        },
+        "run_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Run Id"
+        },
+        "status": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReportStatus"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "pack_name",
+        "pack_hash"
+      ],
+      "title": "ReportMetadata",
+      "type": "object"
+    },
+    "ReportStatus": {
+      "enum": [
+        "clean",
+        "findings_open"
+      ],
+      "title": "ReportStatus",
+      "type": "string"
+    },
+    "Section": {
+      "properties": {
+        "heading": {
+          "title": "Heading",
+          "type": "string"
+        },
+        "paragraphs": {
+          "items": {
+            "$ref": "#/$defs/Paragraph"
+          },
+          "title": "Paragraphs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "heading",
+        "paragraphs"
+      ],
+      "title": "Section",
+      "type": "object"
+    },
+    "SourceEntry": {
+      "properties": {
+        "descriptor": {
+          "description": "A source descriptor phrase from the lexicon",
+          "title": "Descriptor",
+          "type": "string"
+        },
+        "reliability_note": {
+          "default": "",
+          "title": "Reliability Note",
+          "type": "string"
+        },
+        "source_id": {
+          "title": "Source Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_id",
+        "descriptor"
+      ],
+      "title": "SourceEntry",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "alternatives": {
+      "items": {
+        "$ref": "#/$defs/Alternative"
+      },
+      "title": "Alternatives",
+      "type": "array"
+    },
+    "analysis": {
+      "items": {
+        "$ref": "#/$defs/Section"
+      },
+      "title": "Analysis",
+      "type": "array"
+    },
+    "changes_from_previous": {
+      "description": "How the key judgments stand against those of the project's earlier reports",
+      "items": {
+        "$ref": "#/$defs/JudgmentChange"
+      },
+      "title": "Changes From Previous",
+      "type": "array"
+    },
+    "claims": {
+      "items": {
+        "$ref": "#/$defs/Claim"
+      },
+      "title": "Claims",
+      "type": "array"
+    },
+    "gaps_and_indicators": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Gaps And Indicators",
+      "type": "array"
+    },
+    "handling_marking": {
+      "title": "Handling Marking",
+      "type": "string"
+    },
+    "key_judgments": {
+      "items": {
+        "$ref": "#/$defs/KeyJudgment"
+      },
+      "title": "Key Judgments",
+      "type": "array"
+    },
+    "metadata": {
+      "$ref": "#/$defs/ReportMetadata"
+    },
+    "scope_note": {
+      "title": "Scope Note",
+      "type": "string"
+    },
+    "sources": {
+      "items": {
+        "$ref": "#/$defs/SourceEntry"
+      },
+      "title": "Sources",
+      "type": "array"
+    },
+    "title": {
+      "title": "Title",
+      "type": "string"
+    }
+  },
+  "required": [
+    "title",
+    "handling_marking",
+    "key_judgments",
+    "scope_note",
+    "sources",
+    "analysis",
+    "alternatives",
+    "gaps_and_indicators",
+    "claims",
+    "metadata"
+  ],
+  "title": "Report",
+  "type": "object"
+}

@@ -1,0 +1,15 @@
+# The demo configuration: the synthetic model server of compose.demo.yaml (operator guide,
+# "Try it first"). Everything else is the example's.
+backends:
+  demo: { base_url: http://fake-openai:8000/v1, max_concurrency: 4, timeout_s: 60 }
+models:
+  m1: { backend: demo, name: fake-model, context_window: 32768 }
+roles:
+  gate: { model: m1 }
+  writer: { model: m1 }
+  conveyor: { model: m1 }
+  auditor: { model: m1 }
+standards: { packs_dir: /etc/corelata/packs, default_pack: icd203-base }
+storage: { path: /data/files }
+worker: { concurrency: 2, stalled_after_s: 120 }
+api: { max_upload_mb: 200, progress_poll_s: 0.5 }

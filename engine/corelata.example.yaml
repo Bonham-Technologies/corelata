@@ -1,0 +1,60 @@
+# Corelata configuration — copy to corelata.yaml and point it at your model servers.
+# Any OpenAI-compatible server works: vLLM, Ollama, TGI, llama.cpp server, LM Studio.
+backends:
+  local:
+    base_url: http://127.0.0.1:8000/v1   # e.g. vLLM; Ollama is http://host:11434/v1
+    # api_key_env: CORELATA_LOCAL_KEY    # name of an environment variable, if the server needs a key
+    max_concurrency: 4
+    timeout_s: 120
+
+models:
+  strong:                          # the key is how roles refer to the model
+    backend: local
+    # name: Qwen/Qwen3-32B         # model id the server expects, if different from the key
+    context_window: 32768
+    structured_output: json_schema # json_schema | json_object | none
+    max_output_tokens: 8192
+    temperature: 0.2
+
+roles:                             # spec §4.4; one model per role
+  gate:     { model: strong }
+  writer:   { model: strong }
+  conveyor: { model: strong }
+  auditor:  { model: strong }      # a different model family from the writer is better when you have one
+  # profiler: { model: strong }    # only for `corelata profile extract` (M6)
+
+standards:                         # spec §6
+  # packs_dir: ./packs             # your packs; the built-in icd203-base is always available
+  default_pack: icd203-base
+  # default_profile: team-east
+
+pipeline:                          # spec §7
+  max_iterations: 2                # audit loop bound; the report is delivered either way
+  digest_threshold_tokens: 6000    # sources longer than this are digested before drafting
+  digest_chunk_tokens: 4000        # a long source is digested in requests of at most this many tokens
+  writer_unit_budget_tokens: 16000 # full-text source units the writer sees: gate-cited first, then the rest
+  gate_unit_budget_tokens: 12000   # how much source text the gate sees in full
+  evidence_quotes: required        # claims quote their units word for word, checked by the engine; optional or off for weak models (unset: off)
+  quote_match_threshold: 1.0       # share of a quote's words that must match the unit in order; 1.0 is exact
+  prior_judgments: { max_reports: 3, budget_tokens: 2000 }  # the project's newest accepted reports the writer and auditor read; max_reports: 0 reads none (unset: 0)
+
+# retry: { max_attempts: 4, base_delay_s: 2, max_delay_s: 60 }
+# audit: { store_llm_io: true }    # keep every prompt and reply in the trace
+# prompts_dir: ./prompts           # override templates: prompts/<id>/v<N>.j2
+
+# Queued deployment (corelata migrate / worker / run --project / status ...). `corelata run FILES`
+# without --project needs none of these.
+database: { url_env: CORELATA_DATABASE_URL }   # the variable holding postgresql://user:pass@host:5432/corelata
+storage: { kind: local, path: ./files }        # uploaded sources, reference documents, exports
+worker:
+  concurrency: 2                    # jobs at once: runs and discoveries share them (a discovery goes first)
+  stalled_after_s: 900              # requeue a job after its worker is silent this long
+  job_retention_days: 30            # days failed/cancelled jobs are kept
+  discovery_deadline_s: 600         # seconds a discovery may work once the worker starts it
+  discovery_start_deadline_s: 3600  # seconds a discovery may wait for the worker to start it
+api: { max_upload_mb: 200, progress_poll_s: 1.0, render_cache_mb: 64 } # upload limit; SSE poll interval; claim-id render memory
+# api: { ..., web_dir: ../web/dist }     # serve the built web app from the API; or corelata-api --web-dir
+auth: { mode: none }                             # none: anyone who reaches the API; trusted_header: a proxy signs people in
+# auth: { mode: trusted_header, header: X-Remote-User, logout_url: /oauth2/sign_out }
+# integrations:
+#   coglossa: { base_url: http://coglossa-api:8080, api_key_env: CORELATA_COGLOSSA_KEY }

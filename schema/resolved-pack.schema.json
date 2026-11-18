@@ -1,0 +1,343 @@
+{
+  "$defs": {
+    "Checkability": {
+      "enum": [
+        "verifiable",
+        "advisory"
+      ],
+      "title": "Checkability",
+      "type": "string"
+    },
+    "Confidence": {
+      "enum": [
+        "high",
+        "moderate",
+        "low"
+      ],
+      "title": "Confidence",
+      "type": "string"
+    },
+    "ItemLimits": {
+      "additionalProperties": false,
+      "properties": {
+        "max": {
+          "minimum": 1,
+          "title": "Max",
+          "type": "integer"
+        },
+        "min": {
+          "minimum": 0,
+          "title": "Min",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "min",
+        "max"
+      ],
+      "title": "ItemLimits",
+      "type": "object"
+    },
+    "Lexicon": {
+      "additionalProperties": false,
+      "properties": {
+        "confidence_definitions": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "propertyNames": {
+            "$ref": "#/$defs/Confidence"
+          },
+          "title": "Confidence Definitions",
+          "type": "object"
+        },
+        "handling_markings": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Handling Markings",
+          "type": "array"
+        },
+        "likelihood": {
+          "items": {
+            "$ref": "#/$defs/LikelihoodTerm"
+          },
+          "title": "Likelihood",
+          "type": "array"
+        },
+        "source_descriptors": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Source Descriptors",
+          "type": "array"
+        }
+      },
+      "required": [
+        "likelihood",
+        "confidence_definitions",
+        "source_descriptors",
+        "handling_markings"
+      ],
+      "title": "Lexicon",
+      "type": "object"
+    },
+    "LikelihoodTerm": {
+      "additionalProperties": false,
+      "properties": {
+        "high": {
+          "maximum": 100,
+          "minimum": 0,
+          "title": "High",
+          "type": "integer"
+        },
+        "low": {
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Low",
+          "type": "integer"
+        },
+        "term": {
+          "title": "Term",
+          "type": "string"
+        }
+      },
+      "required": [
+        "term",
+        "low",
+        "high"
+      ],
+      "title": "LikelihoodTerm",
+      "type": "object"
+    },
+    "PriorReportsRule": {
+      "additionalProperties": false,
+      "description": "How a rule reads when the run has the key judgments of its project's earlier accepted\nreports (CRL-97); `Rule.with_prior_reports`.",
+      "properties": {
+        "checkability": {
+          "$ref": "#/$defs/Checkability"
+        },
+        "evidence_required": {
+          "title": "Evidence Required",
+          "type": "string"
+        }
+      },
+      "required": [
+        "checkability",
+        "evidence_required"
+      ],
+      "title": "PriorReportsRule",
+      "type": "object"
+    },
+    "ProfileFormat": {
+      "additionalProperties": false,
+      "properties": {
+        "docx_reference": {
+          "anyOf": [
+            {
+              "format": "path",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Docx Reference"
+        },
+        "heading_style": {
+          "default": "plain",
+          "enum": [
+            "plain",
+            "numbered"
+          ],
+          "title": "Heading Style",
+          "type": "string"
+        }
+      },
+      "title": "ProfileFormat",
+      "type": "object"
+    },
+    "RouteTo": {
+      "enum": [
+        "writer",
+        "conveyor"
+      ],
+      "title": "RouteTo",
+      "type": "string"
+    },
+    "Rule": {
+      "additionalProperties": false,
+      "properties": {
+        "applies_to": {
+          "items": {
+            "enum": [
+              "gate",
+              "writer",
+              "conveyor",
+              "auditor"
+            ],
+            "type": "string"
+          },
+          "title": "Applies To",
+          "type": "array"
+        },
+        "checkability": {
+          "$ref": "#/$defs/Checkability"
+        },
+        "evidence_required": {
+          "title": "Evidence Required",
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^[a-z0-9]+(\\.[a-z0-9]+)+$",
+          "title": "Id",
+          "type": "string"
+        },
+        "route_to": {
+          "$ref": "#/$defs/RouteTo"
+        },
+        "severity": {
+          "$ref": "#/$defs/Severity"
+        },
+        "source": {
+          "default": "",
+          "title": "Source",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "with_prior_reports": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PriorReportsRule"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "text",
+        "severity",
+        "checkability",
+        "applies_to",
+        "evidence_required",
+        "route_to"
+      ],
+      "title": "Rule",
+      "type": "object"
+    },
+    "Severity": {
+      "enum": [
+        "blocking",
+        "major",
+        "minor"
+      ],
+      "title": "Severity",
+      "type": "string"
+    },
+    "Template": {
+      "additionalProperties": false,
+      "properties": {
+        "alternatives_required_unless_all_high": {
+          "title": "Alternatives Required Unless All High",
+          "type": "boolean"
+        },
+        "analysis_max_words": {
+          "minimum": 50,
+          "title": "Analysis Max Words",
+          "type": "integer"
+        },
+        "gaps_required": {
+          "title": "Gaps Required",
+          "type": "boolean"
+        },
+        "key_judgments": {
+          "$ref": "#/$defs/ItemLimits"
+        },
+        "section_order": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Section Order",
+          "type": "array"
+        }
+      },
+      "required": [
+        "section_order",
+        "key_judgments",
+        "analysis_max_words",
+        "alternatives_required_unless_all_high",
+        "gaps_required"
+      ],
+      "title": "Template",
+      "type": "object"
+    }
+  },
+  "description": "What a run snapshots (spec §6.6). Rules are sorted by id so the hash is stable.",
+  "properties": {
+    "format": {
+      "$ref": "#/$defs/ProfileFormat"
+    },
+    "lexicon": {
+      "$ref": "#/$defs/Lexicon"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "profile": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Profile"
+    },
+    "rules": {
+      "items": {
+        "$ref": "#/$defs/Rule"
+      },
+      "title": "Rules",
+      "type": "array"
+    },
+    "template": {
+      "$ref": "#/$defs/Template"
+    },
+    "tone": {
+      "title": "Tone",
+      "type": "string"
+    },
+    "version": {
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "version",
+    "profile",
+    "rules",
+    "template",
+    "lexicon",
+    "tone",
+    "format"
+  ],
+  "title": "ResolvedPack",
+  "type": "object"
+}

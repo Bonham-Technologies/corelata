@@ -1,0 +1,180 @@
+{
+  "$defs": {
+    "CandidateStatement": {
+      "properties": {
+        "audience": {
+          "title": "Audience",
+          "type": "string"
+        },
+        "confidence_note": {
+          "default": "",
+          "title": "Confidence Note",
+          "type": "string"
+        },
+        "evidence": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text",
+        "audience"
+      ],
+      "title": "CandidateStatement",
+      "type": "object"
+    },
+    "DiscoveryState": {
+      "enum": [
+        "created",
+        "running",
+        "completed",
+        "failed"
+      ],
+      "title": "DiscoveryState",
+      "type": "string"
+    },
+    "Usage": {
+      "properties": {
+        "by_role": {
+          "additionalProperties": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object"
+          },
+          "title": "By Role",
+          "type": "object"
+        },
+        "calls": {
+          "title": "Calls",
+          "type": "integer"
+        },
+        "tokens_in": {
+          "title": "Tokens In",
+          "type": "integer"
+        },
+        "tokens_out": {
+          "title": "Tokens Out",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "calls",
+        "tokens_in",
+        "tokens_out",
+        "by_role"
+      ],
+      "title": "Usage",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "audience_hint": {
+      "default": "",
+      "title": "Audience Hint",
+      "type": "string"
+    },
+    "candidates": {
+      "items": {
+        "$ref": "#/$defs/CandidateStatement"
+      },
+      "title": "Candidates",
+      "type": "array"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "deadline_at": {
+      "description": "When the discovery is failed if it has not ended, by the limit that applies (CRL-38, R-M17-27): `started_at` plus `worker.discovery_deadline_s` once the worker has claimed it (ended or not); otherwise `created_at` plus `worker.discovery_start_deadline_s`.",
+      "format": "date-time",
+      "title": "Deadline At",
+      "type": "string"
+    },
+    "discovery_id": {
+      "title": "Discovery Id",
+      "type": "string"
+    },
+    "error": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Error"
+    },
+    "finished_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Finished At"
+    },
+    "project_id": {
+      "title": "Project Id",
+      "type": "string"
+    },
+    "source_ids": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Source Ids",
+      "type": "array"
+    },
+    "started_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Started At"
+    },
+    "state": {
+      "$ref": "#/$defs/DiscoveryState"
+    },
+    "usage": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Usage"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "discovery_id",
+    "project_id",
+    "state",
+    "source_ids",
+    "created_at",
+    "deadline_at"
+  ],
+  "title": "DiscoveryView",
+  "type": "object"
+}

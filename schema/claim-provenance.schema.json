@@ -1,0 +1,145 @@
+{
+  "$defs": {
+    "Claim": {
+      "properties": {
+        "evidence": {
+          "description": "Unit refs (<source_id>/<unit_id>) the claim rests on",
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "id": {
+          "description": "Short id such as c1; unique within the report",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/ClaimKind"
+        },
+        "likelihood_term": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "For judgments: the estimative term used, from the lexicon",
+          "title": "Likelihood Term"
+        },
+        "quotes": {
+          "description": "Verbatim spans of the cited units that support the claim",
+          "items": {
+            "$ref": "#/$defs/Quote"
+          },
+          "title": "Quotes",
+          "type": "array"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "text",
+        "kind"
+      ],
+      "title": "Claim",
+      "type": "object"
+    },
+    "ClaimKind": {
+      "enum": [
+        "fact",
+        "judgment",
+        "assumption"
+      ],
+      "title": "ClaimKind",
+      "type": "string"
+    },
+    "EvidenceUnit": {
+      "properties": {
+        "locator": {
+          "title": "Locator",
+          "type": "string"
+        },
+        "ref": {
+          "title": "Ref",
+          "type": "string"
+        },
+        "source_id": {
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_name": {
+          "title": "Source Name",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ref",
+        "source_id",
+        "source_name",
+        "locator",
+        "text"
+      ],
+      "title": "EvidenceUnit",
+      "type": "object"
+    },
+    "Quote": {
+      "description": "Words copied verbatim from one of the units a claim cites.",
+      "properties": {
+        "ref": {
+          "description": "The unit ref the words are copied from, one of the claim's evidence",
+          "title": "Ref",
+          "type": "string"
+        },
+        "text": {
+          "description": "Words copied verbatim from that unit: one contiguous span, no ellipses",
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ref",
+        "text"
+      ],
+      "title": "Quote",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "cited_by": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Cited By",
+      "type": "array"
+    },
+    "claim": {
+      "$ref": "#/$defs/Claim"
+    },
+    "evidence": {
+      "items": {
+        "$ref": "#/$defs/EvidenceUnit"
+      },
+      "title": "Evidence",
+      "type": "array"
+    }
+  },
+  "required": [
+    "claim",
+    "evidence",
+    "cited_by"
+  ],
+  "title": "ClaimProvenance",
+  "type": "object"
+}

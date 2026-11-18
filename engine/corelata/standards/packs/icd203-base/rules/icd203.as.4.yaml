@@ -1,0 +1,13 @@
+id: icd203.as.4
+title: Based on all available sources of intelligence information
+source: "ICD 203 (2015) D.6.d"
+text: >
+  Analysis should be informed by all relevant information available. Analytic elements should
+  identify and address critical information gaps.
+severity: major
+checkability: verifiable
+applies_to: [writer, auditor]
+evidence_required: >
+  Every provided source is either cited by at least one claim or explicitly set aside in the
+  scope note with a reason, and the gaps section names the information that is missing.
+route_to: writer

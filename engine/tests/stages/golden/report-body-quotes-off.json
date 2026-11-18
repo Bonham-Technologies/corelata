@@ -1,0 +1,267 @@
+{
+  "$defs": {
+    "Alternative": {
+      "properties": {
+        "hypothesis": {
+          "title": "Hypothesis",
+          "type": "string"
+        },
+        "assessment": {
+          "title": "Assessment",
+          "type": "string"
+        },
+        "claim_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Claim Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "hypothesis",
+        "assessment"
+      ],
+      "title": "Alternative",
+      "type": "object"
+    },
+    "Claim": {
+      "properties": {
+        "id": {
+          "description": "Short id such as c1; unique within the report",
+          "title": "Id",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/ClaimKind"
+        },
+        "evidence": {
+          "description": "Unit refs (<source_id>/<unit_id>) the claim rests on",
+          "items": {
+            "$ref": "#/$defs/UnitRef"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "likelihood_term": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "For judgments: the estimative term used, from the lexicon",
+          "title": "Likelihood Term"
+        }
+      },
+      "required": [
+        "id",
+        "text",
+        "kind"
+      ],
+      "title": "Claim",
+      "type": "object"
+    },
+    "ClaimKind": {
+      "enum": [
+        "fact",
+        "judgment",
+        "assumption"
+      ],
+      "title": "ClaimKind",
+      "type": "string"
+    },
+    "Confidence": {
+      "enum": [
+        "high",
+        "moderate",
+        "low"
+      ],
+      "title": "Confidence",
+      "type": "string"
+    },
+    "KeyJudgment": {
+      "properties": {
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "confidence": {
+          "$ref": "#/$defs/Confidence"
+        },
+        "claim_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Claim Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "text",
+        "confidence",
+        "claim_ids"
+      ],
+      "title": "KeyJudgment",
+      "type": "object"
+    },
+    "Paragraph": {
+      "properties": {
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "claim_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Claim Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Paragraph",
+      "type": "object"
+    },
+    "Section": {
+      "properties": {
+        "heading": {
+          "title": "Heading",
+          "type": "string"
+        },
+        "paragraphs": {
+          "items": {
+            "$ref": "#/$defs/Paragraph"
+          },
+          "title": "Paragraphs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "heading",
+        "paragraphs"
+      ],
+      "title": "Section",
+      "type": "object"
+    },
+    "SourceEntry": {
+      "properties": {
+        "source_id": {
+          "$ref": "#/$defs/SourceId"
+        },
+        "descriptor": {
+          "description": "A source descriptor phrase from the lexicon",
+          "title": "Descriptor",
+          "type": "string"
+        },
+        "reliability_note": {
+          "default": "",
+          "title": "Reliability Note",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_id",
+        "descriptor"
+      ],
+      "title": "SourceEntry",
+      "type": "object"
+    },
+    "SourceId": {
+      "enum": [
+        "src1",
+        "src2"
+      ],
+      "title": "SourceId",
+      "type": "string"
+    },
+    "UnitRef": {
+      "enum": [
+        "src1/u1",
+        "src1/u2",
+        "src2/u1"
+      ],
+      "title": "UnitRef",
+      "type": "string"
+    }
+  },
+  "description": "What the writer and conveyor produce. `Report` adds engine-owned metadata.",
+  "properties": {
+    "title": {
+      "title": "Title",
+      "type": "string"
+    },
+    "handling_marking": {
+      "title": "Handling Marking",
+      "type": "string"
+    },
+    "key_judgments": {
+      "items": {
+        "$ref": "#/$defs/KeyJudgment"
+      },
+      "title": "Key Judgments",
+      "type": "array"
+    },
+    "scope_note": {
+      "title": "Scope Note",
+      "type": "string"
+    },
+    "sources": {
+      "items": {
+        "$ref": "#/$defs/SourceEntry"
+      },
+      "title": "Sources",
+      "type": "array"
+    },
+    "analysis": {
+      "items": {
+        "$ref": "#/$defs/Section"
+      },
+      "title": "Analysis",
+      "type": "array"
+    },
+    "alternatives": {
+      "items": {
+        "$ref": "#/$defs/Alternative"
+      },
+      "title": "Alternatives",
+      "type": "array"
+    },
+    "gaps_and_indicators": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Gaps And Indicators",
+      "type": "array"
+    },
+    "claims": {
+      "items": {
+        "$ref": "#/$defs/Claim"
+      },
+      "title": "Claims",
+      "type": "array"
+    }
+  },
+  "required": [
+    "title",
+    "handling_marking",
+    "key_judgments",
+    "scope_note",
+    "sources",
+    "analysis",
+    "alternatives",
+    "gaps_and_indicators",
+    "claims"
+  ],
+  "title": "ReportBody",
+  "type": "object"
+}

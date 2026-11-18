@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sample report | Corelata</title>
+    <meta
+      name="description"
+      content="One real Corelata run, as the product exported and printed it: the report in four formats, a claim's source trail, the auditor's findings on the first draft and the revision that fixed them."
+    />
+    <meta name="theme-color" content="#0a0a0b" />
+    <link rel="canonical" href="https://corelata.com/sample/" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Corelata" />
+    <meta property="og:url" content="https://corelata.com/sample/" />
+    <meta property="og:title" content="Sample report | Corelata" />
+    <meta
+      property="og:description"
+      content="A real Corelata run: the report, its source trail, the auditor's findings and the revision that fixed them."
+    />
+    <meta property="og:image" content="https://corelata.com/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Sample report | Corelata" />
+    <meta
+      name="twitter:description"
+      content="A real Corelata run: the report, its source trail, the auditor's findings and the revision that fixed them."
+    />
+    <meta name="twitter:image" content="https://corelata.com/og.png" />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="stylesheet" href="/assets/site.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <div class="wrap">
+        <a class="wordmark" href="/">Corelata<span>.</span></a>
+        <nav class="site-nav" aria-label="Main">
+          <ul>
+            <li><a href="/#how">How it works</a></li>
+            <li><a href="/#demo">Demo</a></li>
+            <li><a href="/sample/" aria-current="page">Sample report</a></li>
+            <li><a href="/#run">Run it</a></li>
+            <li><a href="/#licence">Licence</a></li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="hero" aria-labelledby="sample-title">
+        <div class="wrap">
+          <p class="eyebrow">Sample output</p>
+          <h1 id="sample-title">One run, as Corelata <em>delivered</em> it.</h1>
+          <p class="lede">
+            Everything below is the product's own output from one run, with nothing rewritten: the
+            exported report, what <code>corelata trace</code> prints about the run and about one
+            claim, and the auditor's findings as the API returns them (filtered to the failed
+            verdicts and indented).
+          </p>
+          <div class="note">
+            <p>
+              The run used Corelata 0.1.8 with its <strong>synthetic test model</strong>, a
+              deterministic stand-in that ships with Corelata for tests and demonstrations. No
+              language model is involved, so the prose is placeholder text: a real model writes the
+              assessment itself. The pipeline, the checks, the revision loop, the exports and the
+              trace are the real ones.
+            </p>
+            <p>
+              The second source ends with <code>UNSOURCED</code>, a marker that tells the synthetic
+              writer to add a claim with no evidence, so that the auditor has something to find.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="inputs-title">
+        <div class="wrap prose">
+          <p class="label">Input</p>
+          <h2 id="inputs-title">Two sources and a value statement</h2>
+          <h3><code>varna-port.txt</code>, the sample source in Corelata's bundle</h3>
+          <pre class="output"><code>The port of Varna expanded its container capacity in 2025.
+
+Capacity expansion was financed by a state bank.
+
+Container traffic through Varna rose 40 percent.</code></pre>
+          <h3><code>trade-note.txt</code></h3>
+          <pre
+            class="output"
+          ><code>A trade newsletter repeats, without naming a source, that the terminal will reach full capacity early. UNSOURCED</code></pre>
+          <h3>Value statement</h3>
+          <p>
+            The port of Varna&#x27;s 2025 container expansion, financed by a state bank, is already
+            raising traffic; shippers and the port authority should plan for higher volumes.
+          </p>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="audit-title">
+        <div class="wrap prose">
+          <p class="label">The audit</p>
+          <h2 id="audit-title">The auditor failed the first draft</h2>
+          <p>
+            The writer's first draft included claim <code>c99</code> with no evidence. The auditor
+            failed three rules over it. These are its findings for iteration 0 from
+            <code>GET /api/runs/{id}/findings</code>, keeping only the failed verdicts (the other
+            fourteen rules were passed or attested):
+          </p>
+          <pre class="output"><code>[
+  {
+    &quot;rule_id&quot;: &quot;icd203.as.5&quot;,
+    &quot;verdict&quot;: &quot;fail&quot;,
+    &quot;evidence&quot;: &quot;A tradecraft standard fails.&quot;,
+    &quot;cited_units&quot;: [],
+    &quot;claim_ids&quot;: [
+      &quot;c99&quot;
+    ],
+    &quot;recommendation&quot;: &quot;Resolve the failing tradecraft findings.&quot;,
+    &quot;severity&quot;: &quot;major&quot;,
+    &quot;route_to&quot;: &quot;writer&quot;,
+    &quot;iteration&quot;: 0
+  },
+  {
+    &quot;rule_id&quot;: &quot;icd203.tc.8&quot;,
+    &quot;verdict&quot;: &quot;fail&quot;,
+    &quot;evidence&quot;: &quot;Claims without evidence: c99.&quot;,
+    &quot;cited_units&quot;: [],
+    &quot;claim_ids&quot;: [
+      &quot;c99&quot;
+    ],
+    &quot;recommendation&quot;: &quot;Cite a source unit for each claim or remove it.&quot;,
+    &quot;severity&quot;: &quot;blocking&quot;,
+    &quot;route_to&quot;: &quot;writer&quot;,
+    &quot;iteration&quot;: 0
+  },
+  {
+    &quot;rule_id&quot;: &quot;icd206.src.2&quot;,
+    &quot;verdict&quot;: &quot;fail&quot;,
+    &quot;evidence&quot;: &quot;Claims without evidence: c99.&quot;,
+    &quot;cited_units&quot;: [],
+    &quot;claim_ids&quot;: [
+      &quot;c99&quot;
+    ],
+    &quot;recommendation&quot;: &quot;Cite a source unit for each claim or remove it.&quot;,
+    &quot;severity&quot;: &quot;blocking&quot;,
+    &quot;route_to&quot;: &quot;writer&quot;,
+    &quot;iteration&quot;: 0
+  }
+]</code></pre>
+          <p>
+            All three are routed to the writer and two are blocking, so the engine sent them back.
+            The writer's revision removed <code>c99</code>, and the second audit passed every
+            verifiable rule. The auditor changed nothing in the report itself: it only returned
+            findings.
+          </p>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="trace-title">
+        <div class="wrap prose">
+          <p class="label">The trace</p>
+          <h2 id="trace-title">The whole run, from <code>corelata trace</code></h2>
+          <pre
+            class="output"
+          ><code>run 6756ba82-e4a7-4613-a204-a51852bb33c1: completed clean after 1 revision(s) (max 2)
+pack: icd203-base@cf6fc9be4160e0e0
+statement: The port of Varna&#x27;s 2025 container expansion, financed by a state bank, is already raising traffic; shippers and the port authority should plan for higher volumes.
+sources:
+  src1 varna-port.txt (txt, 3 units)
+  src2 trade-note.txt (txt, 1 units)
+gate: supported, sufficient; 7 of 16 key terms appear in the sources.
+stages:
+  ingesting   it0  ok        0 ms
+  gating      it0  ok       22 ms
+  drafting    it0  ok       10 ms
+  conveying   it0  ok        7 ms
+  auditing    it0  ok        8 ms
+  drafting    it1  ok        8 ms
+  conveying   it1  ok        7 ms
+  auditing    it1  ok        8 ms
+  rendering   it1  ok        0 ms
+findings:
+  iteration 0: failed icd203.as.5, icd203.tc.8, icd206.src.2; open 3; passed 9; attested 5; n/a 0
+  iteration 1: failed none; open 0; passed 12; attested 5; n/a 0
+usage: 7 calls, 70 in / 70 out tokens; auditor 2 call(s), 20 in / 20 out; conveyor 2 call(s), 20 in / 20 out; gate 1 call(s), 10 in / 10 out; writer 2 call(s), 20 in / 20 out</code></pre>
+          <figure class="shot">
+            <img
+              src="/assets/walkthrough/07-process-1280.webp"
+              srcset="
+                /assets/walkthrough/07-process-720.webp   720w,
+                /assets/walkthrough/07-process-1280.webp 1280w
+              "
+              sizes="(max-width: 1100px) 100vw, 1052px"
+              width="1280"
+              height="1000"
+              loading="lazy"
+              alt="The same run on the review screen's Process tab: a stage timeline with drafting, editing for the reader and checking against the standards in iterations 0 and 1, and a Drafts list ending with writer, iteration 1: title changed; removed c99; sections changed: Analysis."
+            />
+            <figcaption>
+              The same run on the review screen's Process tab: each stage per iteration, and the
+              drafts, including the writer's revision that removed <code>c99</code>.
+            </figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="claim-title">
+        <div class="wrap prose">
+          <p class="label">The source trail</p>
+          <h2 id="claim-title">Claim <code>c0</code> and its evidence</h2>
+          <p>
+            <code>corelata trace --claim c0</code> prints a claim, its likelihood term, the source
+            units it cites with their locators and text, and where the report cites it:
+          </p>
+          <pre
+            class="output"
+          ><code>c0 (judgment): It is likely that The port of Varna&#x27;s 2025 container expansion, financed by a state bank, is already raising traffic; shippers and the port authority should plan for higher volumes.
+likelihood: likely
+  src1/u2  varna-port.txt, para 2
+    Capacity expansion was financed by a state bank.
+cited by: key_judgments[0], analysis[0].paragraphs[0]</code></pre>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="report-title">
+        <div class="wrap prose">
+          <p class="label">The report</p>
+          <h2 id="report-title">The delivered report</h2>
+          <p>The Markdown export, as downloaded:</p>
+          <pre class="output"><code>UNCLASSIFIED
+
+# Conveyed: Synthetic assessment: The port of Varna&#x27;s 2025 container expan
+
+## Key judgments
+
+- **Moderate confidence.** The port of Varna&#x27;s 2025 container expansion, financed by a state bank, is already raising traffic; shippers and the port authority should plan for higher volumes.
+
+## Scope note
+
+Synthetic scope note covering all sources.
+
+## Sources
+
+- varna-port.txt — open-source report; Synthetic: current and complete. (sha256 6d559cdc)
+- trade-note.txt — open-source report; Synthetic: current and complete. (sha256 b1fe2895)
+
+## Analysis
+
+It is likely that The port of Varna&#x27;s 2025 container expansion, financed by a state bank, is already raising traffic; shippers and the port authority should plan for higher volumes.
+
+Source states: Capacity expansion was financed by a state bank.
+
+Source states: The port of Varna expanded its container capacity in 2025.
+
+Source states: Container traffic through Varna rose 40 percent.
+
+## Alternatives considered
+
+- **The opposite holds.** Less likely.
+
+## Gaps and indicators
+
+- Synthetic gap.
+
+UNCLASSIFIED</code></pre>
+          <h3>Download the exports</h3>
+          <ul class="downloads">
+            <li>
+              <a href="/sample/files/report.html"
+                ><code>report.html</code
+                ><span
+                  >Web page, self-contained, provenance attributes on every paragraph (3 KB)</span
+                ></a
+              >
+            </li>
+            <li>
+              <a href="/sample/files/report.docx"
+                ><code>report.docx</code><span>Word document (37 KB)</span></a
+              >
+            </li>
+            <li>
+              <a href="/sample/files/report.md"
+                ><code>report.md</code><span>Markdown (1 KB)</span></a
+              >
+            </li>
+            <li>
+              <a href="/sample/files/trace.json"
+                ><code>trace.json</code
+                ><span
+                  >The full trace: stages, drafts, findings, model-call metadata (49 KB)</span
+                ></a
+              >
+            </li>
+          </ul>
+          <p>
+            Run <code>6756ba82-e4a7-4613-a204-a51852bb33c1</code>.
+            <code>corelata report</code> re-renders every export from <code>trace.json</code> alone.
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap">
+        <p>© 2026 <a href="https://bonham.tech/">Bonham Technologies, LLC</a></p>
+        <p><a href="/">corelata.com</a></p>
+      </div>
+    </footer>
+  </body>
+</html>

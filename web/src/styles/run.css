@@ -1,0 +1,87 @@
+/* Writing the report (spec §5.3). A step's state is its symbol and word; the colour only
+   repeats it. */
+.writing {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: 48rem;
+}
+
+.writing > h1 {
+  margin: 0;
+}
+
+.breadcrumb {
+  font-size: var(--text-sm);
+}
+
+.steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.steps li {
+  display: grid;
+  grid-template-columns: 1.5rem minmax(0, 1fr) auto;
+  gap: var(--space-2);
+  align-items: baseline;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-1);
+}
+
+.steps li[data-status="now"] {
+  background: var(--selected);
+  font-weight: 600;
+}
+
+.steps li[data-status="done"] .step-mark {
+  color: var(--ok);
+}
+
+.steps li[data-status="now"] .step-mark {
+  color: var(--accent);
+}
+
+.steps li[data-status="failed"] .step-mark,
+.steps li[data-status="failed"] .step-state {
+  color: var(--danger);
+}
+
+.steps li[data-status="pending"] {
+  color: var(--text-muted);
+}
+
+.step-state {
+  font-size: var(--text-sm);
+}
+
+.outcome {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.outcome p {
+  margin: 0;
+}
+
+.details > summary {
+  margin-bottom: var(--space-2);
+}
+
+/* a failed step's own error, one short wrapping line under the step */
+.steps .step-error {
+  grid-column: 2 / -1;
+  margin: 0;
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.stage-details {
+  margin: 0 0 var(--space-2);
+  padding-inline-start: var(--space-5);
+}

@@ -1,0 +1,151 @@
+{
+  "$defs": {
+    "ReportStatus": {
+      "enum": [
+        "clean",
+        "findings_open"
+      ],
+      "title": "ReportStatus",
+      "type": "string"
+    },
+    "ReviewDecision": {
+      "enum": [
+        "accepted",
+        "returned"
+      ],
+      "title": "ReviewDecision",
+      "type": "string"
+    },
+    "RunState": {
+      "enum": [
+        "created",
+        "ingesting",
+        "gating",
+        "drafting",
+        "conveying",
+        "auditing",
+        "rendering",
+        "completed",
+        "gate_rejected",
+        "failed",
+        "cancelled"
+      ],
+      "title": "RunState",
+      "type": "string"
+    }
+  },
+  "description": "One row of `GET /api/runs?project_id=`: enough to list a project's runs and open one.",
+  "properties": {
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "finished_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Finished At"
+    },
+    "iteration": {
+      "title": "Iteration",
+      "type": "integer"
+    },
+    "max_iterations": {
+      "title": "Max Iterations",
+      "type": "integer"
+    },
+    "parent_run_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Parent Run Id"
+    },
+    "profile": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Profile"
+    },
+    "project_id": {
+      "title": "Project Id",
+      "type": "string"
+    },
+    "review_child_state": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RunState"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The state the revision of a returned run ended in; null while it is still being written. Failed, cancelled and gate-rejected mean the return produced no report."
+    },
+    "review_decision": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ReviewDecision"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The reviewer's decision on this run, or null while it has none."
+    },
+    "run_id": {
+      "title": "Run Id",
+      "type": "string"
+    },
+    "state": {
+      "$ref": "#/$defs/RunState"
+    },
+    "status": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ReportStatus"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "value_statement": {
+      "title": "Value Statement",
+      "type": "string"
+    }
+  },
+  "required": [
+    "run_id",
+    "project_id",
+    "state",
+    "value_statement",
+    "iteration",
+    "max_iterations",
+    "created_at"
+  ],
+  "title": "RunSummary",
+  "type": "object"
+}

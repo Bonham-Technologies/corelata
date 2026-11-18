@@ -1,0 +1,48 @@
+name: long-source-digested
+description: A source over the digest threshold is digested before gating and the run still completes clean.
+statement: Varna port capacity expansion matters to shippers
+sources:
+  - id: src1
+    name: long.txt
+    paragraphs:
+      - Paragraph 0 about Varna port capacity, traffic and finance.
+      - Paragraph 1 about Varna port capacity, traffic and finance.
+      - Paragraph 2 about Varna port capacity, traffic and finance.
+      - Paragraph 3 about Varna port capacity, traffic and finance.
+      - Paragraph 4 about Varna port capacity, traffic and finance.
+      - Paragraph 5 about Varna port capacity, traffic and finance.
+      - Paragraph 6 about Varna port capacity, traffic and finance.
+      - Paragraph 7 about Varna port capacity, traffic and finance.
+      - Paragraph 8 about Varna port capacity, traffic and finance.
+      - Paragraph 9 about Varna port capacity, traffic and finance.
+      - Paragraph 10 about Varna port capacity, traffic and finance.
+      - Paragraph 11 about Varna port capacity, traffic and finance.
+      - Paragraph 12 about Varna port capacity, traffic and finance.
+      - Paragraph 13 about Varna port capacity, traffic and finance.
+      - Paragraph 14 about Varna port capacity, traffic and finance.
+      - Paragraph 15 about Varna port capacity, traffic and finance.
+      - Paragraph 16 about Varna port capacity, traffic and finance.
+      - Paragraph 17 about Varna port capacity, traffic and finance.
+      - Paragraph 18 about Varna port capacity, traffic and finance.
+      - Paragraph 19 about Varna port capacity, traffic and finance.
+      - Paragraph 20 about Varna port capacity, traffic and finance.
+      - Paragraph 21 about Varna port capacity, traffic and finance.
+      - Paragraph 22 about Varna port capacity, traffic and finance.
+      - Paragraph 23 about Varna port capacity, traffic and finance.
+      - Paragraph 24 about Varna port capacity, traffic and finance.
+      - Paragraph 25 about Varna port capacity, traffic and finance.
+      - Paragraph 26 about Varna port capacity, traffic and finance.
+      - Paragraph 27 about Varna port capacity, traffic and finance.
+      - Paragraph 28 about Varna port capacity, traffic and finance.
+      - Paragraph 29 about Varna port capacity, traffic and finance.
+pipeline:
+  digest_threshold_tokens: 500
+expect:
+  state: completed
+  status: clean
+  iterations: 0
+  gate_supported: true
+  substance: sufficient
+  failing_rules:
+    0: []
+  digested: [src1]

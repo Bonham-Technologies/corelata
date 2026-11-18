@@ -1,0 +1,12 @@
+id: icd203.as.3
+title: Timely
+source: "ICD 203 (2015) D.6.c"
+text: >
+  Analysis must be disseminated in time to be actionable by customers.
+severity: minor
+checkability: advisory
+applies_to: [auditor]
+evidence_required: >
+  Timeliness cannot be judged from the text alone; attest and note the date range of the
+  sources if the draft states one.
+route_to: conveyor

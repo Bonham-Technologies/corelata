@@ -1,0 +1,18 @@
+name: max-iterations-zero
+description: With no revision budget the run audits once and delivers whatever it has, findings open.
+statement: Varna port capacity expansion matters to shippers
+sources:
+  - id: src1
+    paragraphs:
+      - The port of Varna expanded its container capacity in 2025.
+      - Capacity expansion was financed by a state bank.
+      - Container traffic through Varna rose 40 percent.
+      - UNSOURCED detail on Varna.
+max_iterations: 0
+expect:
+  state: completed
+  status: findings_open
+  iterations: 0
+  failing_rules:
+    0: [icd203.as.5, icd203.tc.8, icd206.src.2]
+  open_findings: [icd203.as.5@0, icd203.tc.8@0, icd206.src.2@0]

@@ -1,0 +1,332 @@
+{
+  "format": {
+    "docx_reference": null,
+    "heading_style": "plain"
+  },
+  "lexicon": {
+    "confidence_definitions": {
+      "high": "Judgments rest on high-quality, corroborated information from multiple independent sources; the reasoning admits few plausible alternatives.\n",
+      "low": "Judgments rest on fragmentary, uncorroborated or questionable information, or on significant assumptions; alternatives are as plausible as the judgment.\n",
+      "moderate": "Judgments rest on credible but incompletely corroborated information, or on sound reasoning from limited information; alternative explanations remain plausible.\n"
+    },
+    "handling_markings": [
+      "UNCLASSIFIED"
+    ],
+    "likelihood": [
+      {
+        "high": 5,
+        "low": 1,
+        "term": "almost no chance"
+      },
+      {
+        "high": 20,
+        "low": 5,
+        "term": "very unlikely"
+      },
+      {
+        "high": 45,
+        "low": 20,
+        "term": "unlikely"
+      },
+      {
+        "high": 55,
+        "low": 45,
+        "term": "roughly even chance"
+      },
+      {
+        "high": 80,
+        "low": 55,
+        "term": "likely"
+      },
+      {
+        "high": 95,
+        "low": 80,
+        "term": "very likely"
+      },
+      {
+        "high": 99,
+        "low": 95,
+        "term": "almost certain"
+      }
+    ],
+    "source_descriptors": [
+      "open-source report",
+      "open-source media article",
+      "official government publication",
+      "commercial database record",
+      "social media post",
+      "translated document",
+      "technical data extract",
+      "analyst-provided material"
+    ]
+  },
+  "name": "icd203-base",
+  "profile": null,
+  "rules": [
+    {
+      "applies_to": [
+        "writer",
+        "conveyor",
+        "auditor"
+      ],
+      "checkability": "advisory",
+      "evidence_required": "Note whether the draft states its assumptions and reasoning explicitly and avoids loaded or one-sided language.\n",
+      "id": "icd203.as.1",
+      "route_to": "writer",
+      "severity": "major",
+      "source": "ICD 203 (2015) D.6.a",
+      "text": "Analysts must perform their functions with objectivity and with awareness of their own assumptions and reasoning. They must employ reasoning techniques and practical mechanisms that reveal and mitigate bias.\n",
+      "title": "Objective"
+    },
+    {
+      "applies_to": [
+        "writer",
+        "auditor"
+      ],
+      "checkability": "advisory",
+      "evidence_required": "Note any passage that advocates a policy outcome rather than assessing a situation.\n",
+      "id": "icd203.as.2",
+      "route_to": "writer",
+      "severity": "major",
+      "source": "ICD 203 (2015) D.6.b",
+      "text": "Analytic assessments must not be distorted by, nor shaped for, advocacy of a particular audience, agenda, or policy viewpoint.\n",
+      "title": "Independent of political consideration"
+    },
+    {
+      "applies_to": [
+        "auditor"
+      ],
+      "checkability": "advisory",
+      "evidence_required": "Timeliness cannot be judged from the text alone; attest and note the date range of the sources if the draft states one.\n",
+      "id": "icd203.as.3",
+      "route_to": "conveyor",
+      "severity": "minor",
+      "source": "ICD 203 (2015) D.6.c",
+      "text": "Analysis must be disseminated in time to be actionable by customers.\n",
+      "title": "Timely"
+    },
+    {
+      "applies_to": [
+        "writer",
+        "auditor"
+      ],
+      "checkability": "verifiable",
+      "evidence_required": "Every provided source is either cited by at least one claim or explicitly set aside in the scope note with a reason, and the gaps section names the information that is missing.\n",
+      "id": "icd203.as.4",
+      "route_to": "writer",
+      "severity": "major",
+      "source": "ICD 203 (2015) D.6.d",
+      "text": "Analysis should be informed by all relevant information available. Analytic elements should identify and address critical information gaps.\n",
+      "title": "Based on all available sources of intelligence information"
+    },
+    {
+      "applies_to": [
+        "auditor"
+      ],
+      "checkability": "verifiable",
+      "evidence_required": "Pass when every verifiable icd203.tc.* rule passes; otherwise fail and list the failing tradecraft standards.\n",
+      "id": "icd203.as.5",
+      "route_to": "writer",
+      "severity": "major",
+      "source": "ICD 203 (2015) D.6.e",
+      "text": "Analytic products must implement and exhibit the nine analytic tradecraft standards.\n",
+      "title": "Implements and exhibits analytic tradecraft standards"
+    },
+    {
+      "applies_to": [
+        "writer",
+        "auditor"
+      ],
+      "checkability": "verifiable",
+      "evidence_required": "The sources section has one entry per source with a descriptor from the lexicon and a reliability note that addresses at least currency and completeness.\n",
+      "id": "icd203.tc.1",
+      "route_to": "writer",
+      "severity": "major",
+      "source": "ICD 203 (2015) D.6.e(1)",
+      "text": "Analytic products should identify underlying sources and methodologies on which judgments are based, and use source descriptors to describe factors affecting source quality and credibility, such as accuracy and completeness, possible denial and deception, age and continued currency of information, and technical elements of collection.\n",
+      "title": "Properly describes quality and credibility of underlying sources, data, and methodologies"
+    },
+    {
+      "applies_to": [
+        "writer",
+        "conveyor",
+        "auditor"
+      ],
+      "checkability": "verifiable",
+      "evidence_required": "Every key judgment carries a confidence level; every judgment claim uses a likelihood term from the lexicon and no other probability wording; the basis for uncertainty is stated.\n",
+      "id": "icd203.tc.2",
+      "route_to": "writer",
+      "severity": "blocking",
+      "source": "ICD 203 (2015) D.6.e(2)",
+      "text": "Analytic products should indicate and explain the basis for the uncertainties associated with major analytic judgments, specifically the likelihood of occurrence of an event or development, and the analyst's confidence in the basis for this judgment. Products should use the standard terms of likelihood and should not combine a confidence level and a degree of likelihood in the same sentence.\n",
+      "title": "Properly expresses and explains uncertainties associated with major analytic judgments"
+    },
+    {
+      "applies_to": [
+        "writer",
+        "auditor"
+      ],
+      "checkability": "verifiable",
+      "evidence_required": "Each claim's kind (fact, judgment, assumption) matches its wording; every assumption is stated as such in the analysis and its implication is given.\n",
+      "id": "icd203.tc.3",
+      "route_to": "writer",
+      "severity": "major",
+      "source": "ICD 203 (2015) D.6.e(3)",
+      "text": "Analytic products should clearly distinguish statements that convey underlying intelligence information used in analysis from statements that convey assumptions or judgments. Assumptions should be explicitly stated and their implications for the analysis explained.\n",
+      "title": "Properly distinguishes between underlying intelligence information and analysts' assumptions and judgments"
+    },
+    {
+      "applies_to": [
+        "writer",
+        "auditor"
+      ],
+      "checkability": "verifiable",
+      "evidence_required": "At least one alternative hypothesis is stated and assessed whenever any key judgment is below high confidence; each alternative says why it is less likely than the judgment.\n",
+      "id": "icd203.tc.4",
+      "route_to": "writer",
+      "severity": "major",
+      "source": "ICD 203 (2015) D.6.e(4)",
+      "text": "Analysis of alternatives is the systematic evaluation of differing hypotheses to explain events or phenomena, explore near-term outcomes, and imagine possible futures. Analytic products should identify and assess plausible alternative hypotheses, particularly when major judgments carry significant uncertainty or when a hypothesis would have major consequences if it proved true.\n",
+      "title": "Incorporates analysis of alternatives"
+    },
+    {
+      "applies_to": [
+        "writer",
+        "conveyor",
+        "auditor"
+      ],
+      "checkability": "verifiable",
+      "evidence_required": "The key judgments answer the value statement the analyst supplied, name the audience it serves, and state what the judgments imply for that audience.\n",
+      "id": "icd203.tc.5",
+      "route_to": "conveyor",
+      "severity": "major",
+      "source": "ICD 203 (2015) D.6.e(5)",
+      "text": "Analytic products should provide information and insight on issues relevant to the customers and address the implications of the information and analysis they provide.\n",
+      "title": "Demonstrates customer relevance and addresses implications"
+    },
+    {
+      "applies_to": [
+        "writer",
+        "conveyor",
+        "auditor"
+      ],
+      "checkability": "verifiable",
+      "evidence_required": "Key judgments come first; each analysis paragraph ties to the claims it supports; no paragraph contradicts a key judgment; sentences are unambiguous.\n",
+      "id": "icd203.tc.6",
+      "route_to": "conveyor",
+      "severity": "major",
+      "source": "ICD 203 (2015) D.6.e(6)",
+      "text": "Analytic products should present a clear main analytic message up front. Products should provide the key reasons for the main analytic message and show how the evidence supports the judgments. Language and syntax should convey meaning unambiguously.\n",
+      "title": "Uses clear and logical argumentation"
+    },
+    {
+      "applies_to": [
+        "writer",
+        "auditor"
+      ],
+      "checkability": "advisory",
+      "evidence_required": "Corelata v1 has no memory of prior reports; attest, and note whether the scope note says this is initial coverage.\n",
+      "id": "icd203.tc.7",
+      "route_to": "writer",
+      "severity": "minor",
+      "source": "ICD 203 (2015) D.6.e(7)",
+      "text": "Analytic products should state how their major judgments on a topic are consistent with or represent a change from those in previously published analysis, or represent initial coverage of a topic.\n",
+      "title": "Explains change to or consistency of analytic judgments",
+      "with_prior_reports": {
+        "checkability": "verifiable",
+        "evidence_required": "INPUT_JSON.prior_reports holds the key judgments of this project's earlier accepted reports. Pass when the draft's changes_from_previous says, for each earlier judgment on the topic of one of its key judgments, whether the draft is consistent with it or changes it and why, and states the earlier judgment accurately; or when no earlier judgment bears on the draft's topic and the scope note says this is initial coverage. Fail when a key judgment departs from an earlier judgment on its topic without saying so, when an entry misstates the earlier judgment, or when an entry claims a change or a consistency the judgments do not show.\n"
+      }
+    },
+    {
+      "applies_to": [
+        "writer",
+        "auditor"
+      ],
+      "checkability": "verifiable",
+      "evidence_required": "Every claim cites at least one source unit whose text actually supports it; no judgment claims more than its cited units allow. Cite the claim ids and unit refs you checked.\n",
+      "id": "icd203.tc.8",
+      "route_to": "writer",
+      "severity": "blocking",
+      "source": "ICD 203 (2015) D.6.e(8)",
+      "text": "Analytic products should apply expertise and logic to make the most accurate judgments and assessments possible, based on the information available and known information gaps. Judgments should not be overstated or understated relative to the evidence.\n",
+      "title": "Makes accurate judgments and assessments"
+    },
+    {
+      "applies_to": [
+        "auditor"
+      ],
+      "checkability": "advisory",
+      "evidence_required": "Corelata v1 generates no visuals; attest. A profile may make this verifiable once a deployment renders charts or maps.\n",
+      "id": "icd203.tc.9",
+      "route_to": "conveyor",
+      "severity": "minor",
+      "source": "ICD 203 (2015) D.6.e(9)",
+      "text": "Analytic products should incorporate visual information to clarify an analytic message and to complement or enhance the presentation of data and analysis.\n",
+      "title": "Incorporates effective visual information where appropriate"
+    },
+    {
+      "applies_to": [
+        "writer",
+        "auditor"
+      ],
+      "checkability": "verifiable",
+      "evidence_required": "The scope note or sources section contains a summary of the sourcing as a whole, not only per-source entries.\n",
+      "id": "icd206.src.1",
+      "route_to": "writer",
+      "severity": "major",
+      "source": "ICD 206 (2015) D.2",
+      "text": "Analytic products shall include a source summary statement that characterises the body of sourcing used, its strengths and weaknesses, and how it supports the key judgments.\n",
+      "title": "Source summary statement present"
+    },
+    {
+      "applies_to": [
+        "writer",
+        "auditor"
+      ],
+      "checkability": "verifiable",
+      "evidence_required": "Every key judgment lists claim ids, and every one of those claims cites source units.\n",
+      "id": "icd206.src.2",
+      "route_to": "writer",
+      "severity": "blocking",
+      "source": "ICD 206 (2015) D.3",
+      "text": "Analytic judgments shall be supported by source reference citations that allow the reader to identify the specific reporting behind each judgment.\n",
+      "title": "Source reference citations for key judgments"
+    },
+    {
+      "applies_to": [
+        "writer",
+        "conveyor",
+        "auditor"
+      ],
+      "checkability": "verifiable",
+      "evidence_required": "Every entry in the sources section uses a descriptor from the lexicon's source_descriptors.\n",
+      "id": "icd206.src.3",
+      "route_to": "conveyor",
+      "severity": "minor",
+      "source": "ICD 206 (2015) D.4",
+      "text": "Source descriptors shall use consistent, approved terminology so that readers across products understand source type and reliability the same way.\n",
+      "title": "Source descriptors from the approved lexicon"
+    }
+  ],
+  "template": {
+    "alternatives_required_unless_all_high": true,
+    "analysis_max_words": 1200,
+    "gaps_required": true,
+    "key_judgments": {
+      "max": 5,
+      "min": 1
+    },
+    "section_order": [
+      "title",
+      "handling_marking",
+      "key_judgments",
+      "scope_note",
+      "sources",
+      "analysis",
+      "alternatives",
+      "gaps_and_indicators"
+    ]
+  },
+  "tone": "",
+  "version": "1.0.0"
+}

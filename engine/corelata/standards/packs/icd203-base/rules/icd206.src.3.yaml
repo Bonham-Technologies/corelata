@@ -1,0 +1,12 @@
+id: icd206.src.3
+title: Source descriptors from the approved lexicon
+source: "ICD 206 (2015) D.4"
+text: >
+  Source descriptors shall use consistent, approved terminology so that readers across
+  products understand source type and reliability the same way.
+severity: minor
+checkability: verifiable
+applies_to: [writer, conveyor, auditor]
+evidence_required: >
+  Every entry in the sources section uses a descriptor from the lexicon's source_descriptors.
+route_to: conveyor

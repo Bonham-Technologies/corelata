@@ -1,0 +1,4642 @@
+{
+  "components": {
+    "schemas": {
+      "Body_upload_source_api_projects__project_id__sources_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/SourceKind",
+            "default": "file"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_source_api_projects__project_id__sources_post",
+        "type": "object"
+      },
+      "CallSummary": {
+        "description": "An LLMCallRecord without its request and response bodies (the trace download has them).",
+        "properties": {
+          "attempt": {
+            "title": "Attempt",
+            "type": "integer"
+          },
+          "backend": {
+            "title": "Backend",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "latency_ms": {
+            "title": "Latency Ms",
+            "type": "integer"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "prompt_id": {
+            "title": "Prompt Id",
+            "type": "string"
+          },
+          "prompt_version": {
+            "title": "Prompt Version",
+            "type": "integer"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "tokens_in": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tokens In"
+          },
+          "tokens_out": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tokens Out"
+          }
+        },
+        "required": [
+          "role",
+          "backend",
+          "model",
+          "prompt_id",
+          "prompt_version",
+          "attempt",
+          "ok",
+          "latency_ms",
+          "tokens_in",
+          "tokens_out",
+          "error"
+        ],
+        "title": "CallSummary",
+        "type": "object"
+      },
+      "CandidateStatement": {
+        "properties": {
+          "audience": {
+            "title": "Audience",
+            "type": "string"
+          },
+          "confidence_note": {
+            "default": "",
+            "title": "Confidence Note",
+            "type": "string"
+          },
+          "evidence": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "audience"
+        ],
+        "title": "CandidateStatement",
+        "type": "object"
+      },
+      "CheckStatus": {
+        "enum": [
+          "pass",
+          "warn",
+          "fail"
+        ],
+        "title": "CheckStatus",
+        "type": "string"
+      },
+      "Checkability": {
+        "enum": [
+          "verifiable",
+          "advisory"
+        ],
+        "title": "Checkability",
+        "type": "string"
+      },
+      "Claim": {
+        "properties": {
+          "evidence": {
+            "description": "Unit refs (<source_id>/<unit_id>) the claim rests on",
+            "items": {
+              "type": "string"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "id": {
+            "description": "Short id such as c1; unique within the report",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ClaimKind"
+          },
+          "likelihood_term": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "For judgments: the estimative term used, from the lexicon",
+            "title": "Likelihood Term"
+          },
+          "quotes": {
+            "description": "Verbatim spans of the cited units that support the claim",
+            "items": {
+              "$ref": "#/components/schemas/Quote"
+            },
+            "title": "Quotes",
+            "type": "array"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "text",
+          "kind"
+        ],
+        "title": "Claim",
+        "type": "object"
+      },
+      "ClaimKind": {
+        "enum": [
+          "fact",
+          "judgment",
+          "assumption"
+        ],
+        "title": "ClaimKind",
+        "type": "string"
+      },
+      "ClaimProvenance": {
+        "properties": {
+          "cited_by": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Cited By",
+            "type": "array"
+          },
+          "claim": {
+            "$ref": "#/components/schemas/Claim"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceUnit"
+            },
+            "title": "Evidence",
+            "type": "array"
+          }
+        },
+        "required": [
+          "claim",
+          "evidence",
+          "cited_by"
+        ],
+        "title": "ClaimProvenance",
+        "type": "object"
+      },
+      "Confidence": {
+        "enum": [
+          "high",
+          "moderate",
+          "low"
+        ],
+        "title": "Confidence",
+        "type": "string"
+      },
+      "ConfigIssue": {
+        "properties": {
+          "level": {
+            "enum": [
+              "error",
+              "warning"
+            ],
+            "title": "Level",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "level",
+          "message"
+        ],
+        "title": "ConfigIssue",
+        "type": "object"
+      },
+      "CreateDiscovery": {
+        "properties": {
+          "audience_hint": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Audience Hint",
+            "type": "string"
+          },
+          "project_id": {
+            "format": "uuid",
+            "title": "Project Id",
+            "type": "string"
+          },
+          "source_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Source Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "project_id",
+          "source_ids"
+        ],
+        "title": "CreateDiscovery",
+        "type": "object"
+      },
+      "CreateProject": {
+        "properties": {
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "CreateProject",
+        "type": "object"
+      },
+      "CreateRun": {
+        "properties": {
+          "extra_guidance": {
+            "default": "",
+            "maxLength": 8000,
+            "title": "Extra Guidance",
+            "type": "string"
+          },
+          "max_iterations": {
+            "anyOf": [
+              {
+                "maximum": 10.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Iterations"
+          },
+          "parent_run_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Run Id"
+          },
+          "profile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profile"
+          },
+          "project_id": {
+            "format": "uuid",
+            "title": "Project Id",
+            "type": "string"
+          },
+          "source_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Source Ids",
+            "type": "array"
+          },
+          "value_statement": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Value Statement",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id",
+          "source_ids",
+          "value_statement"
+        ],
+        "title": "CreateRun",
+        "type": "object"
+      },
+      "DiscoveryState": {
+        "enum": [
+          "created",
+          "running",
+          "completed",
+          "failed"
+        ],
+        "title": "DiscoveryState",
+        "type": "string"
+      },
+      "DiscoveryView": {
+        "properties": {
+          "audience_hint": {
+            "default": "",
+            "title": "Audience Hint",
+            "type": "string"
+          },
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/CandidateStatement"
+            },
+            "title": "Candidates",
+            "type": "array"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "deadline_at": {
+            "description": "When the discovery is failed if it has not ended, by the limit that applies (CRL-38, R-M17-27): `started_at` plus `worker.discovery_deadline_s` once the worker has claimed it (ended or not); otherwise `created_at` plus `worker.discovery_start_deadline_s`.",
+            "format": "date-time",
+            "title": "Deadline At",
+            "type": "string"
+          },
+          "discovery_id": {
+            "title": "Discovery Id",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "source_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Source Ids",
+            "type": "array"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "state": {
+            "$ref": "#/components/schemas/DiscoveryState"
+          },
+          "usage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Usage"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "discovery_id",
+          "project_id",
+          "state",
+          "source_ids",
+          "created_at",
+          "deadline_at"
+        ],
+        "title": "DiscoveryView",
+        "type": "object"
+      },
+      "DoctorCheck": {
+        "properties": {
+          "fix": {
+            "default": "",
+            "title": "Fix",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/CheckStatus"
+          }
+        },
+        "required": [
+          "name",
+          "status",
+          "message"
+        ],
+        "title": "DoctorCheck",
+        "type": "object"
+      },
+      "DoctorReport": {
+        "properties": {
+          "checks": {
+            "items": {
+              "$ref": "#/components/schemas/DoctorCheck"
+            },
+            "title": "Checks",
+            "type": "array"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "checks",
+          "ok"
+        ],
+        "title": "DoctorReport",
+        "type": "object"
+      },
+      "DraftChanges": {
+        "properties": {
+          "claims_added": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Claims Added",
+            "type": "array"
+          },
+          "claims_removed": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Claims Removed",
+            "type": "array"
+          },
+          "claims_reworded": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Claims Reworded",
+            "type": "array"
+          },
+          "key_judgments_changed": {
+            "title": "Key Judgments Changed",
+            "type": "boolean"
+          },
+          "sections_changed": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Sections Changed",
+            "type": "array"
+          },
+          "title_changed": {
+            "title": "Title Changed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "title_changed",
+          "claims_added",
+          "claims_removed",
+          "claims_reworded",
+          "key_judgments_changed",
+          "sections_changed"
+        ],
+        "title": "DraftChanges",
+        "type": "object"
+      },
+      "DraftStep": {
+        "properties": {
+          "changes": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DraftChanges"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "iteration": {
+            "title": "Iteration",
+            "type": "integer"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "iteration",
+          "changes"
+        ],
+        "title": "DraftStep",
+        "type": "object"
+      },
+      "ErrorBody": {
+        "properties": {
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          }
+        },
+        "required": [
+          "detail"
+        ],
+        "title": "ErrorBody",
+        "type": "object"
+      },
+      "EvidenceUnit": {
+        "properties": {
+          "locator": {
+            "title": "Locator",
+            "type": "string"
+          },
+          "ref": {
+            "title": "Ref",
+            "type": "string"
+          },
+          "source_id": {
+            "title": "Source Id",
+            "type": "string"
+          },
+          "source_name": {
+            "title": "Source Name",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ref",
+          "source_id",
+          "source_name",
+          "locator",
+          "text"
+        ],
+        "title": "EvidenceUnit",
+        "type": "object"
+      },
+      "Finding": {
+        "properties": {
+          "cited_units": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Cited Units",
+            "type": "array"
+          },
+          "claim_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Claim Ids",
+            "type": "array"
+          },
+          "evidence": {
+            "description": "What in the draft (or missing from it) decided this",
+            "title": "Evidence",
+            "type": "string"
+          },
+          "iteration": {
+            "title": "Iteration",
+            "type": "integer"
+          },
+          "recommendation": {
+            "default": "",
+            "title": "Recommendation",
+            "type": "string"
+          },
+          "route_to": {
+            "title": "Route To",
+            "type": "string"
+          },
+          "rule_id": {
+            "title": "Rule Id",
+            "type": "string"
+          },
+          "severity": {
+            "title": "Severity",
+            "type": "string"
+          },
+          "verdict": {
+            "$ref": "#/components/schemas/Verdict"
+          }
+        },
+        "required": [
+          "rule_id",
+          "verdict",
+          "evidence",
+          "severity",
+          "route_to",
+          "iteration"
+        ],
+        "title": "Finding",
+        "type": "object"
+      },
+      "FromCoglossa": {
+        "properties": {
+          "run_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Run Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id"
+        ],
+        "title": "FromCoglossa",
+        "type": "object"
+      },
+      "GateVerdict": {
+        "properties": {
+          "evidence": {
+            "description": "Unit refs that matter most",
+            "items": {
+              "type": "string"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "reasons": {
+            "description": "One sentence each; what supports or undermines",
+            "items": {
+              "type": "string"
+            },
+            "title": "Reasons",
+            "type": "array"
+          },
+          "substance": {
+            "$ref": "#/components/schemas/Substance"
+          },
+          "suggested_scope": {
+            "default": "",
+            "description": "A scope note the writer must include if thin",
+            "title": "Suggested Scope",
+            "type": "string"
+          },
+          "supported": {
+            "description": "The sources support the value statement",
+            "title": "Supported",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "supported",
+          "substance",
+          "reasons"
+        ],
+        "title": "GateVerdict",
+        "type": "object"
+      },
+      "ItemLimits": {
+        "additionalProperties": false,
+        "properties": {
+          "max": {
+            "minimum": 1.0,
+            "title": "Max",
+            "type": "integer"
+          },
+          "min": {
+            "minimum": 0.0,
+            "title": "Min",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "min",
+          "max"
+        ],
+        "title": "ItemLimits",
+        "type": "object"
+      },
+      "IterationFindings": {
+        "properties": {
+          "attested": {
+            "title": "Attested",
+            "type": "integer"
+          },
+          "failed": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Failed",
+            "type": "array"
+          },
+          "iteration": {
+            "title": "Iteration",
+            "type": "integer"
+          },
+          "not_applicable": {
+            "title": "Not Applicable",
+            "type": "integer"
+          },
+          "open": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Open",
+            "type": "array"
+          },
+          "passed": {
+            "title": "Passed",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "iteration",
+          "failed",
+          "open",
+          "passed",
+          "attested",
+          "not_applicable"
+        ],
+        "title": "IterationFindings",
+        "type": "object"
+      },
+      "LatestRun": {
+        "description": "A project's newest run by `(created_at, id)` (M18 spec §7.1).",
+        "properties": {
+          "child_state": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunState"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "For a returned run, the state its revision ended in (null while it is being written); the same as a run summary's `review_child_state`."
+          },
+          "decision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReviewDecision"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The reviewer's decision on the run, or null while it has none."
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/RunState",
+            "description": "The run's pipeline state."
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReportStatus"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The report's status, once the run has one."
+          }
+        },
+        "required": [
+          "run_id",
+          "state"
+        ],
+        "title": "LatestRun",
+        "type": "object"
+      },
+      "Lexicon": {
+        "additionalProperties": false,
+        "properties": {
+          "confidence_definitions": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "$ref": "#/components/schemas/Confidence"
+            },
+            "title": "Confidence Definitions",
+            "type": "object"
+          },
+          "handling_markings": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Handling Markings",
+            "type": "array"
+          },
+          "likelihood": {
+            "items": {
+              "$ref": "#/components/schemas/LikelihoodTerm"
+            },
+            "title": "Likelihood",
+            "type": "array"
+          },
+          "source_descriptors": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Source Descriptors",
+            "type": "array"
+          }
+        },
+        "required": [
+          "likelihood",
+          "confidence_definitions",
+          "source_descriptors",
+          "handling_markings"
+        ],
+        "title": "Lexicon",
+        "type": "object"
+      },
+      "LikelihoodTerm": {
+        "additionalProperties": false,
+        "properties": {
+          "high": {
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "High",
+            "type": "integer"
+          },
+          "low": {
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Low",
+            "type": "integer"
+          },
+          "term": {
+            "title": "Term",
+            "type": "string"
+          }
+        },
+        "required": [
+          "term",
+          "low",
+          "high"
+        ],
+        "title": "LikelihoodTerm",
+        "type": "object"
+      },
+      "PackSummary": {
+        "description": "One entry of `GET /api/packs` (spec §10.1): a pack directory as found, built-in packs\nincluded. `name` is the directory name, which is what `load_pack` takes.",
+        "properties": {
+          "builtin": {
+            "title": "Builtin",
+            "type": "boolean"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "extends": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extends"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "profiles": {
+            "items": {
+              "$ref": "#/components/schemas/ProfileSummary"
+            },
+            "title": "Profiles",
+            "type": "array"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "version",
+          "extends",
+          "description",
+          "builtin",
+          "profiles"
+        ],
+        "title": "PackSummary",
+        "type": "object"
+      },
+      "PackValidation": {
+        "properties": {
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/ConfigIssue"
+            },
+            "title": "Issues",
+            "type": "array"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok",
+          "issues"
+        ],
+        "title": "PackValidation",
+        "type": "object"
+      },
+      "PriorJudgment": {
+        "properties": {
+          "confidence": {
+            "$ref": "#/components/schemas/Confidence"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "confidence"
+        ],
+        "title": "PriorJudgment",
+        "type": "object"
+      },
+      "PriorReport": {
+        "description": "An earlier accepted report as a run was given it (CRL-97): its key judgments, and whether\n`pipeline.prior_judgments.budget_tokens` left it out (`cut`, oldest first).",
+        "properties": {
+          "accepted_at": {
+            "format": "date-time",
+            "title": "Accepted At",
+            "type": "string"
+          },
+          "cut": {
+            "default": false,
+            "title": "Cut",
+            "type": "boolean"
+          },
+          "key_judgments": {
+            "items": {
+              "$ref": "#/components/schemas/PriorJudgment"
+            },
+            "title": "Key Judgments",
+            "type": "array"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "title",
+          "accepted_at",
+          "key_judgments"
+        ],
+        "title": "PriorReport",
+        "type": "object"
+      },
+      "PriorReportsRule": {
+        "additionalProperties": false,
+        "description": "How a rule reads when the run has the key judgments of its project's earlier accepted\nreports (CRL-97); `Rule.with_prior_reports`.",
+        "properties": {
+          "checkability": {
+            "$ref": "#/components/schemas/Checkability"
+          },
+          "evidence_required": {
+            "title": "Evidence Required",
+            "type": "string"
+          }
+        },
+        "required": [
+          "checkability",
+          "evidence_required"
+        ],
+        "title": "PriorReportsRule",
+        "type": "object"
+      },
+      "ProfileFormat": {
+        "additionalProperties": false,
+        "properties": {
+          "docx_reference": {
+            "anyOf": [
+              {
+                "format": "path",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Docx Reference"
+          },
+          "heading_style": {
+            "default": "plain",
+            "enum": [
+              "plain",
+              "numbered"
+            ],
+            "title": "Heading Style",
+            "type": "string"
+          }
+        },
+        "title": "ProfileFormat",
+        "type": "object"
+      },
+      "ProfileSummary": {
+        "properties": {
+          "draft": {
+            "title": "Draft",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "tone": {
+            "title": "Tone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "draft",
+          "tone"
+        ],
+        "title": "ProfileSummary",
+        "type": "object"
+      },
+      "ProjectView": {
+        "description": "A project and what the sidebar shows for it (M18 spec §7.1).",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "last_activity_at": {
+            "description": "The latest of the project's `created_at`, its sources' `created_at`, and its runs' `created_at` and `finished_at`.",
+            "format": "date-time",
+            "title": "Last Activity At",
+            "type": "string"
+          },
+          "latest_run": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LatestRun"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The project's newest run, or null when it has none."
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "reports_to_review": {
+            "description": "Completed runs with no decision, or whose return's revision ended without a report (failed, cancelled or not supported; R-M15-1).",
+            "title": "Reports To Review",
+            "type": "integer"
+          },
+          "reports_writing": {
+            "description": "Runs not in a terminal state.",
+            "title": "Reports Writing",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "created_at",
+          "last_activity_at",
+          "reports_writing",
+          "reports_to_review",
+          "latest_run"
+        ],
+        "title": "ProjectView",
+        "type": "object"
+      },
+      "Quote": {
+        "description": "Words copied verbatim from one of the units a claim cites.",
+        "properties": {
+          "ref": {
+            "description": "The unit ref the words are copied from, one of the claim's evidence",
+            "title": "Ref",
+            "type": "string"
+          },
+          "text": {
+            "description": "Words copied verbatim from that unit: one contiguous span, no ellipses",
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ref",
+          "text"
+        ],
+        "title": "Quote",
+        "type": "object"
+      },
+      "ReportStatus": {
+        "enum": [
+          "clean",
+          "findings_open"
+        ],
+        "title": "ReportStatus",
+        "type": "string"
+      },
+      "ResolvedPack": {
+        "description": "What a run snapshots (spec §6.6). Rules are sorted by id so the hash is stable.",
+        "properties": {
+          "format": {
+            "$ref": "#/components/schemas/ProfileFormat"
+          },
+          "lexicon": {
+            "$ref": "#/components/schemas/Lexicon"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "profile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profile"
+          },
+          "rules": {
+            "items": {
+              "$ref": "#/components/schemas/Rule"
+            },
+            "title": "Rules",
+            "type": "array"
+          },
+          "template": {
+            "$ref": "#/components/schemas/Template"
+          },
+          "tone": {
+            "title": "Tone",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "version",
+          "profile",
+          "rules",
+          "template",
+          "lexicon",
+          "tone",
+          "format"
+        ],
+        "title": "ResolvedPack",
+        "type": "object"
+      },
+      "ReviewAction": {
+        "enum": [
+          "accept",
+          "return"
+        ],
+        "title": "ReviewAction",
+        "type": "string"
+      },
+      "ReviewDecision": {
+        "enum": [
+          "accepted",
+          "returned"
+        ],
+        "title": "ReviewDecision",
+        "type": "string"
+      },
+      "ReviewRequest": {
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ReviewAction"
+          },
+          "note": {
+            "default": "",
+            "maxLength": 8000,
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "title": "ReviewRequest",
+        "type": "object"
+      },
+      "ReviewResult": {
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ReviewAction"
+          },
+          "child": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunProgress"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "action",
+          "child"
+        ],
+        "title": "ReviewResult",
+        "type": "object"
+      },
+      "ReviewState": {
+        "description": "What a reviewer decided about a completed run (spec §10.1), from its review events and the\nreruns they created. A return whose rerun is live or completed wins over an accept: the rerun\nsupersedes the accepted report (R-M9-1). A rerun that ended any other way spent nothing\n(R-M15-1): the latest event decides, and the run can be returned or accepted again.",
+        "properties": {
+          "actor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor"
+          },
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "child_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Child Error"
+          },
+          "child_run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Child Run Id"
+          },
+          "child_state": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunState"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "decision": {
+            "$ref": "#/components/schemas/ReviewDecision"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "required": [
+          "decision",
+          "at"
+        ],
+        "title": "ReviewState",
+        "type": "object"
+      },
+      "RouteTo": {
+        "enum": [
+          "writer",
+          "conveyor"
+        ],
+        "title": "RouteTo",
+        "type": "string"
+      },
+      "Rule": {
+        "additionalProperties": false,
+        "properties": {
+          "applies_to": {
+            "items": {
+              "enum": [
+                "gate",
+                "writer",
+                "conveyor",
+                "auditor"
+              ],
+              "type": "string"
+            },
+            "title": "Applies To",
+            "type": "array"
+          },
+          "checkability": {
+            "$ref": "#/components/schemas/Checkability"
+          },
+          "evidence_required": {
+            "title": "Evidence Required",
+            "type": "string"
+          },
+          "id": {
+            "pattern": "^[a-z0-9]+(\\.[a-z0-9]+)+$",
+            "title": "Id",
+            "type": "string"
+          },
+          "route_to": {
+            "$ref": "#/components/schemas/RouteTo"
+          },
+          "severity": {
+            "$ref": "#/components/schemas/Severity"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "with_prior_reports": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PriorReportsRule"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "text",
+          "severity",
+          "checkability",
+          "applies_to",
+          "evidence_required",
+          "route_to"
+        ],
+        "title": "Rule",
+        "type": "object"
+      },
+      "RunPage": {
+        "description": "One page of a project's runs, newest first (keyset paging on created_at and id).",
+        "properties": {
+          "next_before": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Pass as `before` for the next page; null when this page is the last.",
+            "title": "Next Before"
+          },
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/RunSummary"
+            },
+            "title": "Runs",
+            "type": "array"
+          }
+        },
+        "required": [
+          "runs",
+          "next_before"
+        ],
+        "title": "RunPage",
+        "type": "object"
+      },
+      "RunProgress": {
+        "properties": {
+          "attempts": {
+            "default": 0,
+            "title": "Attempts",
+            "type": "integer"
+          },
+          "cancel_requested": {
+            "default": false,
+            "title": "Cancel Requested",
+            "type": "boolean"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "export_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Export Error"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "iteration": {
+            "title": "Iteration",
+            "type": "integer"
+          },
+          "max_iterations": {
+            "title": "Max Iterations",
+            "type": "integer"
+          },
+          "parent_run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Run Id"
+          },
+          "profile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The team profile the run used; null for the deployment's default.",
+            "title": "Profile"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "review": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReviewState"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "source_ids": {
+            "description": "The project sources the run used, in the run's order (source `src<n>` of its trace is the n-th). A source deleted since is left out.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Source Ids",
+            "type": "array"
+          },
+          "stages": {
+            "items": {
+              "$ref": "#/components/schemas/StageResult"
+            },
+            "title": "Stages",
+            "type": "array"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "state": {
+            "$ref": "#/components/schemas/RunState"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReportStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "usage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Usage"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "value_statement": {
+            "description": "The value statement the run was given.",
+            "title": "Value Statement",
+            "type": "string"
+          },
+          "worker_gone": {
+            "default": false,
+            "description": "The worker that took the run is gone: its heartbeat is `worker.stalled_after_s` old or its worker row was deleted, so the run is not moving. It starts over when a running worker re-queues its job; a cancel ends it at once (CRL-49, CRL-69). False for a run that ended, and for one no worker has taken yet.",
+            "title": "Worker Gone",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "run_id",
+          "project_id",
+          "state",
+          "value_statement",
+          "source_ids",
+          "iteration",
+          "max_iterations",
+          "created_at"
+        ],
+        "title": "RunProgress",
+        "type": "object"
+      },
+      "RunState": {
+        "enum": [
+          "created",
+          "ingesting",
+          "gating",
+          "drafting",
+          "conveying",
+          "auditing",
+          "rendering",
+          "completed",
+          "gate_rejected",
+          "failed",
+          "cancelled"
+        ],
+        "title": "RunState",
+        "type": "string"
+      },
+      "RunSummary": {
+        "description": "One row of `GET /api/runs?project_id=`: enough to list a project's runs and open one.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "iteration": {
+            "title": "Iteration",
+            "type": "integer"
+          },
+          "max_iterations": {
+            "title": "Max Iterations",
+            "type": "integer"
+          },
+          "parent_run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Run Id"
+          },
+          "profile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profile"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "review_child_state": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunState"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The state the revision of a returned run ended in; null while it is still being written. Failed, cancelled and gate-rejected mean the return produced no report."
+          },
+          "review_decision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReviewDecision"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The reviewer's decision on this run, or null while it has none."
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/RunState"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReportStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "value_statement": {
+            "title": "Value Statement",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "project_id",
+          "state",
+          "value_statement",
+          "iteration",
+          "max_iterations",
+          "created_at"
+        ],
+        "title": "RunSummary",
+        "type": "object"
+      },
+      "RunTrace": {
+        "description": "`GET /api/runs/{id}/trace` (spec §10.1): the summary plus what the Process tab shows\n(spec §10.3) — how each draft changed the one before it, and every model call.",
+        "properties": {
+          "calls": {
+            "items": {
+              "$ref": "#/components/schemas/CallSummary"
+            },
+            "title": "Calls",
+            "type": "array"
+          },
+          "drafts": {
+            "items": {
+              "$ref": "#/components/schemas/DraftStep"
+            },
+            "title": "Drafts",
+            "type": "array"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/TraceSummary"
+          }
+        },
+        "required": [
+          "summary",
+          "drafts",
+          "calls"
+        ],
+        "title": "RunTrace",
+        "type": "object"
+      },
+      "Severity": {
+        "enum": [
+          "blocking",
+          "major",
+          "minor"
+        ],
+        "title": "Severity",
+        "type": "string"
+      },
+      "SourceKind": {
+        "enum": [
+          "file",
+          "coglossa_export"
+        ],
+        "title": "SourceKind",
+        "type": "string"
+      },
+      "SourceSummary": {
+        "properties": {
+          "coglossa_run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coglossa Run Id"
+          },
+          "digested": {
+            "title": "Digested",
+            "type": "boolean"
+          },
+          "format": {
+            "title": "Format",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/SourceKind"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "sha256": {
+            "title": "Sha256",
+            "type": "string"
+          },
+          "units": {
+            "title": "Units",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "format",
+          "sha256",
+          "units",
+          "digested",
+          "coglossa_run_id"
+        ],
+        "title": "SourceSummary",
+        "type": "object"
+      },
+      "SourceView": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "format": {
+            "title": "Format",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/SourceKind"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "provenance": {
+            "additionalProperties": true,
+            "title": "Provenance",
+            "type": "object"
+          },
+          "sha256": {
+            "title": "Sha256",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "project_id",
+          "kind",
+          "name",
+          "format",
+          "sha256",
+          "provenance",
+          "created_at"
+        ],
+        "title": "SourceView",
+        "type": "object"
+      },
+      "StageLine": {
+        "properties": {
+          "duration_ms": {
+            "title": "Duration Ms",
+            "type": "integer"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "iteration": {
+            "title": "Iteration",
+            "type": "integer"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "stage": {
+            "title": "Stage",
+            "type": "string"
+          }
+        },
+        "required": [
+          "stage",
+          "iteration",
+          "ok",
+          "duration_ms",
+          "error"
+        ],
+        "title": "StageLine",
+        "type": "object"
+      },
+      "StageResult": {
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "finished_at": {
+            "format": "date-time",
+            "title": "Finished At",
+            "type": "string"
+          },
+          "iteration": {
+            "title": "Iteration",
+            "type": "integer"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "output": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output"
+          },
+          "stage": {
+            "title": "Stage",
+            "type": "string"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "stage",
+          "iteration",
+          "ok",
+          "started_at",
+          "finished_at"
+        ],
+        "title": "StageResult",
+        "type": "object"
+      },
+      "Substance": {
+        "enum": [
+          "sufficient",
+          "thin",
+          "insufficient"
+        ],
+        "title": "Substance",
+        "type": "string"
+      },
+      "SystemInfo": {
+        "properties": {
+          "auth_mode": {
+            "enum": [
+              "none",
+              "trusted_header"
+            ],
+            "title": "Auth Mode",
+            "type": "string"
+          },
+          "coglossa": {
+            "title": "Coglossa",
+            "type": "boolean"
+          },
+          "default_pack": {
+            "title": "Default Pack",
+            "type": "string"
+          },
+          "default_profile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Profile"
+          },
+          "logout_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The proxy's sign-out page (`auth.logout_url`); the web app shows Sign out only when it is set.",
+            "title": "Logout Url"
+          },
+          "max_iterations": {
+            "description": "The audit loop's revision rounds (`pipeline.max_iterations`); the web app starts a run with this unless the analyst changes it.",
+            "title": "Max Iterations",
+            "type": "integer"
+          },
+          "max_upload_mb": {
+            "title": "Max Upload Mb",
+            "type": "integer"
+          },
+          "user": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "auth_mode",
+          "user",
+          "coglossa",
+          "max_upload_mb",
+          "default_pack",
+          "default_profile",
+          "max_iterations"
+        ],
+        "title": "SystemInfo",
+        "type": "object"
+      },
+      "Template": {
+        "additionalProperties": false,
+        "properties": {
+          "alternatives_required_unless_all_high": {
+            "title": "Alternatives Required Unless All High",
+            "type": "boolean"
+          },
+          "analysis_max_words": {
+            "minimum": 50.0,
+            "title": "Analysis Max Words",
+            "type": "integer"
+          },
+          "gaps_required": {
+            "title": "Gaps Required",
+            "type": "boolean"
+          },
+          "key_judgments": {
+            "$ref": "#/components/schemas/ItemLimits"
+          },
+          "section_order": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Section Order",
+            "type": "array"
+          }
+        },
+        "required": [
+          "section_order",
+          "key_judgments",
+          "analysis_max_words",
+          "alternatives_required_unless_all_high",
+          "gaps_required"
+        ],
+        "title": "Template",
+        "type": "object"
+      },
+      "TraceSummary": {
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/IterationFindings"
+            },
+            "title": "Findings",
+            "type": "array"
+          },
+          "gate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GateVerdict"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "iterations": {
+            "title": "Iterations",
+            "type": "integer"
+          },
+          "max_iterations": {
+            "title": "Max Iterations",
+            "type": "integer"
+          },
+          "open_findings": {
+            "items": {
+              "$ref": "#/components/schemas/Finding"
+            },
+            "title": "Open Findings",
+            "type": "array"
+          },
+          "pack_hash": {
+            "title": "Pack Hash",
+            "type": "string"
+          },
+          "pack_name": {
+            "title": "Pack Name",
+            "type": "string"
+          },
+          "prior_reports": {
+            "items": {
+              "$ref": "#/components/schemas/PriorReport"
+            },
+            "title": "Prior Reports",
+            "type": "array"
+          },
+          "profile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profile"
+          },
+          "prompt_versions": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Prompt Versions",
+            "type": "object"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/SourceSummary"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
+          "stages": {
+            "items": {
+              "$ref": "#/components/schemas/StageLine"
+            },
+            "title": "Stages",
+            "type": "array"
+          },
+          "state": {
+            "$ref": "#/components/schemas/RunState"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReportStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "usage": {
+            "$ref": "#/components/schemas/Usage"
+          },
+          "value_statement": {
+            "title": "Value Statement",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "state",
+          "status",
+          "error",
+          "value_statement",
+          "pack_name",
+          "pack_hash",
+          "profile",
+          "iterations",
+          "max_iterations",
+          "sources",
+          "gate",
+          "stages",
+          "findings",
+          "open_findings",
+          "usage",
+          "prompt_versions"
+        ],
+        "title": "TraceSummary",
+        "type": "object"
+      },
+      "Usage": {
+        "properties": {
+          "by_role": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "type": "integer"
+              },
+              "type": "object"
+            },
+            "title": "By Role",
+            "type": "object"
+          },
+          "calls": {
+            "title": "Calls",
+            "type": "integer"
+          },
+          "tokens_in": {
+            "title": "Tokens In",
+            "type": "integer"
+          },
+          "tokens_out": {
+            "title": "Tokens Out",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "calls",
+          "tokens_in",
+          "tokens_out",
+          "by_role"
+        ],
+        "title": "Usage",
+        "type": "object"
+      },
+      "Verdict": {
+        "enum": [
+          "pass",
+          "fail",
+          "not_applicable",
+          "attested"
+        ],
+        "title": "Verdict",
+        "type": "string"
+      }
+    }
+  },
+  "info": {
+    "summary": "Standards-enforced intelligence report production with a full trace.",
+    "title": "Corelata",
+    "version": "0.1.8"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/discoveries": {
+      "post": {
+        "operationId": "create_discovery_api_discoveries_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDiscovery"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscoveryView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "missing trusted header"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "conflicts with the current data"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "upload too large"
+          },
+          "422": {
+            "description": "invalid request"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "the database or job queue is unavailable"
+          }
+        },
+        "summary": "Create Discovery",
+        "tags": [
+          "discoveries"
+        ]
+      }
+    },
+    "/api/discoveries/{discovery_id}": {
+      "get": {
+        "operationId": "get_discovery_api_discoveries__discovery_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "discovery_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Discovery Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscoveryView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "missing trusted header"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "conflicts with the current data"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "upload too large"
+          },
+          "422": {
+            "description": "invalid request"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "the database or job queue is unavailable"
+          }
+        },
+        "summary": "Get Discovery",
+        "tags": [
+          "discoveries"
+        ]
+      }
+    },
+    "/api/health": {
+      "get": {
+        "description": "Liveness: answers without the database and without a signed-in user.",
+        "operationId": "get_health_api_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Get Health Api Health Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Health",
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/api/packs": {
+      "get": {
+        "operationId": "get_packs_api_packs_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PackSummary"
+                  },
+                  "title": "Response Get Packs Api Packs Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "missing trusted header"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "conflicts with the current data"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "upload too large"
+          },
+          "422": {
+            "description": "invalid request"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "the database or job queue is unavailable"
+          }
+        },
+        "summary": "Get Packs",
+        "tags": [
+          "packs"
+        ]
+      }
+    },
+    "/api/packs/{name}/resolved": {
+      "get": {
+        "description": "The pack as a run would snapshot it (spec §6.6); draft profiles may be inspected here.",
+        "operationId": "get_resolved_api_packs__name__resolved_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "maxLength": 100,
+              "pattern": "^[a-z0-9][a-z0-9\\-]*$",
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "profile",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Profile"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResolvedPack"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "missing trusted header"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "conflicts with the current data"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "upload too large"
+          },
+          "422": {
+            "description": "invalid request"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "the database or job queue is unavailable"
+          }
+        },
+        "summary": "Get Resolved",
+        "tags": [
+          "packs"
+        ]
+      }
+    },
+    "/api/packs/{name}/validate": {
+      "get": {
+        "operationId": "get_validation_api_packs__name__validate_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "maxLength": 100,
+              "pattern": "^[a-z0-9][a-z0-9\\-]*$",
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PackValidation"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "missing trusted header"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "conflicts with the current data"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "upload too large"
+          },
+          "422": {
+            "description": "invalid request"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "the database or job queue is unavailable"
+          }
+        },
+        "summary": "Get Validation",
+        "tags": [
+          "packs"
+        ]
+      }
+    },
+    "/api/projects": {
+      "get": {
+        "operationId": "list_projects_api_projects_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProjectView"
+                  },
+                  "title": "Response List Projects Api Projects Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "missing trusted header"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "conflicts with the current data"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "upload too large"
+          },
+          "422": {
+            "description": "invalid request"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "the database or job queue is unavailable"
+          }
+        },
+        "summary": "List Projects",
+        "tags": [
+          "projects"
+        ]
+      },
+      "post": {
+        "operationId": "create_project_api_projects_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProject"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "missing trusted header"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "conflicts with the current data"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "upload too large"
+          },
+          "422": {
+            "description": "invalid request"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "the database or job queue is unavailable"
+          }
+        },
+        "summary": "Create Project",
+        "tags": [
+          "projects"
+        ]
+      }
+    },
+    "/api/projects/{project_id}": {
+      "get": {
+        "operationId": "get_project_api_projects__project_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "missing trusted header"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "conflicts with the current data"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "upload too large"
+          },
+          "422": {
+            "description": "invalid request"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "the database or job queue is unavailable"
+          }
+        },
+        "summary": "Get Project",
+        "tags": [
+          "projects"
+        ]
+      }
+    },
+    "/api/projects/{project_id}/sources": {
+      "get": {
+        "operationId": "list_sources_api_projects__project_id__sources_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SourceView"
+                  },
+                  "title": "Response List Sources Api Projects  Project Id  Sources Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "missing trusted header"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "conflicts with the current data"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "upload too large"
+          },
+          "422": {
+            "description": "invalid request"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "the database or job queue is unavailable"
+          }
+        },
+        "summary": "List Sources",
+        "tags": [
+          "projects"
+        ]
+      },
+      "post": {
+        "description": "Store and parse one upload (spec §5): one source, or two for a Coglossa export that\ncarries a translation guide. Nothing is kept when the file cannot be parsed.",
+        "operationId": "upload_source_api_projects__project_id__sources_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_source_api_projects__project_id__sources_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SourceView"
+                  },
+                  "title": "Response Upload Source Api Projects  Project Id  Sources Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "missing trusted header"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "conflicts with the current data"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "upload too large"
+          },
+          "422": {
+            "description": "invalid request"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "the database or job queue is unavailable"
+          }
+        },
+        "summary": "Upload Source",
+        "tags": [
+          "projects"
+        ]
+      }
+    },
+    "/api/projects/{project_id}/sources/from-coglossa": {
+      "post": {
+        "description": "Fetch the run's export from Coglossa and add it like an uploaded export: the translation\nand, when it has one, its guide. 409 when the integration is not configured.",
+        "operationId": "source_from_coglossa_api_projects__project_id__sources_from_coglossa_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FromCoglossa"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SourceView"
+                  },
+                  "title": "Response Source From Coglossa Api Projects  Project Id  Sources From Coglossa Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "missing trusted header"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "conflicts with the current data"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "upload too large"
+          },
+          "422": {
+            "description": "invalid request"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "the database or job queue is unavailable"
+          }
+        },
+        "summary": "Source From Coglossa",
+        "tags": [
+          "projects"
+        ]
+      }
+    },
+    "/api/runs": {
+      "get": {
+        "description": "A project's runs, newest first, `limit` at a time; `before` is the previous page's\n`next_before`.",
+        "operationId": "list_runs_api_runs_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "before",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 100,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Before"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "missing trusted header"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "conflicts with the current data"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "upload too large"
+          },
+          "422": {
+            "description": "invalid request"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "the database or job queue is unavailable"
+          }
+        },
+        "summary": "List Runs",
+        "tags": [
+          "runs"
+        ]
+      },
+      "post": {
+        "description": "Snapshot the pack, store the run and queue it; the worker does the rest unattended.",
+        "operationId": "create_run_api_runs_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRun"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunProgress"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "missing trusted header"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "conflicts with the current data"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "upload too large"
+          },
+          "422": {
+            "description": "invalid request"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "the database or job queue is unavailable"
+          }
+        },
+        "summary": "Create Run",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/runs/{run_id}": {
+      "get": {
+        "operationId": "get_run_api_runs__run_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunProgress"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "missing trusted header"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "conflicts with the current data"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "upload too large"
+          },
+          "422": {
+            "description": "invalid request"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "the database or job queue is unavailable"
+          }
+        },
+        "summary": "Get Run",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/runs/{run_id}/cancel": {
+      "post": {
+        "description": "A run nothing executes yet ends at once, and so does a run whose worker is gone (its job\nis closed, so it never runs again); a run a live worker holds stops at its next stage\nboundary.",
+        "operationId": "cancel_run_api_runs__run_id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunProgress"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "missing trusted header"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "conflicts with the current data"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "upload too large"
+          },
+          "422": {
+            "description": "invalid request"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "the database or job queue is unavailable"
+          }
+        },
+        "summary": "Cancel Run",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/runs/{run_id}/claims/{claim_id}": {
+      "get": {
+        "description": "A claim with its evidence units (spec §10.3 Provenance tab). 409 without a report, 404\nfor a claim the report does not have.",
+        "operationId": "get_claim_api_runs__run_id__claims__claim_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "claim_id",
+            "required": true,
+            "schema": {
+              "title": "Claim Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClaimProvenance"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "missing trusted header"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "conflicts with the current data"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "upload too large"
+          },
+          "422": {
+            "description": "invalid request"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "the database or job queue is unavailable"
+          }
+        },
+        "summary": "Get Claim",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/runs/{run_id}/events": {
+      "get": {
+        "operationId": "run_events_api_runs__run_id__events_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {}
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "missing trusted header"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "conflicts with the current data"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "upload too large"
+          },
+          "422": {
+            "description": "invalid request"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "the database or job queue is unavailable"
+          }
+        },
+        "summary": "Run Events",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/runs/{run_id}/exports/{name}": {
+      "get": {
+        "description": "A file the worker stored for the run, as stored (the trace JSON download among them).",
+        "operationId": "get_export_api_runs__run_id__exports__name__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "enum": [
+                "trace.json",
+                "gate.json",
+                "report.json",
+                "report.md",
+                "report.html",
+                "report.docx"
+              ],
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {},
+              "application/vnd.openxmlformats-officedocument.wordprocessingml.document": {},
+              "text/html; charset=utf-8": {},
+              "text/markdown; charset=utf-8": {}
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "missing trusted header"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "conflicts with the current data"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "upload too large"
+          },
+          "422": {
+            "description": "invalid request"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "the database or job queue is unavailable"
+          }
+        },
+        "summary": "Get Export",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/runs/{run_id}/findings": {
+      "get": {
+        "description": "Every audit finding, all iterations (spec §10.3 Audit tab).",
+        "operationId": "get_findings_api_runs__run_id__findings_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Finding"
+                  },
+                  "title": "Response Get Findings Api Runs  Run Id  Findings Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "missing trusted header"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "conflicts with the current data"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "upload too large"
+          },
+          "422": {
+            "description": "invalid request"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "the database or job queue is unavailable"
+          }
+        },
+        "summary": "Get Findings",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/runs/{run_id}/report": {
+      "get": {
+        "description": "The delivered report. Without claim ids: the worker's stored file, byte for byte (404 if\nnone is stored). With them: re-rendered from the stored record (spec §9). 409 while the run\nhas no report, or when its DOCX export failed.",
+        "operationId": "get_report_api_runs__run_id__report_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "default": "html",
+              "enum": [
+                "json",
+                "md",
+                "html",
+                "docx"
+              ],
+              "title": "Format",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "with_claim_ids",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "With Claim Ids",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "download",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Download",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {},
+              "application/vnd.openxmlformats-officedocument.wordprocessingml.document": {},
+              "text/html; charset=utf-8": {},
+              "text/markdown; charset=utf-8": {}
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "missing trusted header"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "conflicts with the current data"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "upload too large"
+          },
+          "422": {
+            "description": "invalid request"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "the database or job queue is unavailable"
+          }
+        },
+        "summary": "Get Report",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/runs/{run_id}/review": {
+      "post": {
+        "description": "`accept` records the decision; `return` records it and queues a linked run seeded with\nthe note as additional writer guidance.",
+        "operationId": "review_run_api_runs__run_id__review_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "missing trusted header"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "conflicts with the current data"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "upload too large"
+          },
+          "422": {
+            "description": "invalid request"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "the database or job queue is unavailable"
+          }
+        },
+        "summary": "Review Run",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/runs/{run_id}/trace": {
+      "get": {
+        "description": "Summary, draft-to-draft changes and model calls (spec §10.3 Process tab), any state.",
+        "operationId": "get_trace_api_runs__run_id__trace_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunTrace"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "missing trusted header"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "conflicts with the current data"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "upload too large"
+          },
+          "422": {
+            "description": "invalid request"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "the database or job queue is unavailable"
+          }
+        },
+        "summary": "Get Trace",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/system/doctor": {
+      "get": {
+        "description": "The checks `corelata doctor` runs, from the API's own config file. The one route that\ntalks to the model servers (spec §10.1); `probe=false` skips the test completions.",
+        "operationId": "get_doctor_api_system_doctor_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "probe",
+            "required": false,
+            "schema": {
+              "default": true,
+              "title": "Probe",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DoctorReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "missing trusted header"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "conflicts with the current data"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "upload too large"
+          },
+          "422": {
+            "description": "invalid request"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "the database or job queue is unavailable"
+          }
+        },
+        "summary": "Get Doctor",
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/api/system/info": {
+      "get": {
+        "operationId": "get_info_api_system_info_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemInfo"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "missing trusted header"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "conflicts with the current data"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "upload too large"
+          },
+          "422": {
+            "description": "invalid request"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "the database or job queue is unavailable"
+          }
+        },
+        "summary": "Get Info",
+        "tags": [
+          "system"
+        ]
+      }
+    }
+  }
+}

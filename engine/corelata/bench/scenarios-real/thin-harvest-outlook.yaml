@@ -1,0 +1,23 @@
+name: thin-harvest-outlook
+description: >-
+  One ministry outlook says the harvest and July's export licences are down but says nothing
+  about Tarvos or any port. A good model passes the gate as thin (or rejects it as
+  insufficient), and if it writes, carries the gate's scope sentence, keeps confidence low or
+  moderate, expresses the uncertainty (icd203.tc.2) and cites both paragraphs. A weak model
+  calls the material sufficient and states a port-level fall the source never gives.
+statement: Calvadian grain exports through Tarvos will fall sharply this harvest season
+sources:
+  - id: src1
+    name: agriculture-ministry-outlook.txt
+    paragraphs:
+      - >-
+        Calvadia Ministry of Agriculture, crop outlook, 2 August 2026. The wheat harvest is
+        forecast at 4.2 million tonnes, 15 percent below 2025, after a dry June in the eastern
+        provinces.
+      - >-
+        The ministry does not forecast exports by port. Grain export licences issued in July 2026
+        were 9 percent below July 2025.
+expect:
+  state_in: [completed, gate_rejected]
+  substance_in: [thin, insufficient]
+  rules_must_pass: [icd203.tc.8, icd206.src.2, icd203.tc.2]
