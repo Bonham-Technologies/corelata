@@ -3,9 +3,11 @@
 ## Supported Versions
 
 Corelata ships as an offline bundle attached to
-[GitHub Releases](https://github.com/Bonham-Technologies/corelata/releases) (`v0.1.1` and later;
-`v0.1.0` is withdrawn). Only the latest release and the current default branch receive security
-fixes.
+[GitHub Releases](https://github.com/Bonham-Technologies/corelata/releases). The repository went
+public with a fresh history on 2026-11-18 and has no public release yet; the earlier `v0.1.x`
+bundles were built before then and are not published here. Until the first public release, only
+the current default branch receives security fixes; after it, the latest release and the default
+branch do.
 
 ## Reporting a Vulnerability
 

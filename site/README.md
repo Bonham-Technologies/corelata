@@ -19,8 +19,8 @@ Font License; their licences are next to them in `public/assets/fonts/`.
 Every change under `site/` is merged by the owner (`ap-owner-merge`), and `.github/CODEOWNERS`
 names the owner for `site/`.
 
-The page links to no GitHub repository: the repository stays private until a later go/no-go
-decision. `index.html` has an HTML comment in the Licence section where the link goes.
+The repository went public on 2026-11-18 (CRL-80). The Licence section links it, and that is the
+only GitHub link the check allows (`REPO_URL` in `check.mjs`).
 
 ## Check
 
@@ -107,7 +107,7 @@ access to the hosted demo.
    `-resize 720x -quality 80` for `-720`), and
    `ffmpeg -i walkthrough-raw.webm -vf scale=960:750:flags=lanczos -c:v libvpx-vp9 -b:v 0 -crf 34 -an walkthrough.webm`.
 4. The sample run, on a stack whose config adds `audit: {store_llm_io: false}` so the trace
-   carries no prompts or model replies (the repository is private): a second project with `varna-port.txt` and a `trade-note.txt` whose text ends
+   carries no prompts or model replies (the samples are published): a second project with `varna-port.txt` and a `trade-note.txt` whose text ends
    with the synthetic model's `UNSOURCED` marker, started through the API with the same
    statement. Its exports come from `GET /api/runs/{id}/exports/{name}`, the findings from
    `GET /api/runs/{id}/findings` (iteration 0, verdict `fail`), and the printed trace from
