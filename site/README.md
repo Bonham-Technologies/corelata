@@ -1,10 +1,10 @@
 # corelata.com
 
 The public site for Corelata (CRL-81): one static page with a writeup and a recorded walkthrough,
-a sample report page, and a 404 page. Plain HTML and CSS in the Bonham Technologies visual
-language of bonham.tech, with no build step, no script and no third-party requests at run time.
-The fonts (DM Sans, Geist Mono, Instrument Serif, latin subsets) are self-hosted under the SIL Open
-Font License; their licences are next to them in `public/assets/fonts/`.
+a sample report page, and a 404 page. Plain HTML and CSS on the Bonham Technologies design system (below), with no
+build step, no script and no third-party requests at run time. The fonts (Archivo and IBM Plex
+Mono, latin subsets) are self-hosted under the SIL Open Font License; their licences are next to
+them in `public/assets/fonts/`.
 
 | Path                           | What it is                                                                                                                                 |
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -15,12 +15,37 @@ Font License; their licences are next to them in `public/assets/fonts/`.
 | `vercel.json`                  | the Vercel project config: headers, CSP, `ignoreCommand`                                                                                   |
 | `check.mjs`                    | the site check (below)                                                                                                                     |
 | `tools/record-walkthrough.mjs` | records the walkthrough against a local dev stack                                                                                          |
+| `tools/og.html`                | the Open Graph card that `public/og.png` is rendered from                                                                                  |
 
 Every change under `site/` is merged by the owner (`ap-owner-merge`), and `.github/CODEOWNERS`
 names the owner for `site/`.
 
 The repository went public on 2026-11-18 (CRL-80). The Licence section links it, and that is the
 only GitHub link the check allows (`REPO_URL` in `check.mjs`).
+
+## Design
+
+The site is built on the Bonham Technologies design system (the parent brand at bonham.tech): warm
+paper and ink tokens with a Daylight (default) and a Night theme that follows the reader's system,
+Archivo for text, IBM Plex Mono for technical content only (step numbers, figures, code), square
+corners, hairlines, no shadows or gradients. Safety orange (`--signal-fill`) is the action colour:
+one primary button per view, and nothing else is orange.
+
+Corelata's own identity inside that system (owner, 2026-11-17):
+
+- **Accent: plum** (`--product-accent`, `#6b3f86` Daylight, `#c9a3e6` Night). It colours the square
+  in the lockup, eyebrows, link underlines and the threads. It never styles a button.
+- **Motif: source threads.** Several sources tied by thin lines to the one statement they support:
+  the drawing in the hero (`.threads`, an inline SVG coloured from `site.css`, because the CSP
+  allows no inline style), the rule under the headline's key word, and the short rule before each
+  point.
+- **Lockup:** accent square, `CORELATA`, "by Bonham Technologies". There is no logo mark; the
+  favicon is the motif on paper.
+- The parent's terrain imagery (mountains, ridgeline, contours) and forest green stay on
+  bonham.tech and are not used here.
+
+`og.png` is `tools/og.html` rendered in Chromium at 1200 × 630; `apple-touch-icon.png` and
+`favicon.ico` (16, 32 and 48 px) are `public/favicon.svg` rendered the same way.
 
 ## Check
 

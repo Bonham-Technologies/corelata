@@ -8,7 +8,8 @@
       name="description"
       content="Corelata turns source material and an analyst's value statement into an ICD 203-shaped assessment, audited rule by rule against a replaceable standards pack, with every claim linked to its evidence. Runs air-gapped on your own models."
     />
-    <meta name="theme-color" content="#0a0a0b" />
+    <meta name="theme-color" content="#f3f0e8" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0f1113" media="(prefers-color-scheme: dark)" />
     <link rel="canonical" href="https://corelata.com/" />
 
     <meta property="og:type" content="website" />
@@ -27,7 +28,7 @@
     <meta property="og:image:height" content="630" />
     <meta
       property="og:image:alt"
-      content="Corelata's review screen: a report beside its claims, one claim highlighted with its evidence."
+      content="Corelata: assessments that show their evidence. Three sources tied by threads to the one statement they support."
     />
     <meta name="twitter:card" content="summary_large_image" />
     <meta
@@ -71,7 +72,7 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link
       rel="preload"
-      href="/assets/fonts/instrument-serif-latin.woff2"
+      href="/assets/fonts/archivo-latin-wght-normal.woff2"
       as="font"
       type="font/woff2"
       crossorigin
@@ -82,7 +83,7 @@
     <a class="skip-link" href="#main">Skip to content</a>
     <header class="site-header">
       <div class="wrap">
-        <a class="wordmark" href="/">Corelata<span>.</span></a>
+        <a class="logo" href="/"><b>CORELATA</b> <span>by Bonham Technologies</span></a>
         <nav class="site-nav" aria-label="Main">
           <ul>
             <li><a href="#how">How it works</a></li>
@@ -97,20 +98,43 @@
 
     <main id="main">
       <section class="hero" aria-labelledby="hero-title">
-        <div class="wrap">
-          <p class="eyebrow">Standards-enforced intelligence reports</p>
-          <h1 id="hero-title">Assessments that show their <em>evidence</em>.</h1>
-          <p class="lede">
-            Give Corelata your source material and a statement of its intelligence value. A team of
-            agents checks the statement against the sources, drafts an ICD 203-shaped assessment,
-            edits it for the reader and audits it rule by rule against a standards pack you can
-            replace. You get the finished report with every claim linked to the passages that
-            support it, and a trace of how it was made.
-          </p>
-          <div class="cta">
-            <a class="btn btn-primary" href="#demo">Watch the walkthrough</a>
-            <a class="btn btn-secondary" href="/sample/">See a sample report</a>
+        <div class="wrap hero-grid">
+          <div>
+            <p class="eyebrow">Standards-enforced intelligence reports</p>
+            <h1 id="hero-title">Assessments that show their <em>evidence</em>.</h1>
+            <p class="lede">
+              Give Corelata your source material and a statement of its intelligence value. A team of
+              agents checks the statement against the sources, drafts an ICD 203-shaped assessment,
+              edits it for the reader and audits it rule by rule against a standards pack you can
+              replace. You get the finished report with every claim linked to the passages that
+              support it, and a trace of how it was made.
+            </p>
+            <div class="cta">
+              <a class="btn btn-primary" href="#demo">Watch the walkthrough</a>
+              <a class="btn btn-secondary" href="/sample/">See a sample report</a>
+            </div>
           </div>
+          <svg class="threads" viewBox="0 0 400 300" aria-hidden="true" focusable="false">
+            <rect class="t-frame" x="0.5" y="12.5" width="127" height="60" />
+            <rect class="t-source" x="12" y="26" width="88" height="6" />
+            <rect class="t-source" x="12" y="40" width="104" height="6" />
+            <rect class="t-source" x="12" y="54" width="64" height="6" />
+            <rect class="t-frame" x="0.5" y="120.5" width="127" height="60" />
+            <rect class="t-source" x="12" y="134" width="104" height="6" />
+            <rect class="t-source" x="12" y="148" width="72" height="6" />
+            <rect class="t-source" x="12" y="162" width="96" height="6" />
+            <rect class="t-frame" x="0.5" y="228.5" width="127" height="60" />
+            <rect class="t-source" x="12" y="242" width="80" height="6" />
+            <rect class="t-source" x="12" y="256" width="104" height="6" />
+            <rect class="t-source" x="12" y="270" width="56" height="6" />
+            <path class="t-thread" d="M116 43.5H184.5V150.5H232" />
+            <path class="t-thread" d="M84 150.5H232" />
+            <path class="t-thread" d="M92 245.5H184.5V150.5" />
+            <rect class="t-knot" x="232" y="146" width="8" height="8" />
+            <rect class="t-claim" x="248" y="147" width="152" height="6" />
+            <rect class="t-rest" x="248" y="163" width="120" height="6" />
+            <rect class="t-rest" x="248" y="179" width="136" height="6" />
+          </svg>
         </div>
       </section>
 
@@ -500,9 +524,8 @@
         <p>© 2026 <a href="https://bonham.tech/">Bonham Technologies, LLC</a></p>
         <p>
           <a href="mailto:support@bonham.tech">support@bonham.tech</a> · Fonts under the SIL Open Font
-          License: <a href="/assets/fonts/OFL-DMSans.txt">DM Sans</a>,
-          <a href="/assets/fonts/OFL-GeistMono.txt">Geist Mono</a>,
-          <a href="/assets/fonts/OFL-InstrumentSerif.txt">Instrument Serif</a>
+          License: <a href="/assets/fonts/OFL-archivo.txt">Archivo</a>,
+          <a href="/assets/fonts/OFL-ibm-plex-mono.txt">IBM Plex Mono</a>
         </p>
       </div>
     </footer>
