@@ -21,6 +21,7 @@ from corelata.config import (
     StructuredOutput,
     load_config,
 )
+from corelata.ingest import ocr
 from corelata.integrations.coglossa import CoglossaClient
 from corelata.llm.agent import (
     build_request,
@@ -259,6 +260,8 @@ async def run_doctor(
     # off the event loop: the API runs doctor for Settings, and S3 is a network call
     checks.append(await storage_call(_guard, "storage", lambda: _storage(cfg)))
     checks.append(await _aguard("coglossa", lambda: _coglossa(cfg, probe, coglossa_transport)))
+    # off the event loop: it starts tesseract, and the API runs doctor for Settings
+    checks.append(await asyncio.to_thread(_guard, "ocr", lambda: _ocr(cfg)))
     checks += _hosted(cfg)
     return DoctorReport.of(checks)
 
@@ -328,6 +331,48 @@ async def _coglossa(
             "check integrations.coglossa.base_url: it should be Coglossa's root URL",
         )
     return _check("coglossa", CheckStatus.PASS, f"Coglossa at {integration.base_url} answers")
+
+
+def _ocr(cfg: CorelataConfig) -> DoctorCheck:
+    """ingest.ocr (CRL-95): whether Tesseract is installed, which languages it has, and a warning
+    when OCR is on without it or without a configured language."""
+    mode = cfg.ingest.ocr
+    wanted = cfg.ingest.ocr_languages
+    install = (
+        "install tesseract-ocr and a tesseract-ocr-<language> pack for each of "
+        f"{', '.join(wanted)} (the app image has them; operator guide, Scanned PDFs)"
+    )
+    if ocr.tesseract_path() is None:
+        if mode == "off":
+            return _check("ocr", CheckStatus.PASS, "ingest.ocr is off; tesseract is not installed")
+        return _check(
+            "ocr",
+            CheckStatus.WARN,
+            "ingest.ocr is auto but tesseract is not installed: uploads with scanned PDF pages "
+            "will be refused",
+            f"{install}, or set ingest.ocr: off",
+        )
+    try:
+        version = ocr.tesseract_version()
+        languages = [lang for lang in ocr.installed_languages() if lang != "osd"]
+    except ocr.OcrError as e:
+        return _check(
+            "ocr", CheckStatus.WARN, f"tesseract is installed but does not run: {e}", install
+        )
+    found = f"tesseract {version} with languages {', '.join(languages) or 'none'}"
+    missing = [lang for lang in wanted if lang not in languages]
+    if mode == "auto" and missing:
+        return _check(
+            "ocr",
+            CheckStatus.WARN,
+            f"ingest.ocr is auto but {found} lacks {', '.join(missing)}: uploads with scanned "
+            "PDF pages will be refused",
+            f"add the tesseract-ocr-<language> pack for {', '.join(missing)} to the image "
+            "(operator guide, Scanned PDFs), or remove it from ingest.ocr_languages",
+        )
+    if mode == "off":
+        return _check("ocr", CheckStatus.PASS, f"ingest.ocr is off; {found}")
+    return _check("ocr", CheckStatus.PASS, f"ingest.ocr is auto ({', '.join(wanted)}); {found}")
 
 
 def _prompts(cfg: CorelataConfig) -> DoctorCheck:

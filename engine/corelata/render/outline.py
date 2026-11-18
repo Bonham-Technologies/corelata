@@ -5,6 +5,7 @@ Markdown, HTML and DOCX walk this outline, so the three outputs cannot drift apa
 from dataclasses import dataclass
 from typing import ClassVar
 
+from corelata.ingest.units import ocr_note, ocr_page_count
 from corelata.schema import (
     ChangeKind,
     Finding,
@@ -89,6 +90,8 @@ def source_line(entry: SourceEntry, source: Source | None) -> str:
     extra = f"sha256 {source.sha256[:8]}" if source else "sha256 unknown"
     if source and source.kind is SourceKind.COGLOSSA_EXPORT:
         extra += f"; Coglossa run {source.provenance.get('coglossa_run_id', 'unknown')}"
+    if source and (pages := ocr_page_count(source)):
+        extra += f"; {ocr_note(pages)}"
     note = f"; {entry.reliability_note}" if entry.reliability_note else ""
     return f"{name} — {entry.descriptor}{note} ({extra})"
 

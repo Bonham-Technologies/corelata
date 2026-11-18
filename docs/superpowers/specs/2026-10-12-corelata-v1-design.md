@@ -303,7 +303,7 @@ key_judgments}`); the writer's per-call schema then adds `changes_from_previous`
 `prior_run_id` an enum of their run ids (`PriorRunId`) and its validator checks the same; the
 conveyor may reword an entry's explanation only. With none kept the payloads, prompts and
 schemas are byte for byte those sent before project memory existed (`writer/v3` and `auditor/v4`
-render as `writer/v2` and `auditor/v3`), so `max_reports: 0` restores the earlier behaviour.
+render as `writer/v2` and `auditor/v3`, and the OCR versions after them likewise), so `max_reports: 0` restores the earlier behaviour.
 `corelata run` without a project and the bench have no project memory.
 
 ### §7.5 Error handling
@@ -413,7 +413,9 @@ change a quote, and the auditor receives each cited unit's quotes beside its tex
 words are in the unit is an engine check (§8.4), not a repair. The prompts that mention quotes are
 new versions (`writer/v2`, `conveyor/v2`, `auditor/v3`; the previous ones stay for the record) and
 render, with `off`, exactly as the previous versions did, so only the trace's `prompt_versions`
-tells such a run from one made before.
+tells such a run from one made before. The OCR wording (CRL-95) followed as `writer/v4` and
+`auditor/v5`: the text of `writer/v3` and `auditor/v4` (quotes and project memory) plus what a
+unit's `ocr` flag means.
 
 ### §8.2 Audit schema
 

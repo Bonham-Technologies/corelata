@@ -36,6 +36,10 @@ pipeline:                          # spec §7
   writer_unit_budget_tokens: 16000
   gate_unit_budget_tokens: 12000
 
+ingest:                            # reading uploads (operator guide, "Scanned PDFs")
+  ocr: off                         # auto: read scanned PDF pages with Tesseract, which the image has
+  ocr_languages: [eng]             # Tesseract codes; each needs its language pack in the image
+
 storage: { path: /data/files }     # the `files` volume: uploaded sources, reference documents, exports
 worker:
   concurrency: 2                    # jobs at once: runs and discoveries share them (a discovery goes first)

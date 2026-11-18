@@ -19,6 +19,8 @@ class Provenance(BaseModel):
     index: int  # ordinal of the block within the source file
     page: int | None = None
     locator: str | None = None  # format-specific, e.g. "table 2 row 1 col 3"
+    ocr: bool = False  # the text was recovered by OCR from a scanned page (CRL-95)
+    ocr_confidence: float | None = None  # mean Tesseract word confidence, 0 to 100
 
 
 class Block(BaseModel):

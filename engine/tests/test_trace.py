@@ -33,6 +33,7 @@ async def test_summarize_clean_run(run):
             "units": 3,
             "digested": False,
             "coglossa_run_id": None,
+            "ocr_pages": 0,
         }
     ]
     assert len(s.sources[0].sha256) == 64
@@ -50,7 +51,7 @@ async def test_summarize_clean_run(run):
     assert it0.iteration == 0 and it0.failed == [] and it0.open == []
     assert it0.passed == 12 and it0.attested == 5 and it0.not_applicable == 0
     assert s.open_findings == [] and s.usage.calls == 4
-    assert s.prompt_versions["writer"] == 3 and s.error is None
+    assert s.prompt_versions["writer"] == 4 and s.error is None
 
 
 async def test_summarize_findings_loop_and_open_at_delivery(run):
@@ -165,6 +166,14 @@ async def test_format_summary_prints_each_degradation(run, fake_backend):
     text = format_summary(summarize(rec), [line])
     assert f"degraded: {line}" in text.splitlines()
     assert "degraded:" not in format_summary(summarize(await run()))
+
+
+async def test_summary_counts_the_pages_ocr_read(run):
+    """CRL-95: the Sources tab and `corelata trace` say a source's text came from a scan."""
+    source = text_source("src1", *PORT).model_copy(update={"provenance": {"ocr_pages": [1, 4]}})
+    s = summarize(await run(source))
+    assert s.sources[0].ocr_pages == 2
+    assert "  src1 src1.txt (txt, 3 units, text recovered by OCR (2 pages))" in format_summary(s)
 
 
 async def test_the_summary_lists_the_earlier_reports_the_run_was_given(run, make_config):

@@ -1,6 +1,39 @@
 """Builds small PDFs for tests: text pages (Helvetica, WinAnsi encoding), image-only
 "scanned" pages and blank pages. Paragraphs are drawn 40 points apart, so pdfminer sees
-each one as its own text box; "\\n" inside a paragraph starts a new line 14 points down."""
+each one as its own text box; "\\n" inside a paragraph starts a new line 14 points down.
+A `Scan` page is a text page rendered to a greyscale picture: a scan Tesseract can read."""
+
+import zlib
+from dataclasses import dataclass
+
+import pypdfium2 as pdfium
+
+
+@dataclass(frozen=True)
+class Scan:
+    """A scanned page showing `paragraphs`, laid out as a text page would be, at `dpi`."""
+
+    paragraphs: tuple[str, ...]
+    dpi: int = 200
+
+
+def _scan_image(scan: Scan) -> bytes:
+    """The page as a FlateDecode greyscale image XObject (deterministic for a pdfium build)."""
+    pdf = pdfium.PdfDocument(make_pdf([list(scan.paragraphs)]))
+    try:
+        bitmap = pdf[0].render(scale=scan.dpi / 72, grayscale=True)
+        w, h, stride = bitmap.width, bitmap.height, bitmap.stride
+        raw = bytes(bitmap.buffer)
+    finally:
+        pdf.close()
+    data = zlib.compress(b"".join(raw[i * stride : i * stride + w] for i in range(h)), 9)
+    return (
+        b"<< /Type /XObject /Subtype /Image /Width %d /Height %d /ColorSpace /DeviceGray "
+        b"/BitsPerComponent 8 /Filter /FlateDecode /Length %d >>\nstream\n"
+        % (w, h, len(data))
+        + data
+        + b"\nendstream"
+    )
 
 
 def _escape(text: str) -> bytes:
@@ -24,11 +57,12 @@ def _text_stream(paragraphs: list[str]) -> bytes:
 
 
 _IMAGE_PAGE = b"q 200 0 0 200 100 400 cm /Im1 Do Q"
+_SCAN_PAGE = b"q 612 0 0 792 0 0 cm /Im1 Do Q"
 
 
-def make_pdf(pages: list[list[str] | str]) -> bytes:
-    """pages: per page, a list of paragraphs, [] for a blank page, or "image" for a page
-    that shows a picture and has no text (a scanned page)."""
+def make_pdf(pages: list[list[str] | str | Scan]) -> bytes:
+    """pages: per page, a list of paragraphs, [] for a blank page, "image" for a page that
+    shows a picture and has no text, or a `Scan` of paragraphs (a scanned page)."""
     objects: list[bytes] = [b"", b""]  # 1: catalog, 2: page tree (filled in at the end)
     objects.append(
         b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>"
@@ -41,13 +75,18 @@ def make_pdf(pages: list[list[str] | str]) -> bytes:
     image = len(objects)
     kids = []
     for page in pages:
-        content = _IMAGE_PAGE if page == "image" else _text_stream(list(page))
+        picture = image
+        if isinstance(page, Scan):
+            objects.append(_scan_image(page))
+            picture, content = len(objects), _SCAN_PAGE
+        else:
+            content = _IMAGE_PAGE if page == "image" else _text_stream(list(page))
         objects.append(b"<< /Length %d >>\nstream\n" % len(content) + content + b"\nendstream")
         stream = len(objects)
         objects.append(
             b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font "
             b"<< /F1 %d 0 R >> /XObject << /Im1 %d 0 R >> >> /Contents %d 0 R >>"
-            % (font, image, stream)
+            % (font, picture, stream)
         )
         kids.append(len(objects))
     objects[0] = b"<< /Type /Catalog /Pages 2 0 R >>"

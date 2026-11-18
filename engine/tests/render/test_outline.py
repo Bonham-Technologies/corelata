@@ -1,5 +1,10 @@
+import io
 from pathlib import Path
 
+from docx import Document
+
+from corelata.render.docx import render_docx
+from corelata.render.html import render_html
 from corelata.render.markdown import render_markdown
 from corelata.render.outline import (
     APPENDIX_TITLE,
@@ -180,3 +185,23 @@ def test_degradations_come_before_the_open_findings_appendix_unnumbered():
     assert all(not (isinstance(b, Heading) and b.text == DEGRADATION_TITLE) for b in plain)
     md = render_markdown(report, PACK, SOURCES)
     assert f"## {DEGRADATION_TITLE}\n\n- audit incomplete: boom\n" in md
+
+
+def test_a_scanned_source_says_ocr_recovered_its_text_in_every_render():
+    """CRL-95 (AC4): the sources section names the pages OCR read, in all three renders."""
+    scanned = SOURCES[0].model_copy(update={"provenance": {"ocr_pages": [2, 5]}})
+    one_page = SOURCES[0].model_copy(update={"provenance": {"ocr_pages": [1]}})
+    entry = SourceEntry(source_id="src1", descriptor="open-source report")
+    assert source_line(entry, scanned) == (
+        "a.txt — open-source report (sha256 abcdef01; text recovered by OCR (2 pages))"
+    )
+    assert source_line(entry, one_page).endswith("; text recovered by OCR (1 page))")
+    sources = [scanned, *SOURCES[1:]]
+    note = "text recovered by OCR (2 pages)"
+    assert note in render_markdown(make_report(), PACK, sources)
+    assert note in render_html(make_report(), PACK, sources)
+    text = "\n".join(
+        p.text for p in Document(io.BytesIO(render_docx(make_report(), PACK, sources))).paragraphs
+    )
+    assert note in text
+    assert "OCR" not in render_markdown(make_report(), PACK, SOURCES)

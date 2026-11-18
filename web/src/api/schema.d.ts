@@ -160,7 +160,8 @@ export interface paths {
         /**
          * Upload Source
          * @description Store and parse one upload (spec §5): one source, or two for a Coglossa export that
-         *     carries a translation guide. Nothing is kept when the file cannot be parsed.
+         *     carries a translation guide. Nothing is kept when the file cannot be parsed. With
+         *     `ingest.ocr: auto` a PDF's scanned pages are read by OCR before the answer (CRL-95).
          */
         post: operations["upload_source_api_projects__project_id__sources_post"];
         delete?: never;
@@ -1194,6 +1195,8 @@ export interface components {
             kind: components["schemas"]["SourceKind"];
             /** Name */
             name: string;
+            /** Ocr Pages */
+            ocr_pages: number;
             /** Sha256 */
             sha256: string;
             /** Units */

@@ -21,6 +21,7 @@ from corelata.doctor import (
     audit_probe_input,
     run_doctor,
 )
+from corelata.ingest import ocr
 from corelata.llm.agent import AgentRunner, CallLog
 from corelata.llm.openai_compat import OpenAICompatBackend
 from corelata.llm.payload import parse_input, render_input
@@ -1293,3 +1294,80 @@ async def test_s3_probe_left_behind_is_a_warning_naming_the_key(
     check = _by_name(report)["storage"]
     assert check.status is CheckStatus.WARN
     assert "demo/.corelata-check-" in check.message and " by hand" in check.fix
+
+
+# ---------------------------------------------------------------- ingest.ocr (CRL-95)
+
+
+def _tesseract(monkeypatch, *, installed=True, version="5.3.0", languages=("eng", "osd")):
+    def langs():
+        if isinstance(languages, Exception):
+            raise languages
+        return sorted(languages)
+
+    monkeypatch.setattr(ocr, "tesseract_path", lambda: "/usr/bin/tesseract" if installed else None)
+    monkeypatch.setattr(ocr, "tesseract_version", lambda: version)
+    monkeypatch.setattr(ocr, "installed_languages", langs)
+
+
+@pytest.mark.parametrize(
+    ("ingest", "tesseract", "status", "message"),
+    [
+        ({}, {}, "pass", "ingest.ocr is off; tesseract 5.3.0 with languages eng"),
+        ({}, {"installed": False}, "pass", "ingest.ocr is off; tesseract is not installed"),
+        (
+            {"ocr": "auto", "ocr_languages": ["eng"]},
+            {},
+            "pass",
+            "ingest.ocr is auto (eng); tesseract 5.3.0 with languages eng",
+        ),
+        (
+            {"ocr": "auto"},
+            {"installed": False},
+            "warn",
+            "ingest.ocr is auto but tesseract is not installed: uploads with scanned PDF pages "
+            "will be refused",
+        ),
+        (
+            {"ocr": "auto", "ocr_languages": ["eng", "fra", "deu"]},
+            {"languages": ("osd",)},
+            "warn",
+            "ingest.ocr is auto but tesseract 5.3.0 with languages none lacks eng, fra, deu: "
+            "uploads with scanned PDF pages will be refused",
+        ),
+        (
+            {"ocr": "auto"},
+            {"languages": ocr.OcrError("tesseract failed: exit 1")},
+            "warn",
+            "tesseract is installed but does not run: tesseract failed: exit 1",
+        ),
+    ],
+)
+async def test_doctor_reports_ocr(
+    tmp_path, server, monkeypatch, ingest, tesseract, status, message
+):
+    """AC5: an OCR line (binary found, languages), and a warning when ocr: auto has no binary."""
+    _tesseract(monkeypatch, **tesseract)
+    report = await run_doctor(_config(tmp_path, server.base_url, ingest=ingest), probe=False)
+    check = _by_name(report)["ocr"]
+    assert (check.status.value, check.message) == (status, message)
+    assert (check.fix == "") is (status == "pass")
+    if status == "warn":
+        assert "operator guide, Scanned PDFs" in check.fix
+
+
+async def test_the_ocr_check_runs_off_the_event_loop(tmp_path, server, monkeypatch):
+    on_loop: list[bool] = []
+
+    def where():
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            on_loop.append(False)
+        else:
+            on_loop.append(True)
+        return None
+
+    monkeypatch.setattr(ocr, "tesseract_path", where)
+    await run_doctor(_config(tmp_path, server.base_url), probe=False)
+    assert on_loop == [False]

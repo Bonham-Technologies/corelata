@@ -8,6 +8,7 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field, ValidationError
 
+from corelata.ingest.units import ocr_note, ocr_page_count
 from corelata.schema import (
     Claim,
     Finding,
@@ -43,6 +44,7 @@ class SourceSummary(BaseModel):
     units: int
     digested: bool
     coglossa_run_id: str | None
+    ocr_pages: int  # pages whose text OCR recovered from a scan (CRL-95); 0 for none
 
 
 class StageLine(BaseModel):
@@ -205,6 +207,7 @@ def summarize(record: RunRecord) -> TraceSummary:
                 units=len(s.units),
                 digested=s.id in digested,
                 coglossa_run_id=s.provenance.get("coglossa_run_id"),
+                ocr_pages=ocr_page_count(s),
             )
             for s in record.sources
         ],
@@ -327,6 +330,7 @@ def format_summary(s: TraceSummary, degradations: Sequence[str] = ()) -> str:
     for src in s.sources:
         extra = f", Coglossa run {src.coglossa_run_id}" if src.coglossa_run_id else ""
         extra += ", digested" if src.digested else ""
+        extra += f", {ocr_note(src.ocr_pages)}" if src.ocr_pages else ""
         out.append(f"  {src.id} {src.name} ({src.format}, {src.units} units{extra})")
     if s.gate is not None:
         supported = "supported" if s.gate.supported else "not supported"

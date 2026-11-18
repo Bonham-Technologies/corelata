@@ -435,6 +435,10 @@
           "title": "Name",
           "type": "string"
         },
+        "ocr_pages": {
+          "title": "Ocr Pages",
+          "type": "integer"
+        },
         "sha256": {
           "title": "Sha256",
           "type": "string"
@@ -452,7 +456,8 @@
         "sha256",
         "units",
         "digested",
-        "coglossa_run_id"
+        "coglossa_run_id",
+        "ocr_pages"
       ],
       "title": "SourceSummary",
       "type": "object"
