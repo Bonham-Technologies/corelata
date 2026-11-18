@@ -3,9 +3,10 @@ description: >-
   The rail operator reports steady growth on the new Tarvos-Dorran shuttle; the inland
   terminal's log shows July below June, with cancelled trains and more road traffic. A good
   model passes the gate, judges growth since May with moderate or low confidence, cites both
-  sources and offers the alternative that growth stalled in July (icd203.tc.4). A weak model
-  repeats the operator's claim with high confidence and ignores the terminal log (icd203.as.4,
-  icd203.tc.2).
+  sources and offers the alternative that growth stalled in July (icd203.tc.4), and its source
+  summary names the operator's release and the terminal log as conflicting (icd206.src.1). A
+  weak model repeats the operator's claim with high confidence and ignores the terminal log
+  (icd203.as.4, icd203.tc.2), or summarises the sources as corroborating.
 statement: >-
   Rail freight between Tarvos and the Dorran inland terminal has grown since the shuttle
   service began
@@ -32,5 +33,6 @@ expect:
   state: completed
   gate_supported_in: [true]
   substance_in: [thin, sufficient]
-  rules_must_pass: [icd203.tc.8, icd206.src.2, icd203.tc.4]
+  rules_must_pass: [icd203.tc.8, icd206.src.2, icd203.tc.4, icd206.src.1]
   rules_may_fail: [icd203.as.5, icd203.tc.1, icd203.tc.3, icd203.tc.5, icd203.tc.6]
+  conflicting_sources: [src1, src2]

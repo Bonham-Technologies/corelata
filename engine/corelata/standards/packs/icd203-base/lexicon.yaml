@@ -27,3 +27,7 @@ source_descriptors:
   - analyst-provided material
 handling_markings:
   - UNCLASSIFIED
+source_access:
+  - direct
+  - indirect
+  - unknown

@@ -929,6 +929,13 @@
             "title": "Likelihood",
             "type": "array"
           },
+          "source_access": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Source Access",
+            "type": "array"
+          },
           "source_descriptors": {
             "items": {
               "type": "string"
@@ -1943,6 +1950,17 @@
           "ocr_pages": {
             "title": "Ocr Pages",
             "type": "integer"
+          },
+          "reliability_tier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reliability Tier"
           },
           "sha256": {
             "title": "Sha256",

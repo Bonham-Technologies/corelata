@@ -439,6 +439,18 @@
           "title": "Ocr Pages",
           "type": "integer"
         },
+        "reliability_tier": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reliability Tier"
+        },
         "sha256": {
           "title": "Sha256",
           "type": "string"

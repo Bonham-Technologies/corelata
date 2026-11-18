@@ -31,6 +31,7 @@ def test_html_structure_and_provenance_attributes():
         "Key judgments",
         "Scope note",
         "Sources",
+        "Source summary",
         "Capacity",
         "Alternatives considered",
         "Gaps and indicators",
@@ -42,11 +43,19 @@ def test_html_structure_and_provenance_attributes():
     assert doc.xpath("//ul[@class='key_judgments']/li/strong/text()") == ["Moderate confidence."]
     assert doc.xpath("//section[h2='Capacity']/p/@data-claim-ids") == ["c1"]
     assert doc.xpath("//section[h2='Scope note']/p/@data-claim-ids") == [""]
-    assert doc.xpath("//ul[@class='sources']/li/text()") == [
-        "a.txt — open-source report; Current. (sha256 abcdef01)",
+    assert doc.xpath("//ol[@class='sources']/li/text()") == [
+        "a.txt — open-source report; originator: Varna Port Authority; date of information:"
+        " 2025-11-03; access: direct; Current. (sha256 abcdef01)",
         "b.json — translated document; Tier B. (sha256 ffffffff; Coglossa run run-42)",
     ]
-    assert doc.xpath("//sup") == []
+    # source reference citations show without claim ids (CRL-96); claim ids only on request
+    assert doc.xpath("//sup/@class") == ["source-refs"] * 3
+    assert doc.xpath("//section[h2='Capacity']/p/sup/text()") == ["1"]
+    assert doc.xpath("//section[h2='Source summary']/p/text()") == [
+        "One official notice; one translation.",
+        "Most important to the key judgments: a.txt.",
+        "Neither source contradicts the other.",
+    ]
     assert doc.xpath("//section[@class='appendix']") == []
     footer = doc.xpath("//footer[@class='meta']")[0].text_content()
     assert "run r1" in footer and "icd203-base" in footer and "clean" in footer
@@ -62,7 +71,7 @@ def test_html_claim_ids_numbering_and_appendix():
     )
     doc = _doc(out)
     h2 = doc.xpath("//h2/text()")
-    assert h2[0] == "1. Key judgments" and h2[3] == "4. Capacity"
+    assert h2[0] == "1. Key judgments" and h2[4] == "5. Capacity"
     assert h2[-1] == "Audit findings open at delivery"
     assert doc.xpath("//sup[@class='claim-ids']/text()") == ["c1", "c1"]
     assert doc.xpath("//section[@class='appendix']/ul[@class='findings']/li/text()") == [

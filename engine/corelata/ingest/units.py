@@ -75,7 +75,7 @@ def make_source(source_id: str, path: Path, *, ocr: OcrSettings | None = None) -
         name=path.name,
         format=doc.format,
         sha256=doc.sha256,
-        provenance=ocr_provenance(doc, ocr),
+        provenance={**doc.meta, **ocr_provenance(doc, ocr)},
         units=units_from_document(doc),
     )
 

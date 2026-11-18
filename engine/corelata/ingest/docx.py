@@ -2,11 +2,13 @@
 Footnotes, headers and text boxes are not read in M1."""
 
 from pathlib import Path
+from typing import Any
 
 import docx
+from docx.opc.constants import RELATIONSHIP_TYPE as RT
 from docx.table import Table
 
-from corelata.ingest.base import IngestError, file_sha256, is_scene_break, make_blocks
+from corelata.ingest.base import IngestError, file_sha256, is_scene_break, make_blocks, source_meta
 from corelata.schema import BlockKind, SourceDocument
 
 Item = tuple[BlockKind, str, str | None]
@@ -38,6 +40,43 @@ def _table_items(table: Table, table_no: int) -> list[Item]:
     return items
 
 
+# python-docx's own template says it wrote the file; its dates are the template's, not the
+# document's, so a file that still carries them gives no hints.
+_LIBRARY_AUTHOR = "python-docx"
+
+
+def _read(props: Any, name: str) -> Any:
+    """One core property, or None when the file's value is one python-docx cannot read (an
+    empty date element raises TypeError, a date at the calendar's edge OverflowError): a hint is
+    never worth refusing the file over."""
+    try:
+        return getattr(props, name)
+    except Exception:  # python-docx raises several unrelated types for bad values
+        return None
+
+
+def core_meta(props: Any) -> dict[str, str]:
+    """The last-saved (or created) date and the author from core properties, as ingest hints."""
+    author = _read(props, "author")
+    if author == _LIBRARY_AUTHOR:
+        return {}
+    when = _read(props, "modified") or _read(props, "created")
+    return source_meta(
+        when.date().isoformat() if when else None, author if isinstance(author, str) else None
+    )
+
+
+def docx_meta(document: Any) -> dict[str, str]:
+    """The file's last-saved (or created) date and its author, from the core properties, as
+    ingest hints (CRL-96). A file without a core-properties part gives none: python-docx would
+    make up a default one dated now."""
+    try:
+        document.part.package.part_related_by(RT.CORE_PROPERTIES)
+    except (KeyError, ValueError):
+        return {}
+    return core_meta(document.core_properties)
+
+
 class DocxIngestor:
     format = "docx"
     extensions = (".docx",)
@@ -63,4 +102,5 @@ class DocxIngestor:
             format=self.format,
             sha256=file_sha256(path),
             blocks=make_blocks(str(path), items),
+            meta=docx_meta(document),
         )

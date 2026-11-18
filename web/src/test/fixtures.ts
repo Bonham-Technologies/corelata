@@ -314,6 +314,7 @@ export const runTrace: RunTrace = {
         units: 2,
         digested: true,
         coglossa_run_id: "run-42",
+        reliability_tier: "B",
         ocr_pages: 0,
       },
     ],

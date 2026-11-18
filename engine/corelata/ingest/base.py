@@ -71,3 +71,41 @@ def make_blocks(source_path: str, items: list[tuple[BlockKind, str, str | None]]
         )
         for i, (kind, text, locator) in enumerate(items)
     ]
+
+
+_ISO_DATE = re.compile(r"^(\d{4}-\d{2}-\d{2})(?:[T ][\d:.]+(?:Z|[+-]\d{2}:?\d{2})?)?$")
+
+
+# The `SourceDocument.meta` keys (CRL-96), which become the source's provenance: what the file
+# says about when it was issued and who originated it, offered to the writer as hints.
+HINT_KEYS = ("date", "origin")
+
+# A hint comes from the file's own metadata, which anyone can write: past this many characters
+# it is not a date or a name, and it would otherwise reach the writer and the report whole.
+HINT_MAX_CHARS = 200
+
+
+# C0 and C1 control characters and DEL, less the ones `str.split` reads as whitespace (tab, line
+# feed, vertical tab, form feed, carriage return, the four separators and NEL): they carry no
+# text, and python-docx refuses them, so one in a hint would cost the run its DOCX export.
+_CONTROL = re.compile(r"[\x00-\x08\x0e-\x1b\x7f-\x84\x86-\x9f]")
+
+
+def _hint(value: str | None) -> str:
+    text = " ".join(_CONTROL.sub("", value or "").split())
+    return text if len(text) <= HINT_MAX_CHARS else text[: HINT_MAX_CHARS - 1].rstrip() + "…"
+
+
+def source_meta(date: str | None, origin: str | None) -> dict[str, str]:
+    """The `SourceDocument.meta` hints (CRL-96): blanks left out, an ISO 8601 timestamp cut to
+    its date, anything else kept as the file wrote it, whitespace collapsed to single spaces,
+    control characters dropped and cut to `HINT_MAX_CHARS`."""
+    meta: dict[str, str] = {}
+    date = _hint(date)
+    if date:
+        match = _ISO_DATE.match(date)
+        meta["date"] = match.group(1) if match else date
+    origin = _hint(origin)
+    if origin:
+        meta["origin"] = origin
+    return meta

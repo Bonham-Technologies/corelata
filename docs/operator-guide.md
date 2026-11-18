@@ -251,7 +251,8 @@ config/packs/icd203-base/
   pack.yaml             name, version, description
   rules/<id>.yaml       one rule per file, e.g. icd203.as.1.yaml
   template.yaml         section order, key-judgment limits, word limit
-  lexicon.yaml          likelihood terms, confidence definitions, source descriptors, markings
+  lexicon.yaml          likelihood terms, confidence definitions, source descriptors, markings,
+                        source access terms
   profiles/<team>.yaml  an overlay for one team (optional)
 ```
 
@@ -275,6 +276,16 @@ config/packs/icd203-base/
   (`profiles/team-east.docx`) and name it relative to the pack directory
   (`docx_reference: profiles/team-east.docx`); a file that is not a readable .docx is refused when
   the pack loads.
+- **Sourcing (ICD 206).** A lexicon with a `source_access` list (the base pack's is `direct`,
+  `indirect`, `unknown`) has every source entry carry its date of information, its originator
+  and its access, one of those terms; a template whose `section_order` lists `source_summary`
+  has the report carry a source summary statement (the source base's strengths and weaknesses,
+  the sources the key judgments depend on most, which sources corroborate and which conflict).
+  Every render numbers the sources and cites them by superscript number. A profile turns either
+  off with `template: {source_details: false}` or `template: {source_summary: false}`. The
+  writer reads a date and an author or publisher from an HTML page's `<meta>` elements and a
+  Word file's properties as hints, and a Coglossa export's note names its reliability tier (the
+  lowest tier among its scored spans), which the review screen's Sources tab shows too.
 - `draft: true` marks a profile that is still under review. A run cannot use a draft profile;
   remove the flag when the team has approved it.
 - `standards.default_pack` (default `icd203-base`) and `standards.default_profile` choose what a
@@ -957,7 +968,9 @@ writable, and `/etc/corelata` is read-only), then
 `docker compose exec api corelata pack diff /data/files/run-<id> /etc/corelata/packs/icd203-base`.
 The exported directory's `trace.json` carries the snapshot.
 
-Take the rules you want, then run `pack validate` (section 5).
+Take the rules you want, then run `pack validate` (section 5). Base pack 1.1.0 (CRL-96) adds the
+`source_summary` section to `template.yaml`, the `source_access` list to `lexicon.yaml` and the
+ICD 206 D.3.d wording of `icd206.src.1`; a pack without them runs exactly as before.
 
 **Going back.** Migrations only go forward, so an older version cannot run on an upgraded
 database. Run `docker compose down` in the new directory, then restore the pre-upgrade backup

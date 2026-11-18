@@ -1,6 +1,11 @@
 """A renderer-neutral outline of a report (spec §9): the one place that knows section order,
-heading numbering, how a source line reads and how the open-findings appendix is laid out.
-Markdown, HTML and DOCX walk this outline, so the three outputs cannot drift apart."""
+heading numbering, how a source line reads, how sources are numbered and cited, and how the
+open-findings appendix is laid out. Markdown, HTML and DOCX walk this outline, so the three
+outputs cannot drift apart.
+
+Source reference citations (CRL-96, ICD 206 D.3.a): the sources section is a numbered list in
+the report's source order, and every paragraph or item whose claims cite units carries the
+numbers of those units' sources (`refs`), which each renderer shows as a superscript."""
 
 from dataclasses import dataclass
 from typing import ClassVar
@@ -15,6 +20,7 @@ from corelata.schema import (
     Source,
     SourceEntry,
     SourceKind,
+    SourceSummaryStatement,
 )
 from corelata.schema.source import split_ref
 from corelata.standards.schema import ResolvedPack
@@ -23,6 +29,7 @@ SECTION_TITLES = {
     "key_judgments": "Key judgments",
     "scope_note": "Scope note",
     "sources": "Sources",
+    "source_summary": "Source summary",
     "alternatives": "Alternatives considered",
     "gaps_and_indicators": "Gaps and indicators",
     # CRL-97: how the key judgments stand against the project's earlier accepted reports
@@ -65,6 +72,7 @@ class Para:
     kind: ClassVar[str] = "para"
     text: str
     claim_ids: tuple[str, ...] = ()
+    refs: tuple[int, ...] = ()  # source reference numbers (CRL-96)
 
 
 @dataclass(frozen=True)
@@ -72,6 +80,7 @@ class Item:
     text: str
     lead: str = ""  # bold lead-in: "Moderate confidence." or an alternative's hypothesis
     claim_ids: tuple[str, ...] = ()
+    refs: tuple[int, ...] = ()  # source reference numbers (CRL-96)
 
 
 @dataclass(frozen=True)
@@ -80,6 +89,7 @@ class Bullets:
     items: tuple[Item, ...]
     # key_judgments | changes | sources | alternatives | gaps | quotes | degradations | findings
     role: str = "list"
+    numbered: bool = False  # items are numbered from 1: the sources section (CRL-96)
 
 
 Block = Marking | Title | Heading | Para | Bullets
@@ -92,8 +102,69 @@ def source_line(entry: SourceEntry, source: Source | None) -> str:
         extra += f"; Coglossa run {source.provenance.get('coglossa_run_id', 'unknown')}"
     if source and (pages := ocr_page_count(source)):
         extra += f"; {ocr_note(pages)}"
-    note = f"; {entry.reliability_note}" if entry.reliability_note else ""
+    details = [
+        f"{label}: {value}"
+        for label, value in (
+            ("originator", entry.origin),
+            ("date of information", entry.date_of_information),
+            ("access", entry.access),
+        )
+        if value
+    ]
+    note = "".join(f"; {part}" for part in [*details, entry.reliability_note] if part)
     return f"{name} — {entry.descriptor}{note} ({extra})"
+
+
+class SourceRefs:
+    """Source reference numbers: the n-th entry of the sources section is source n, and a
+    claim cites the sources of its evidence units."""
+
+    def __init__(self, report: Report) -> None:
+        self.number = {e.source_id: i for i, e in enumerate(report.sources, start=1)}
+        self._claims: dict[str, set[str]] = {}
+        for c in report.claims:
+            ids = self._claims.setdefault(c.id, set())
+            for ref in c.evidence:
+                try:
+                    ids.add(split_ref(ref)[0])
+                except ValueError:
+                    continue
+
+    def of_sources(self, source_ids: list[str]) -> tuple[int, ...]:
+        return tuple(sorted({self.number[s] for s in source_ids if s in self.number}))
+
+    def of_claims(self, claim_ids: list[str]) -> tuple[int, ...]:
+        return self.of_sources([s for cid in claim_ids for s in self._claims.get(cid, ())])
+
+
+def source_names(source_ids: list[str], by_id: dict[str, Source]) -> str:
+    return ", ".join(by_id[s].name if s in by_id else s for s in source_ids)
+
+
+def summary_blocks(
+    summary: SourceSummaryStatement, cites: SourceRefs, by_id: dict[str, Source]
+) -> list[Para]:
+    """The source summary statement (CRL-96, ICD 206 D.3.d): its assessment, the sources the key
+    judgments depend on most, and corroboration and conflict, citing the sources it names."""
+    out = [Para(summary.strengths_and_weaknesses)]
+    if summary.key_sources:
+        names = source_names(summary.key_sources, by_id)
+        out.append(
+            Para(
+                f"Most important to the key judgments: {names}.",
+                refs=cites.of_sources(summary.key_sources),
+            )
+        )
+    out.append(Para(summary.corroboration))
+    if summary.conflicting_sources:
+        names = source_names(summary.conflicting_sources, by_id)
+        out.append(
+            Para(
+                f"Conflicting reporting: {names}.",
+                refs=cites.of_sources(summary.conflicting_sources),
+            )
+        )
+    return [p for p in out if p.text]
 
 
 def passage_lead(claim_id: str, ref: str, by_id: dict[str, Source]) -> str:
@@ -109,16 +180,18 @@ def passage_lead(claim_id: str, ref: str, by_id: dict[str, Source]) -> str:
     return f"{claim_id} · {source.name}, {unit.locator}"
 
 
-def change_item(change: JudgmentChange, by_run: dict[str, PriorReportRef]) -> Item:
+def change_item(
+    change: JudgmentChange, by_run: dict[str, PriorReportRef], refs: tuple[int, ...] = ()
+) -> Item:
     """One entry of "Changes from previous analysis" in the reader's terms: the earlier report
-    by its title and acceptance date, never its run id."""
+    by its title and acceptance date, never its run id; `refs` cite the sources of its claims."""
     prior = by_run.get(change.prior_run_id)
     where = "an earlier report"
     if prior is not None:
         at = prior.accepted_at
         where = f"\u201c{prior.title}\u201d, {at.day} {at:%B %Y}"
     text = f"{change.explanation} Earlier judgment ({where}): \u201c{change.prior_judgment}\u201d"
-    return Item(text, CHANGE_LEADS[change.change], tuple(change.claim_ids))
+    return Item(text, CHANGE_LEADS[change.change], tuple(change.claim_ids), refs)
 
 
 def finding_line(f: Finding) -> str:
@@ -137,6 +210,7 @@ def build_outline(
     blocks at top and bottom; a section name this version does not know is skipped."""
     numbered = pack.format.heading_style == "numbered"
     by_id = {s.id: s for s in sources}
+    cites = SourceRefs(report)
     out: list[Block] = [Marking(report.handling_marking)]
     counter = 0
 
@@ -149,7 +223,10 @@ def build_outline(
         if not report.changes_from_previous:
             return []
         by_run = {r.run_id: r for r in report.metadata.prior_reports}
-        items = tuple(change_item(ch, by_run) for ch in report.changes_from_previous)
+        items = tuple(
+            change_item(ch, by_run, cites.of_claims(ch.claim_ids))
+            for ch in report.changes_from_previous
+        )
         return [heading(SECTION_TITLES["changes_from_previous"]), Bullets(items, "changes")]
 
     for section in pack.template.section_order:
@@ -159,7 +236,10 @@ def build_outline(
             out.append(heading(SECTION_TITLES[section]))
             items = tuple(
                 Item(
-                    kj.text, f"{kj.confidence.value.capitalize()} confidence.", tuple(kj.claim_ids)
+                    kj.text,
+                    f"{kj.confidence.value.capitalize()} confidence.",
+                    tuple(kj.claim_ids),
+                    cites.of_claims(kj.claim_ids),
                 )
                 for kj in report.key_judgments
             )
@@ -171,15 +251,22 @@ def build_outline(
         elif section == "sources":
             out.append(heading(SECTION_TITLES[section]))
             items = tuple(Item(source_line(e, by_id.get(e.source_id))) for e in report.sources)
-            out.append(Bullets(items, "sources"))
+            out.append(Bullets(items, "sources", numbered=True))
+        elif section == "source_summary" and report.source_summary is not None:
+            out.append(heading(SECTION_TITLES[section]))
+            out.extend(summary_blocks(report.source_summary, cites, by_id))
         elif section == "analysis":
             for sec in report.analysis:
                 out.append(heading(sec.heading))
-                out.extend(Para(p.text, tuple(p.claim_ids)) for p in sec.paragraphs)
+                out.extend(
+                    Para(p.text, tuple(p.claim_ids), cites.of_claims(p.claim_ids))
+                    for p in sec.paragraphs
+                )
         elif section == "alternatives":
             out.append(heading(SECTION_TITLES[section]))
             items = tuple(
-                Item(a.assessment, a.hypothesis, tuple(a.claim_ids)) for a in report.alternatives
+                Item(a.assessment, a.hypothesis, tuple(a.claim_ids), cites.of_claims(a.claim_ids))
+                for a in report.alternatives
             )
             out.append(Bullets(items, "alternatives"))
         elif section == "gaps_and_indicators":

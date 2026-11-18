@@ -26,6 +26,7 @@ H2 = [
     "Key judgments",
     "Scope note",
     "Sources",
+    "Source summary",
     "Capacity",
     "Alternatives considered",
     "Gaps and indicators",
@@ -48,13 +49,18 @@ def test_docx_structure_with_neutral_template():
     assert doc.paragraphs[0].style.name == "Heading 1"
     bullets = [p for p in doc.paragraphs if p.style.name == "List Bullet"]
     assert bullets[0].runs[0].text == "Moderate confidence. " and bullets[0].runs[0].bold
-    assert bullets[0].text == "Moderate confidence. Capacity grew."
-    assert [p.text for p in bullets[1:3]] == [
-        "a.txt — open-source report; Current. (sha256 abcdef01)",
-        "b.json — translated document; Tier B. (sha256 ffffffff; Coglossa run run-42)",
+    assert bullets[0].text == "Moderate confidence. Capacity grew.1"
+    normal = _texts(doc, "Normal")
+    # the sources are numbered in the text, so the numbers match the citations (CRL-96)
+    assert [t for t in normal if t[:3] in ("1. ", "2. ")] == [
+        "1. a.txt — open-source report; originator: Varna Port Authority; date of information:"
+        " 2025-11-03; access: direct; Current. (sha256 abcdef01)",
+        "2. b.json — translated document; Tier B. (sha256 ffffffff; Coglossa run run-42)",
     ]
-    assert "Grew 40 percent." in _texts(doc, "Normal")
-    assert not any(r.font.superscript for p in doc.paragraphs for r in p.runs)
+    assert "Grew 40 percent.1" in normal
+    assert "Most important to the key judgments: a.txt.1" in normal
+    sups = [r.text for p in doc.paragraphs for r in p.runs if r.font.superscript]
+    assert sups == ["1", "1", "1"]  # source references only: claim ids are off
     section = doc.sections[0]
     assert section.header.paragraphs[0].text == "UNCLASSIFIED"
     assert section.footer.paragraphs[0].text == "UNCLASSIFIED"
@@ -73,10 +79,10 @@ def test_docx_claim_ids_numbering_and_appendix():
         )
     )
     h2 = _texts(doc, "Heading 2")
-    assert h2[0] == "1. Key judgments" and h2[3] == "4. Capacity"
+    assert h2[0] == "1. Key judgments" and h2[4] == "5. Capacity"
     assert h2[-1] == "Audit findings open at delivery"
     sups = [r.text for p in doc.paragraphs for r in p.runs if r.font.superscript]
-    assert sups == [" c1", " c1"]
+    assert sups == ["1", " c1", "1", "1", " c1"]
     assert _texts(doc, "List Bullet")[-1] == (
         "icd203.tc.8 (blocking): c9 has no evidence — Cite or remove."
     )
@@ -107,7 +113,7 @@ def test_docx_missing_styles_fall_back_to_normal(tmp_path):
     normals = [p for p in doc.paragraphs if p.style.name == "Normal"]
     headings = [p for p in normals if p.text in H2]
     assert [p.text for p in headings] == H2 and all(p.runs[0].bold for p in headings)
-    assert "• Moderate confidence. Capacity grew." in [p.text for p in normals]
+    assert "• Moderate confidence. Capacity grew.1" in [p.text for p in normals]
 
 
 @pytest.mark.parametrize("content", [b"not a zip", b""])

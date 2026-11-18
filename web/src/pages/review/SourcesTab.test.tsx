@@ -19,7 +19,7 @@ it("lists the run's sources with kind, units, digest flag and Coglossa run id", 
   expect(rows[1]).toHaveTextContent("cccccccccccc");
   expect(within(table).getByRole("columnheader", { name: "SHA-256" })).toBeInTheDocument();
   expect(rows[1]).toHaveTextContent("Coglossa run run-42");
-  expect(rows[1]).toHaveTextContent("summarised before drafting");
+  expect(rows[1]).toHaveTextContent("Coglossa reliability tier B; summarised before drafting");
   expect(screen.getByText(/Standards pack icd203-base \(bbbbbbbbbbbb\)/)).toBeInTheDocument();
 });
 
@@ -49,6 +49,8 @@ it("shows the profile, a missing Coglossa run id and singular units", async () =
   const table = await screen.findByRole("table", { name: "Sources" });
   const row = within(table).getAllByRole("row")[1]!;
   expect(row).toHaveTextContent("Coglossa run ?");
+  expect(row).toHaveTextContent("Coglossa reliability tier B");
+  expect(row).not.toHaveTextContent(";");
   expect(row).toHaveTextContent("1 unit");
   expect(row).not.toHaveTextContent("1 units");
   expect(screen.getByText(/team profile brief/)).toBeInTheDocument();

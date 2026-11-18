@@ -5,7 +5,7 @@ from collections.abc import Callable
 from corelata.config import EvidenceQuotes
 from corelata.schema import Finding, ReportBody
 from corelata.stages.context import StageContext
-from corelata.stages.write import report_schema, report_validator, without_unasked
+from corelata.stages.write import report_schema, report_validator, shape_reply
 
 
 def conveyor_validator(ctx: StageContext, draft: ReportBody) -> Callable[[ReportBody], list[str]]:
@@ -38,9 +38,30 @@ def conveyor_validator(ctx: StageContext, draft: ReportBody) -> Callable[[Report
                 "not add, remove or reorder entries or change their prior_run_id, "
                 "prior_judgment or change"
             )
+        errors += _source_changes(ctx, draft, body)
         return errors
 
     return validate
+
+
+def _source_changes(ctx: StageContext, draft: ReportBody, body: ReportBody) -> list[str]:
+    """CRL-96: the reviewer may reword the source summary, not change a source entry's date of
+    information, origin or access, or which sources the summary names."""
+    errors: list[str] = []
+    before = {e.source_id: e for e in draft.sources}
+    for entry in body.sources if ctx.pack.source_details else []:
+        prev = before.get(entry.source_id)
+        if prev is not None and entry.details() != prev.details():
+            errors.append(
+                f"source '{entry.source_id}' changed date_of_information, origin or access: "
+                "keep them exactly as given"
+            )
+    old, new = draft.source_summary, body.source_summary
+    if ctx.pack.source_summary and old is not None and new is not None:
+        for name in ("key_sources", "conflicting_sources"):
+            if set(getattr(old, name)) != set(getattr(new, name)):
+                errors.append(f"source_summary.{name} changed: keep the sources it names")
+    return errors
 
 
 def _change_keys(body: ReportBody) -> list[tuple[str, str, str]]:
@@ -63,6 +84,8 @@ async def run_conveyor(
             "heading_style": ctx.pack.format.heading_style,
             "findings": [f.model_dump() for f in findings],
             "evidence_quotes": ctx.evidence_quotes.value,
+            "source_details": ctx.pack.source_details,
+            "source_summary": ctx.pack.source_summary,
         },
         payload={
             "task": "conveyor",
@@ -77,4 +100,4 @@ async def run_conveyor(
         schema=report_schema(ctx),
         validate=check,
     )
-    return without_unasked(ctx, parsed)
+    return shape_reply(ctx, parsed)

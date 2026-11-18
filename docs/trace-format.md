@@ -12,7 +12,7 @@ models disagree (`make schema` regenerates it).
 | `trace.json` | always | the `RunRecord`: everything below |
 | `gate.json` | the gate ran | `GateVerdict` |
 | `report.json` | a report was delivered | `Report` (body + `metadata`) |
-| `report.md`, `report.html`, `report.docx` | a report was delivered | renders of `report.json`; the appendix "Cited passages" lists the claims' quotes (when any claim quotes), "Stages incomplete at delivery" lists `metadata.degradations` and "Audit findings open at delivery" lists `delivered_open_findings` (the findings `metadata.open_findings` names) |
+| `report.md`, `report.html`, `report.docx` | a report was delivered | renders of `report.json`, with numbered source references (CRL-96); the appendix "Cited passages" lists the claims' quotes (when any claim quotes), "Stages incomplete at delivery" lists `metadata.degradations` and "Audit findings open at delivery" lists `delivered_open_findings` (the findings `metadata.open_findings` names) |
 | `reference.docx` | the run's profile named one (queued runs only) | the profile's DOCX reference as stored when the run was queued; `corelata report DIR --format docx` uses it |
 
 `corelata report RUN_DIR --format …` re-renders any of the three from `trace.json` alone; the
@@ -81,6 +81,24 @@ its verdict and recommendation stand; quote problems are appended to its evidenc
 with the same `engine check: ` prefix (unsourced claims alone add nothing, as before quotes). The renders list every quote in the appendix
 "Cited passages" (claim id, source name and locator, the quoted words).
 
+## Sources section and source summary
+
+A report's `sources[]` entry is `{source_id, descriptor, reliability_note, date_of_information,
+origin, access}` (CRL-96). The last three are present when the run's pack lexicon had a
+`source_access` list and the value is not blank; older traces, and runs whose pack or profile
+turned them off, have no such keys: read a missing key as empty. The date and origin are the
+writer's: it is offered the source's `provenance.date` and `provenance.origin` (hints ingest read
+from the file) and confirms, corrects or blanks them, and the engine never fills a blank one back
+in. A Coglossa export's `reliability_note` starts with `Coglossa reliability tier <A|B|C>.` (the
+lowest tier among its scored spans) unless the note already names it.
+
+`report.source_summary` (CRL-96) is present when the pack's template listed `source_summary`:
+`{strengths_and_weaknesses, key_sources, corroboration, conflicting_sources}`, the two lists
+being source ids. It is absent otherwise, and in every older trace.
+
+Renders number the sources in `sources[]` order and cite them by that number in superscript after
+each paragraph or item whose claims cite their units.
+
 ## Earlier accepted reports
 
 A queued run reads the key judgments of its project's most recently accepted reports
@@ -107,10 +125,11 @@ or change`, whatever the auditor answered.
 ## Derived views
 
 `corelata trace RUN_DIR` prints a `TraceSummary` (`schema/trace-summary.schema.json`):
-sources with unit counts, digest flags and the number of pages OCR read (`ocr_pages`), the gate
-verdict, a stage timeline with durations, failed and open rule ids per iteration, findings open at
-delivery, usage by role, and the earlier accepted reports the run was given (`prior_reports`,
-absent when none; the review screen's Process tab lists them).
+sources with unit counts, digest flags, the number of pages OCR read (`ocr_pages`) and a Coglossa
+export's `reliability_tier` (CRL-96), the gate verdict, a stage timeline with durations, failed and
+open rule ids per iteration, findings open at delivery, usage by role, and the earlier accepted
+reports the run was given (`prior_reports`, absent when none; the review screen's Process tab
+lists them).
 `corelata trace RUN_DIR --claim c1` prints a `ClaimProvenance`
 (`schema/claim-provenance.schema.json`): the claim, its evidence units with source name and
 locator, and where in the report it is cited; the claim carries its `quotes`, which the review
