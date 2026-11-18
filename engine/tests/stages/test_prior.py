@@ -10,7 +10,7 @@ from corelata.llm.agent import StructuredOutputError
 from corelata.schema import PriorJudgment, PriorReport
 from corelata.stages.convey import run_conveyor
 from corelata.stages.prior import prior_report_entry, select_prior_reports
-from corelata.stages.write import run_writer, without_unasked
+from corelata.stages.write import run_writer, shape_reply
 
 
 def _report(run_id: str, text: str = "Grows.") -> PriorReport:
@@ -62,8 +62,8 @@ async def test_a_stray_changes_list_is_dropped_without_earlier_reports(make_ctx,
     draft = await run_writer(prior_ctx, iteration=0, prior=None, findings=[])
     assert draft.changes_from_previous
     plain = make_ctx()
-    assert without_unasked(plain, draft).changes_from_previous == []
-    assert without_unasked(prior_ctx, draft) is draft
+    assert shape_reply(plain, draft).changes_from_previous == []
+    assert shape_reply(prior_ctx, draft) is draft
 
 
 @pytest.mark.parametrize(

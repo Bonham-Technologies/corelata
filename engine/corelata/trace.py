@@ -23,6 +23,7 @@ from corelata.schema import (
     SourceKind,
     Usage,
     Verdict,
+    reliability_tier,
 )
 from corelata.stages.audit import open_findings
 
@@ -44,6 +45,8 @@ class SourceSummary(BaseModel):
     units: int
     digested: bool
     coglossa_run_id: str | None
+    # CRL-96: a Coglossa export's lowest span reliability tier (`schema.reliability_tier`)
+    reliability_tier: str | None = None
     ocr_pages: int  # pages whose text OCR recovered from a scan (CRL-95); 0 for none
 
 
@@ -207,6 +210,7 @@ def summarize(record: RunRecord) -> TraceSummary:
                 units=len(s.units),
                 digested=s.id in digested,
                 coglossa_run_id=s.provenance.get("coglossa_run_id"),
+                reliability_tier=reliability_tier(s),
                 ocr_pages=ocr_page_count(s),
             )
             for s in record.sources
@@ -329,6 +333,7 @@ def format_summary(s: TraceSummary, degradations: Sequence[str] = ()) -> str:
     out.append("sources:")
     for src in s.sources:
         extra = f", Coglossa run {src.coglossa_run_id}" if src.coglossa_run_id else ""
+        extra += f", reliability tier {src.reliability_tier}" if src.reliability_tier else ""
         extra += ", digested" if src.digested else ""
         extra += f", {ocr_note(src.ocr_pages)}" if src.ocr_pages else ""
         out.append(f"  {src.id} {src.name} ({src.format}, {src.units} units{extra})")

@@ -1,8 +1,14 @@
+import re
+import zipfile
+from datetime import datetime
+from types import SimpleNamespace
+
 import docx
 import pytest
 
 from corelata.ingest.base import IngestError
-from corelata.ingest.docx import DocxIngestor
+from corelata.ingest.docx import DocxIngestor, core_meta
+from corelata.ingest.units import make_source
 from corelata.schema import BlockKind
 
 
@@ -48,3 +54,88 @@ def test_corrupt_docx_is_ingest_error(tmp_path):
     path.write_bytes(b"not a zip")
     with pytest.raises(IngestError, match="broken.docx is not a readable DOCX"):
         DocxIngestor().ingest(path)
+
+
+def test_core_properties_become_date_and_origin_hints(tmp_path):
+    """CRL-96: the last-saved date and the author are hints for the source entry."""
+    d = docx.Document()
+    d.add_paragraph("Body.")
+    d.core_properties.author = "Calrail Cargo press office"
+    d.core_properties.created = datetime(2026, 8, 1, 9, 0)
+    d.core_properties.modified = datetime(2026, 8, 10, 14, 30)
+    path = tmp_path / "release.docx"
+    d.save(path)
+    assert DocxIngestor().ingest(path).meta == {
+        "date": "2026-08-10",
+        "origin": "Calrail Cargo press office",
+    }
+    assert make_source("src1", path).provenance["origin"] == "Calrail Cargo press office"
+    created_only = SimpleNamespace(author="", created=datetime(2026, 8, 1), modified=None)
+    assert core_meta(created_only) == {"date": "2026-08-01"}
+    undated = SimpleNamespace(author="Someone", created=None, modified=None)
+    assert core_meta(undated) == {"origin": "Someone"}
+
+
+def test_python_docx_template_properties_give_no_hints(tmp_path):
+    d = docx.Document()  # still says python-docx wrote it, with the template's dates
+    d.add_paragraph("Body.")
+    path = tmp_path / "plain.docx"
+    d.save(path)
+    assert DocxIngestor().ingest(path).meta == {}
+
+
+def _rewrite_core(src, dest, edit):
+    """`src` with its docProps/core.xml passed through `edit` (None drops the part and its
+    relationship)."""
+    with zipfile.ZipFile(src) as zin, zipfile.ZipFile(dest, "w") as zout:
+        for item in zin.infolist():
+            data = zin.read(item.filename)
+            if item.filename == "docProps/core.xml":
+                data = edit(data)
+                if data is None:
+                    continue
+            elif item.filename == "_rels/.rels" and edit(b"") is None:
+                data = re.sub(rb"<Relationship[^>]*core-properties[^>]*/>", b"", data)
+            zout.writestr(item, data)
+    return dest
+
+
+@pytest.mark.parametrize(
+    "edit",
+    [
+        # an empty date element: python-docx raises TypeError reading it
+        lambda x: re.sub(
+            rb"<dcterms:modified[^>]*>[^<]*</dcterms:modified>",
+            b'<dcterms:modified xsi:type="dcterms:W3CDTF"/>',
+            x,
+        ),
+        # a date at the calendar's edge: python-docx raises OverflowError applying the offset
+        lambda x: re.sub(
+            rb"(<dcterms:modified[^>]*>)[^<]*(</dcterms:modified>)",
+            rb"\g<1>0001-01-01T00:00:00+01:00\2",
+            x,
+        ),
+    ],
+)
+def test_unreadable_core_dates_still_ingest(tmp_path, edit):
+    d = docx.Document()
+    d.add_paragraph("Body.")
+    d.core_properties.author = "Ina Berg"
+    d.core_properties.created = datetime(2026, 8, 1)
+    d.save(tmp_path / "a.docx")
+    doc = DocxIngestor().ingest(_rewrite_core(tmp_path / "a.docx", tmp_path / "b.docx", edit))
+    assert doc.meta == {"date": "2026-08-01", "origin": "Ina Berg"}
+    assert [b.text for b in doc.blocks] == ["Body."]
+
+
+def test_a_file_without_core_properties_gives_no_hints(tmp_path):
+    """python-docx would make up a core-properties part dated now; that is not the source's date."""
+    d = docx.Document()
+    d.add_paragraph("Body.")
+    d.core_properties.author = "Ina Berg"
+    d.save(tmp_path / "a.docx")
+    doc = DocxIngestor().ingest(
+        _rewrite_core(tmp_path / "a.docx", tmp_path / "b.docx", lambda _: None)
+    )
+    assert doc.meta == {}
+    assert [b.text for b in doc.blocks] == ["Body."]

@@ -10,6 +10,9 @@
 {% macro ids(claim_ids) -%}
 {% if with_claim_ids and claim_ids %}<sup class="claim-ids">{{ claim_ids | join(", ") }}</sup>{% endif %}
 {%- endmacro %}
+{% macro refs(numbers) -%}
+{% if numbers %}<sup class="source-refs">{{ numbers | join(",") }}</sup>{% endif %}
+{%- endmacro %}
 <article>
 {% set ns = namespace(open=false) %}
 {% for b in blocks %}
@@ -37,13 +40,14 @@
 {% endif %}
 <h2>{{ b.label }}</h2>
 {% elif b.kind == "para" %}
-<p data-claim-ids="{{ b.claim_ids | join(' ') }}">{{ b.text }}{{ ids(b.claim_ids) }}</p>
+<p data-claim-ids="{{ b.claim_ids | join(' ') }}">{{ b.text }}{{ refs(b.refs) }}{{ ids(b.claim_ids) }}</p>
 {% elif b.kind == "bullets" %}
-<ul class="{{ b.role }}">
+{% set list_tag = "ol" if b.numbered else "ul" %}
+<{{ list_tag }} class="{{ b.role }}">
 {% for it in b.items %}
-<li data-claim-ids="{{ it.claim_ids | join(' ') }}">{% if it.lead %}<strong>{{ it.lead }}</strong> {% endif %}{{ it.text }}{{ ids(it.claim_ids) }}</li>
+<li data-claim-ids="{{ it.claim_ids | join(' ') }}">{% if it.lead %}<strong>{{ it.lead }}</strong> {% endif %}{{ it.text }}{{ refs(it.refs) }}{{ ids(it.claim_ids) }}</li>
 {% endfor %}
-</ul>
+</{{ list_tag }}>
 {% endif %}
 {% endfor %}
 </article>

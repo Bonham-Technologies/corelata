@@ -3,7 +3,7 @@ import json
 import pytest
 
 from corelata.schema import ReportStatus, RunState
-from corelata.testing.sources import text_source
+from corelata.testing.sources import coglossa_source, text_source
 from corelata.trace import (
     TraceError,
     claim_provenance,
@@ -33,6 +33,7 @@ async def test_summarize_clean_run(run):
             "units": 3,
             "digested": False,
             "coglossa_run_id": None,
+            "reliability_tier": None,
             "ocr_pages": 0,
         }
     ]
@@ -51,7 +52,19 @@ async def test_summarize_clean_run(run):
     assert it0.iteration == 0 and it0.failed == [] and it0.open == []
     assert it0.passed == 12 and it0.attested == 5 and it0.not_applicable == 0
     assert s.open_findings == [] and s.usage.calls == 4
-    assert s.prompt_versions["writer"] == 4 and s.error is None
+    assert s.prompt_versions["writer"] == 5 and s.error is None
+
+
+async def test_summary_shows_a_coglossa_sources_reliability_tier(run):
+    """CRL-96: the Sources tab and `corelata trace` show the tier."""
+    rec = await run(text_source("src1", *PORT), coglossa_source("src2", "A", "B"))
+    s = summarize(rec)
+    assert [x.reliability_tier for x in s.sources] == [None, "B"]
+    assert "  src2 report.json (coglossa, 2 units, Coglossa run run-42, reliability tier B)" in (
+        format_summary(s)
+    )
+    assert rec.report is not None
+    assert rec.report.sources[1].reliability_note.startswith("Coglossa reliability tier B.")
 
 
 async def test_summarize_findings_loop_and_open_at_delivery(run):

@@ -627,6 +627,17 @@
           "title": "Scope Note",
           "type": "string"
         },
+        "source_summary": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceSummaryStatement"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "sources": {
           "items": {
             "$ref": "#/$defs/SourceEntry"
@@ -707,6 +718,17 @@
         "scope_note": {
           "title": "Scope Note",
           "type": "string"
+        },
+        "source_summary": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceSummaryStatement"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "sources": {
           "items": {
@@ -906,9 +928,27 @@
     },
     "SourceEntry": {
       "properties": {
+        "access": {
+          "default": "",
+          "description": "The source's access to what it reports, a term from the lexicon's source_access",
+          "title": "Access",
+          "type": "string"
+        },
+        "date_of_information": {
+          "default": "",
+          "description": "When the source's information was issued or current, as precisely as the source says (2026-08-10, July 2026); empty when unknown",
+          "title": "Date Of Information",
+          "type": "string"
+        },
         "descriptor": {
           "description": "A source descriptor phrase from the lexicon",
           "title": "Descriptor",
+          "type": "string"
+        },
+        "origin": {
+          "default": "",
+          "description": "Who originated, authored or published the information; empty when unknown",
+          "title": "Origin",
           "type": "string"
         },
         "reliability_note": {
@@ -935,6 +975,43 @@
       ],
       "title": "SourceKind",
       "type": "string"
+    },
+    "SourceSummaryStatement": {
+      "description": "ICD 206 D.3.d: the sources considered together (CRL-96).",
+      "properties": {
+        "conflicting_sources": {
+          "description": "Ids of the sources whose reporting conflicts with another source's; empty when none conflict",
+          "items": {
+            "type": "string"
+          },
+          "title": "Conflicting Sources",
+          "type": "array"
+        },
+        "corroboration": {
+          "description": "Which sources corroborate one another and which conflict, naming them; say so when none conflict",
+          "title": "Corroboration",
+          "type": "string"
+        },
+        "key_sources": {
+          "description": "Ids of the sources the key judgments depend on most",
+          "items": {
+            "type": "string"
+          },
+          "title": "Key Sources",
+          "type": "array"
+        },
+        "strengths_and_weaknesses": {
+          "description": "Strengths and weaknesses of the source base as a whole",
+          "title": "Strengths And Weaknesses",
+          "type": "string"
+        }
+      },
+      "required": [
+        "strengths_and_weaknesses",
+        "corroboration"
+      ],
+      "title": "SourceSummaryStatement",
+      "type": "object"
     },
     "SourceUnit": {
       "properties": {

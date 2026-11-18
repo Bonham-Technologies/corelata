@@ -2,7 +2,7 @@
 
 from enum import StrEnum
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class BlockKind(StrEnum):
@@ -35,3 +35,7 @@ class SourceDocument(BaseModel):
     format: str
     sha256: str
     blocks: list[Block]
+    # CRL-96: what the file says about itself, as hints for the report's source entry: "date"
+    # (when it was issued, ISO 8601 where the file gives one) and "origin" (its author or
+    # publisher). They become the source's provenance.
+    meta: dict[str, str] = Field(default_factory=dict)

@@ -8,12 +8,14 @@ from corelata.prompts.check import _CHECKS, run_prompt_ids, validate_prompts
 from corelata.prompts.library import PromptLibrary, PromptNotFoundError
 
 # CRL-93 moved the prompts that mention quotes to a new version, CRL-97 those that mention
-# earlier reports to the next, and CRL-95 those that explain the OCR flag to the one after; the
+# earlier reports to the next, CRL-95 those that explain the OCR flag to the one after, and
+# CRL-96 those that mention source details and the source summary to the one after that; the
 # previous ones stay for the record (a trace names the version it ran with)
-LATEST = {"writer": 4, "conveyor": 2, "auditor": 5}
+LATEST = {"writer": 5, "conveyor": 3, "auditor": 5}
 QUOTES_VERSION = {"writer": 2, "conveyor": 2, "auditor": 3}
 PRIOR_REPORTS_VERSION = {"writer": 3, "auditor": 4}
 OCR_VERSION = {"writer": 4, "auditor": 5}
+SOURCE_DETAILS_VERSION = {"writer": 5, "conveyor": 3}
 _ARGS = {
     "writer": {"tone": "t", "section_order": ["title"], "iteration": 1, "extra_guidance": ""},
     "conveyor": {"tone": "", "heading_style": "plain", "findings": [{"x": 1}]},
@@ -108,6 +110,37 @@ def test_ocr_version_only_adds_the_ocr_wording(prompt_id, quotes, prior_reports)
     assert len(changed) == 1
     b, a = changed[0]
     assert '"ocr": true' in a and '"ocr"' not in b and len(a) > len(b)
+
+
+@pytest.mark.parametrize("prompt_id", sorted(SOURCE_DETAILS_VERSION))
+@pytest.mark.parametrize("quotes", [None, "off", "required"])
+@pytest.mark.parametrize("prior_reports", [None, False, True])
+def test_without_source_details_or_summary_the_prompt_is_the_previous_version(
+    prompt_id, quotes, prior_reports
+):
+    """CRL-96: a pack that asks for neither renders what the previous version said, quotes and
+    earlier reports and all, so only the trace's prompt version tells such a run from one made
+    before."""
+    variables = (
+        _ARGS[prompt_id]
+        | ({} if quotes is None else {"evidence_quotes": quotes})
+        | ({} if prior_reports is None else {"prior_reports": prior_reports})
+    )
+    version = SOURCE_DETAILS_VERSION[prompt_id]
+    before = _render_version(prompt_id, version - 1, **variables)
+    off = {"source_details": False, "source_summary": False}
+    assert _render_version(prompt_id, version, **variables, **off) == before
+    assert _render_version(prompt_id, version, **variables) == before
+    on = (
+        PromptLibrary()
+        .render(prompt_id, **variables, source_details=True, source_summary=True)
+        .text
+    )
+    assert "date_of_information" in on and "access" in on and "conflicting_sources" in on
+    details_only = _render_version(
+        prompt_id, version, **variables, source_details=True, source_summary=False
+    )
+    assert "date_of_information" in details_only and "conflicting_sources" not in details_only
 
 
 def test_gate_modes_differ():

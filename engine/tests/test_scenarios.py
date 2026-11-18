@@ -31,6 +31,7 @@ def test_fixture_directory_has_the_expected_set():
         "badterm-fixed-one-loop",
         "clean-single-source",
         "clean-two-sources",
+        "conflict-named-in-source-summary",
         "gate-rejected",
         "long-source-digested",
         "many-sources-writer-budget",
@@ -152,6 +153,41 @@ async def test_compare_reports_every_mismatch(make_config):
     assert compare(expects_gate, rec) == ["gate.supported: expected True, got False"]
     no_gate = rec.model_copy(update={"gate": None})
     assert compare(rejected, no_gate) == ["gate: expected a verdict, got none"]
+
+
+async def test_conflicting_sources_is_scored_against_the_source_summary(make_config):
+    """CRL-96: `conflicting_sources` names sources the report's source summary must list as
+    conflicting; the real set asks it of conflicting-rail-figures."""
+    scenario = load_scenario(FIXTURES / "conflict-named-in-source-summary.yaml")
+    record = await run_scenario(
+        scenario,
+        make_config(),
+        backends={"fake": FakeBackend(name="fake")},
+        prompts=PromptLibrary(),
+        log=CallLog(),
+    )
+    assert record.report is not None and record.report.source_summary is not None
+    wants_both = scenario.model_copy(
+        update={
+            "expect": scenario.expect.model_copy(update={"conflicting_sources": ["src1", "src2"]})
+        }
+    )
+    assert compare(wants_both, record) == [
+        "conflicting_sources: not named as conflicting: src1 (named: src2)"
+    ]
+    quiet = record.report.source_summary.model_copy(update={"conflicting_sources": []})
+    calm = record.model_copy(
+        update={"report": record.report.model_copy(update={"source_summary": quiet})}
+    )
+    assert compare(scenario, calm) == [
+        "conflicting_sources: not named as conflicting: src2 (named: none)"
+    ]
+    for report in (None, record.report.model_copy(update={"source_summary": None})):
+        bare = record.model_copy(update={"report": report})
+        assert "conflicting_sources: the report has no source summary" in compare(scenario, bare)
+    [rail] = [s for s in REAL if s.name == "conflicting-rail-figures"]
+    assert rail.expect.conflicting_sources == ["src1", "src2"]
+    assert "icd206.src.1" in rail.expect.rules_must_pass
 
 
 def test_scenario_yaml_round_trips_through_the_model():

@@ -19,7 +19,7 @@ from corelata.render.outline import (
     finding_line,
     source_line,
 )
-from corelata.schema import SourceEntry
+from corelata.schema import Claim, ClaimKind, SourceEntry, SourceSummaryStatement
 from tests.render.fixtures import (
     NUMBERED,
     PACK,
@@ -55,6 +55,10 @@ def test_outline_follows_template_order_with_marking_top_and_bottom():
         "bullets",
         "heading",
         "para",
+        "para",
+        "para",
+        "heading",
+        "para",
         "heading",
         "bullets",
         "heading",
@@ -67,6 +71,7 @@ def test_outline_follows_template_order_with_marking_top_and_bottom():
         "Key judgments",
         "Scope note",
         "Sources",
+        "Source summary",
         "Capacity",
         "Alternatives considered",
         "Gaps and indicators",
@@ -74,12 +79,19 @@ def test_outline_follows_template_order_with_marking_top_and_bottom():
     assert all(h.number is None for h in headings)
     kj = blocks[3]
     assert isinstance(kj, Bullets) and kj.role == "key_judgments"
-    assert kj.items == (Item("Capacity grew.", "Moderate confidence.", ("c1",)),)
+    assert kj.items == (Item("Capacity grew.", "Moderate confidence.", ("c1",), (1,)),)
     assert blocks[5] == Para("Two sources.")
-    assert blocks[9] == Para("Grew 40 percent.", ("c1",))
-    alts = blocks[11]
+    sources = blocks[7]
+    assert isinstance(sources, Bullets) and sources.numbered and len(sources.items) == 2
+    assert blocks[9:12] == [
+        Para("One official notice; one translation."),
+        Para("Most important to the key judgments: a.txt.", refs=(1,)),
+        Para("Neither source contradicts the other."),
+    ]
+    assert blocks[13] == Para("Grew 40 percent.", ("c1",), (1,))
+    alts = blocks[15]
     assert alts.items == (Item("Unlikely.", "Flat.", ()),) and alts.role == "alternatives"
-    assert blocks[13].items == (Item("Customs data."),) and blocks[13].role == "gaps"
+    assert blocks[17].items == (Item("Customs data."),) and blocks[17].role == "gaps"
 
 
 def test_outline_numbers_headings_and_appends_open_findings():
@@ -88,7 +100,7 @@ def test_outline_numbers_headings_and_appends_open_findings():
     )
     labels = [b.label for b in blocks if isinstance(b, Heading)]
     assert labels[:2] == ["1. Key judgments", "2. Scope note"]
-    assert labels[3] == "4. Capacity"
+    assert labels[3:5] == ["4. Source summary", "5. Capacity"]
     assert labels[-1] == APPENDIX_TITLE  # the appendix is never numbered
     findings = blocks[-2]
     assert isinstance(findings, Bullets) and findings.role == "findings"
@@ -132,11 +144,61 @@ def test_empty_lists_keep_headings_with_no_items():
         "Key judgments",
         "Scope note",
         "Sources",
+        "Source summary",
         "Alternatives considered",
         "Gaps and indicators",
     ]
     empties = [b for b in blocks if isinstance(b, Bullets) and b.items == ()]
     assert [b.role for b in empties] == ["alternatives", "gaps"]
+
+
+def test_source_details_lead_the_note_and_citations_name_each_source_once():
+    entry = SourceEntry(
+        source_id="src1",
+        descriptor="open-source report",
+        reliability_note="Now.",
+        origin="Port of Varna",
+        date_of_information="July 2026",
+        access="direct",
+    )
+    assert source_line(entry, SOURCES[0]) == (
+        "a.txt — open-source report; originator: Port of Varna; date of information: July 2026;"
+        " access: direct; Now. (sha256 abcdef01)"
+    )
+    report = make_report().model_copy(
+        update={
+            "sources": list(reversed(make_report().sources)),  # src2 is now source 1
+            "claims": [
+                Claim(
+                    id="c1",
+                    text="Grew.",
+                    kind=ClaimKind.FACT,
+                    evidence=["src1/u1", "src2/u1", "src1/u2", "src9/u1", "bad"],
+                )
+            ],
+        }
+    )
+    blocks = build_outline(report, PACK, SOURCES)
+    assert Para("Grew 40 percent.", ("c1",), (1, 2)) in blocks
+
+
+def test_a_summary_with_conflicts_cites_them_and_no_summary_has_no_section():
+    summary = SourceSummaryStatement(
+        strengths_and_weaknesses="",
+        key_sources=[],
+        corroboration="The two disagree.",
+        conflicting_sources=["src2", "src1", "src7"],
+    )
+    blocks = build_outline(
+        make_report().model_copy(update={"source_summary": summary}), PACK, SOURCES
+    )
+    start = blocks.index(Heading("Source summary"))
+    assert blocks[start + 1 : start + 3] == [
+        Para("The two disagree."),
+        Para("Conflicting reporting: b.json, a.txt, src7.", refs=(1, 2)),
+    ]
+    bare = build_outline(make_report().model_copy(update={"source_summary": None}), PACK, SOURCES)
+    assert Heading("Source summary") not in bare
 
 
 def test_unknown_section_names_are_ignored():

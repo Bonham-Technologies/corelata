@@ -7,9 +7,13 @@ Markers in source text steer it so tests and demos have something to find:
 - CHART: the profiler proposes a severity override for icd203.tc.9.
 - NOALT: the profiler proposes disabling icd203.tc.4.
 - BADRULE: the profiler proposes disabling a rule id no pack has (exercises the repair turn).
+- CONFLICT: with a source_summary section in the template (CRL-96), the writer lists every
+  source whose text says CONFLICT as conflicting.
 With `evidence_quotes` in the writer's input (CRL-93) every claim with evidence quotes the first
 words of its unit, except that a quotation in double quotes in the value statement becomes c0's
-quote, words no unit contains, until findings are routed back.
+quote, words no unit contains, until findings are routed back. With `source_access` in the lexicon
+(CRL-96) each source entry copies its date and origin from the source's provenance and says its
+access is "unknown".
 With `prior_reports` in the writer's input (CRL-97) the writer says its key judgment is
 consistent with each earlier report's first key judgment, unless a source says NOCHANGES; the
 auditor, given them too, passes icd203.tc.7 when the draft has such entries and fails it
@@ -24,6 +28,7 @@ from corelata.text import key_terms
 Payload = dict[str, Any]
 UNSOURCED, UNFIXABLE, BADTERM = "UNSOURCED", "UNFIXABLE", "BADTERM"
 BLUF, CHART, NOALT, BADRULE = "BLUF", "CHART", "NOALT", "BADRULE"
+CONFLICT = "CONFLICT"
 NOCHANGES = "NOCHANGES"
 _MARKING = re.compile(r"^[A-Z]+(//[A-Z][A-Z /,-]*)+$")
 _NUMBERED = re.compile(r"^\d+\.\s")
@@ -146,19 +151,12 @@ def _writer(p: Payload) -> Payload:
         for r in p.get("prior_reports", [])
         if r["key_judgments"] and NOCHANGES not in texts
     ]
-    return {
+    body: Payload = {
         "title": f"Synthetic assessment: {statement[:40]}",
         "handling_marking": lexicon["handling_markings"][0],
         "key_judgments": [{"text": kj_text, "confidence": "moderate", "claim_ids": ["c0"]}],
         "scope_note": "Synthetic scope note covering all sources.",
-        "sources": [
-            {
-                "source_id": s["id"],
-                "descriptor": lexicon["source_descriptors"][0],
-                "reliability_note": "Synthetic: current and complete.",
-            }
-            for s in p["sources"]
-        ],
+        "sources": [_source_entry(s, lexicon) for s in p["sources"]],
         "analysis": [
             {
                 "heading": "Analysis",
@@ -172,6 +170,31 @@ def _writer(p: Payload) -> Payload:
         "claims": claims,
         **({"changes_from_previous": changes} if changes else {}),
     }
+    if "source_summary" in p.get("template", {}).get("section_order", []):
+        conflicting = {r.split("/")[0] for r, text in _unit_texts(p) if CONFLICT in text}
+        body["source_summary"] = {
+            "strengths_and_weaknesses": "Synthetic: the sources are current and complete.",
+            "key_sources": sorted({r.split("/")[0] for r in claims[0]["evidence"]}),
+            "corroboration": "Synthetic: the sources conflict."
+            if conflicting
+            else "Synthetic: no source conflicts with another.",
+            "conflicting_sources": [s["id"] for s in p["sources"] if s["id"] in conflicting],
+        }
+    return body
+
+
+def _source_entry(source: Payload, lexicon: Payload) -> Payload:
+    entry = {
+        "source_id": source["id"],
+        "descriptor": lexicon["source_descriptors"][0],
+        "reliability_note": "Synthetic: current and complete.",
+    }
+    access = lexicon.get("source_access")
+    if access:
+        entry["date_of_information"] = source.get("provenance", {}).get("date", "")
+        entry["origin"] = source.get("provenance", {}).get("origin", "")
+        entry["access"] = "unknown" if "unknown" in access else access[0]
+    return entry
 
 
 def _quote(claims: list[dict[str, Any]], texts: dict[str, str], statement: str, fixing: bool):

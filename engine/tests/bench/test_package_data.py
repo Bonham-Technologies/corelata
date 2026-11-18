@@ -24,6 +24,7 @@ def test_shipped_scenarios_load_and_are_the_known_set():
         "badterm-fixed-one-loop",
         "clean-single-source",
         "clean-two-sources",
+        "conflict-named-in-source-summary",
         "gate-rejected",
         "long-source-digested",
         "many-sources-writer-budget",

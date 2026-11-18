@@ -11,6 +11,7 @@ from corelata.schema.report import Confidence
 
 RoleName = Literal["gate", "writer", "conveyor", "auditor"]
 RULE_ID = r"^[a-z0-9]+(\.[a-z0-9]+)+$"
+SOURCE_SUMMARY = "source_summary"  # the template section (CRL-96)
 
 
 class _Strict(BaseModel):
@@ -88,11 +89,19 @@ class LikelihoodTerm(_Strict):
     high: int = Field(ge=0, le=100)
 
 
+def _empty(values: list[str]) -> bool:
+    return not values
+
+
 class Lexicon(_Strict):
     likelihood: list[LikelihoodTerm]
     confidence_definitions: dict[Confidence, str]
     source_descriptors: list[str]
     handling_markings: list[str] = Field(min_length=1)
+    # CRL-96: the terms a source entry's `access` takes. A non-empty list asks every source entry
+    # for its date of information, origin and access; an empty one (every lexicon before CRL-96)
+    # asks for none of them and is left out of every dump, so such a pack hashes as it did.
+    source_access: list[str] = Field(default_factory=list, exclude_if=_empty)
 
     def terms(self) -> set[str]:
         return {t.term for t in self.likelihood}
@@ -123,6 +132,11 @@ class ProfileRules(_Strict):
 class TemplateOverride(_Strict):
     key_judgments: ItemLimits | None = None
     analysis_max_words: int | None = Field(None, ge=50)
+    # CRL-96: `false` turns off what the pack asks for: the `source_summary` section, or each
+    # source entry's date of information, origin and access (the resolved lexicon's
+    # `source_access` is emptied). `true` or absent keeps the pack's choice.
+    source_summary: bool | None = None
+    source_details: bool | None = None
 
 
 class ProfileFormat(_Strict):
@@ -173,6 +187,16 @@ class ResolvedPack(BaseModel):
 
     def rule_ids(self) -> list[str]:
         return [r.id for r in self.rules]
+
+    @property
+    def source_details(self) -> bool:
+        """Source entries carry date of information, origin and access (CRL-96)."""
+        return bool(self.lexicon.source_access)
+
+    @property
+    def source_summary(self) -> bool:
+        """The report has a source summary statement (CRL-96)."""
+        return SOURCE_SUMMARY in self.template.section_order
 
     def prior_report_rules(self) -> list[str]:
         """The ids of the rules with `with_prior_reports` (CRL-97)."""

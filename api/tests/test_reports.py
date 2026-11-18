@@ -94,7 +94,8 @@ async def test_claim_ids_re_render(api):
         f"/api/runs/{run['run_id']}/report", params={"format": "html", "with_claim_ids": "true"}
     )
     assert marked.status_code == 200 and marked.text != plain.text
-    assert "<sup" in marked.text and "<sup" not in plain.text
+    assert 'class="claim-ids"' in marked.text and 'class="claim-ids"' not in plain.text
+    assert 'class="source-refs"' in plain.text  # source references show either way (CRL-96)
     docx = await api.client.get(
         f"/api/runs/{run['run_id']}/report", params={"format": "docx", "with_claim_ids": "true"}
     )

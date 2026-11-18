@@ -4,8 +4,9 @@ body.corelata-report { font-family: Georgia, "Times New Roman", serif; line-heig
 .marking.bottom { margin: 2rem 0 0; }
 h1 { font-size: 1.6rem; margin: 0 0 1rem; }
 h2 { font-size: 1.15rem; margin: 1.5rem 0 .5rem; border-bottom: 1px solid rgba(128,128,128,.4); padding-bottom: .15rem; }
-ul { padding-left: 1.25rem; }
+ul, ol { padding-left: 1.25rem; }
 li { margin: .3rem 0; }
+sup.source-refs { font-size: .7em; margin-left: .1em; }
 sup.claim-ids { font-family: system-ui, sans-serif; font-size: .7em; margin-left: .15em; opacity: .7; }
 section.appendix { border-top: 2px solid currentColor; margin-top: 2rem; padding-top: .5rem; }
 footer.meta { font-family: system-ui, sans-serif; font-size: .8rem; opacity: .7; margin-top: 2rem; }

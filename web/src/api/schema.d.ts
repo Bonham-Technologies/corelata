@@ -799,6 +799,8 @@ export interface components {
             handling_markings: string[];
             /** Likelihood */
             likelihood: components["schemas"]["LikelihoodTerm"][];
+            /** Source Access */
+            source_access?: string[];
             /** Source Descriptors */
             source_descriptors: string[];
         };
@@ -1197,6 +1199,8 @@ export interface components {
             name: string;
             /** Ocr Pages */
             ocr_pages: number;
+            /** Reliability Tier */
+            reliability_tier?: string | null;
             /** Sha256 */
             sha256: string;
             /** Units */

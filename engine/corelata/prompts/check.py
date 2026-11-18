@@ -33,7 +33,28 @@ _CHECKS: list[tuple[str, dict[str, object]]] = [
             "prior_reports": True,
         },
     ),
+    (
+        "writer",
+        {
+            "tone": "",
+            "section_order": ["title", "sources", "source_summary"],
+            "iteration": 0,
+            "extra_guidance": "",
+            "source_details": True,
+            "source_summary": True,
+        },
+    ),
     ("conveyor", {"tone": "", "heading_style": "plain", "findings": []}),
+    (
+        "conveyor",
+        {
+            "tone": "",
+            "heading_style": "plain",
+            "findings": [],
+            "source_details": True,
+            "source_summary": True,
+        },
+    ),
     (
         "conveyor",
         {"tone": "", "heading_style": "plain", "findings": [], "evidence_quotes": "optional"},
