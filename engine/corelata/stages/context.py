@@ -8,7 +8,7 @@ from corelata.config import CorelataConfig, EvidenceQuotes
 from corelata.ingest.units import UnitIndex
 from corelata.llm.agent import AgentRunner
 from corelata.quotes import QuoteCheck
-from corelata.schema import Digest, PriorReport, Source
+from corelata.schema import Digest, PriorReport, Source, SourceUnit
 from corelata.standards.schema import ResolvedPack
 
 
@@ -16,6 +16,14 @@ class StageError(Exception):
     def __init__(self, stage: str, message: str) -> None:
         super().__init__(f"{stage}: {message}")
         self.stage = stage
+
+
+def ocr_flag(unit: SourceUnit) -> dict[str, Any]:
+    """`{"ocr": true, "ocr_confidence": 0-100}` for a unit OCR read from a scanned page (CRL-95),
+    so the writer and the auditor can weigh it (icd203.tc.1); nothing for any other unit."""
+    if not unit.meta.get("ocr"):
+        return {}
+    return {"ocr": True, "ocr_confidence": unit.meta.get("ocr_confidence")}
 
 
 def estimate_tokens(text: str, bytes_per_token: float) -> int:
@@ -61,6 +69,7 @@ class StageContext:
             source, unit = self.index.get(ref)
             out.append(
                 {"ref": ref, "text": unit.text, "locator": unit.locator, "source": source.name}
+                | ocr_flag(unit)
             )
         return out
 

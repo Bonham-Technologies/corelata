@@ -12,6 +12,7 @@ dependencies = [
   "python-docx>=1.2,<2",
   "lxml>=5.2,<7",
   "pdfminer.six>=20240706",
+  "pypdfium2>=5,<6",  # renders scanned PDF pages for OCR (ingest.ocr, CRL-95)
   "sqlalchemy[asyncio]>=2.0.36,<3",
   "alembic>=1.14,<2",
   "psycopg[binary]>=3.2,<4",

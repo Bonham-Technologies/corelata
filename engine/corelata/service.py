@@ -17,6 +17,7 @@ from corelata import __version__
 from corelata.config import CorelataConfig, WorkerConfig, config_hash
 from corelata.ingest.base import IngestError
 from corelata.ingest.coglossa import load_coglossa_export
+from corelata.ingest.ocr import OcrSettings
 from corelata.ingest.registry import check_extension
 from corelata.ingest.units import make_source
 from corelata.pipeline import load_run_pack
@@ -276,12 +277,15 @@ def _nothing_left(data: BinaryIO) -> bool:
     return empty
 
 
-def _parse_stored(storage: Storage, key: str, coglossa_export: bool) -> list[Source]:
-    """Parsing a PDF can take seconds: it runs off the event loop so the API keeps answering."""
+def _parse_stored(
+    storage: Storage, key: str, coglossa_export: bool, ocr: OcrSettings | None
+) -> list[Source]:
+    """Parsing a PDF can take seconds, and reading its scanned pages with OCR a second or two a
+    page per CPU: it runs off the event loop so the API keeps answering."""
     with storage.local_file(key) as path:
         if coglossa_export:
             return load_coglossa_export("src1", path)
-        return [make_source("src1", path)]
+        return [make_source("src1", path, ocr=ocr)]
 
 
 async def add_source(
@@ -292,11 +296,14 @@ async def add_source(
     data: bytes | BinaryIO,
     *,
     coglossa_export: bool = False,
+    ocr: OcrSettings | None = None,
 ) -> list[uuid.UUID]:
     """Store an upload, parse it into units (spec §5) and record it. Returns the new source ids:
     one, or two for a Coglossa export that carries a translation guide. A file that cannot be
     parsed is not kept. `data` is the content, or a binary file read from where it stands (the
-    API passes the file Starlette spooled the upload to, so the body is never held in memory)."""
+    API passes the file Starlette spooled the upload to, so the body is never held in memory).
+    `ocr` is `ingest.ocr`'s settings when it is auto: a PDF's scanned pages are read on this
+    request, off the event loop (CRL-95)."""
     name = display_name(filename)
     if not name:
         raise InvalidRequestError("the upload has no file name")
@@ -317,7 +324,7 @@ async def add_source(
     key = prefix + safe_filename(name)
     try:
         await storage_call(storage.put, key, data)
-        parsed = await asyncio.to_thread(_parse_stored, storage, key, coglossa_export)
+        parsed = await asyncio.to_thread(_parse_stored, storage, key, coglossa_export, ocr)
         parsed[0] = parsed[0].model_copy(update={"name": name})
         ids: list[uuid.UUID] = []
         async with db.session() as s, s.begin():

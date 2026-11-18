@@ -21,6 +21,8 @@ from pydantic import (
     field_validator,
 )
 
+from corelata.ingest.ocr import OcrSettings
+
 CONFIG_ENV = "CORELATA_CONFIG"
 ROLE_NAMES = ("gate", "writer", "conveyor", "auditor", "profiler")
 
@@ -197,6 +199,37 @@ class PipelineConfig(_Strict):
     # (exact, after case, whitespace and punctuation are set aside) unless sources are noisy.
     quote_match_threshold: float = Field(1.0, ge=0.5, le=1.0)
     prior_judgments: PriorJudgmentsConfig = Field(default_factory=PriorJudgmentsConfig)
+
+
+_TESSERACT_LANGUAGE = re.compile(r"^[A-Za-z0-9_]{1,40}$")
+
+
+class IngestConfig(_Strict):
+    """Reading uploads (spec §5). `ocr: auto` reads a PDF's scanned pages (an image and no text
+    layer) with Tesseract in the languages listed, in Tesseract's codes (eng, fra, deu, ...),
+    each installed as a language pack; `off` refuses them with needs_ocr (CRL-95)."""
+
+    ocr: Literal["off", "auto"] = "off"
+    ocr_languages: list[str] = Field(default_factory=lambda: ["eng"], min_length=1)
+
+    @field_validator("ocr", mode="before")
+    @classmethod
+    def _yaml_off(cls, value: Any) -> Any:
+        return "off" if value is False else value  # YAML 1.1 reads a bare `off` as false
+
+    @field_validator("ocr_languages")
+    @classmethod
+    def _language_codes(cls, value: list[str]) -> list[str]:
+        for code in value:
+            if not _TESSERACT_LANGUAGE.match(code):
+                raise ValueError(
+                    f"'{code}' is not a Tesseract language code (letters, digits and _, "
+                    "such as eng or chi_sim)"
+                )
+        return value
+
+    def ocr_settings(self) -> OcrSettings | None:
+        return OcrSettings(languages=tuple(self.ocr_languages)) if self.ocr == "auto" else None
 
 
 class AuditConfig(_Strict):
@@ -401,6 +434,7 @@ class CorelataConfig(_Strict):
     retry: RetryConfig = Field(default_factory=RetryConfig)
     standards: StandardsConfig = Field(default_factory=StandardsConfig)
     pipeline: PipelineConfig = Field(default_factory=PipelineConfig)
+    ingest: IngestConfig = Field(default_factory=IngestConfig)
     audit: AuditConfig = Field(default_factory=AuditConfig)
     prompts_dir: Path | None = None
     database: DatabaseConfig = Field(default_factory=DatabaseConfig)
@@ -413,6 +447,7 @@ class CorelataConfig(_Strict):
     @field_validator(
         "standards",
         "pipeline",
+        "ingest",
         "database",
         "storage",
         "worker",
@@ -518,7 +553,8 @@ def load_config(path: Path) -> tuple[CorelataConfig, list[ConfigIssue]]:
 
 
 # Operational sections: tuning the deployment never reads as a config change.
-_OPERATIONAL_SECTIONS = {"database", "storage", "worker", "api", "auth", "integrations"}
+# `ingest` shapes sources, not runs: what OCR read is recorded on each source (CRL-95).
+_OPERATIONAL_SECTIONS = {"database", "storage", "worker", "api", "auth", "integrations", "ingest"}
 
 
 def config_hash(cfg: CorelataConfig) -> str:

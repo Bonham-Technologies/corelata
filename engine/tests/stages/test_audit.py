@@ -87,7 +87,7 @@ async def test_run_auditor_sends_the_by_rule_schema_and_returns_the_same_outcome
     assert defs["ClaimId"]["enum"] == [c.id for c in draft.claims]
     cited_units = defs["VerifiableFinding"]["properties"]["cited_units"]
     assert cited_units["items"] == {"$ref": "#/$defs/UnitRef"}
-    assert ctx.runner.log.records[-1].prompt_version == 4
+    assert ctx.runner.log.records[-1].prompt_version == 5
     expected = [
         Finding(
             rule_id=r.id,
@@ -298,3 +298,18 @@ def test_merge_engine_findings_with_nothing_before_is_the_engines_findings():
     engine = [_finding("icd203.tc.8", 0, f"{ENGINE_CHECK}claims without evidence: c99")]
     assert merge_engine_findings([], engine) == engine
     assert merge_engine_findings([], []) == []
+
+
+async def test_the_auditor_sees_which_cited_units_ocr_read(make_ctx):
+    """CRL-95: icd203.tc.1 can weigh a passage read from a scan."""
+    source = text_source("src1", *PORT)
+    units = [
+        u.model_copy(update={"meta": {"ocr": True, "ocr_confidence": 64.0}}) for u in source.units
+    ]
+    ctx = make_ctx(source.model_copy(update={"units": units}))
+    draft = await run_writer(ctx, iteration=0, prior=None, findings=[])
+    await run_auditor(ctx, iteration=0, draft=draft)
+    rec = ctx.runner.log.records[-1]
+    payload = json.loads(rec.request["messages"][1]["content"].split("\n", 1)[1])
+    assert payload["cited_units"]
+    assert all(u["ocr"] is True and u["ocr_confidence"] == 64.0 for u in payload["cited_units"])

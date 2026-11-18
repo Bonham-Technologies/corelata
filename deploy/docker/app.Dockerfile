@@ -29,9 +29,18 @@ RUN cd api && uv sync --frozen --no-dev --no-editable
 
 FROM python:3.12-slim-bookworm
 ARG VERSION=dev
+# Tesseract for ingest.ocr (CRL-95) and a language pack per code, in Tesseract's codes (eng,
+# fra, chi_sim, ...): the bundle carries them, so a sealed site reads scans with no network.
+# Add a language with --build-arg OCR_LANGUAGES="eng fra" (operator guide, "Scanned PDFs").
+ARG OCR_LANGUAGES="eng"
 LABEL org.opencontainers.image.title="corelata-app" \
       org.opencontainers.image.version="${VERSION}" \
-      org.opencontainers.image.source="https://github.com/Bonham-Technologies/corelata"
+      org.opencontainers.image.source="https://github.com/Bonham-Technologies/corelata" \
+      org.corelata.ocr-languages="${OCR_LANGUAGES}"
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends tesseract-ocr \
+      $(for l in $OCR_LANGUAGES; do echo "tesseract-ocr-$l" | tr '_' '-' | tr '[:upper:]' '[:lower:]'; done) \
+ && rm -rf /var/lib/apt/lists/*
 RUN groupadd --gid 10001 corelata \
  && useradd --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin corelata \
  && mkdir -p /data/files /etc/corelata \

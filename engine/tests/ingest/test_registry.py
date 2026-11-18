@@ -113,7 +113,7 @@ def _broken_ingestor(monkeypatch, error):
         def ingest(self, path):
             raise error(path) if callable(error) else error
 
-    monkeypatch.setattr(registry, "available_ingestors", lambda: [Broken()])
+    monkeypatch.setattr(registry, "available_ingestors", lambda ocr=None: [Broken()])
 
 
 def test_any_other_ingestor_exception_becomes_an_ingest_error(tmp_path, monkeypatch):

@@ -303,6 +303,7 @@ export const runTrace: RunTrace = {
         units: 3,
         digested: false,
         coglossa_run_id: null,
+        ocr_pages: 0,
       },
       {
         id: "src2",
@@ -313,6 +314,7 @@ export const runTrace: RunTrace = {
         units: 2,
         digested: true,
         coglossa_run_id: "run-42",
+        ocr_pages: 0,
       },
     ],
     gate: {

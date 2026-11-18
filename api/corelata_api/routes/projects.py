@@ -102,7 +102,8 @@ async def upload_source(
     kind: Annotated[SourceKind, Form()] = SourceKind.FILE,
 ) -> list[SourceView]:
     """Store and parse one upload (spec §5): one source, or two for a Coglossa export that
-    carries a translation guide. Nothing is kept when the file cannot be parsed."""
+    carries a translation guide. Nothing is kept when the file cannot be parsed. With
+    `ingest.ocr: auto` a PDF's scanned pages are read by OCR before the answer (CRL-95)."""
     await service.get_project(ctx.db, project_id)  # 404 before reading the body
     data = await read_upload(file, ctx.cfg.api.max_upload_mb)
     ids = await service.add_source(
@@ -112,6 +113,7 @@ async def upload_source(
         file.filename or "",
         data,
         coglossa_export=kind is SourceKind.COGLOSSA_EXPORT,
+        ocr=ctx.cfg.ingest.ocr_settings(),  # scanned PDF pages are read here, off the loop
     )
     return await source_views(ctx, project_id, ids)
 

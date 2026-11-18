@@ -26,6 +26,23 @@ run sh -c 'ls /opt/corelata/web/assets/*.js >/dev/null' || die "the web app's as
 run test -f /opt/corelata/web/theme-init.js || die "the web app's theme-init.js is missing"
 run sh -c 'ls /opt/corelata/web/assets/noto-sans-latin-400-* >/dev/null 2>&1' \
   || die "the web app's fonts are missing (no noto-sans-latin-400 file under /opt/corelata/web/assets)"
+# CRL-95: Tesseract and the label's language packs are in the image (ingest.ocr: auto), and a
+# scanned page is read with no network.
+run tesseract --version >/dev/null 2>&1 || die "tesseract is missing from the image (ingest.ocr)"
+langs=$(run tesseract --list-langs 2>/dev/null)
+for l in $(docker image inspect --format '{{ index .Config.Labels "org.corelata.ocr-languages" }}' "$image"); do
+  printf '%s\n' "$langs" | grep -qx "$l" || die "the tesseract language pack '$l' is missing from the image"
+done
+run python -c '
+from pathlib import Path
+from corelata.ingest.ocr import OcrSettings
+from corelata.ingest.units import make_source
+from corelata.testing.pdf import Scan, make_pdf
+path = Path("/tmp/scan.pdf")
+path.write_bytes(make_pdf([Scan(("The port of Varna handled more containers.",))]))
+unit = make_source("src1", path, ocr=OcrSettings()).units[0]
+assert unit.meta["ocr"] and "Varna" in unit.text, unit
+' || die "the image cannot read a scanned PDF page (ingest.ocr)"
 run test -f /opt/corelata/examples/varna-port.txt || die "the example source is missing"
 run sh -c 'touch /data/files/.probe && rm /data/files/.probe' || die "/data/files is not writable by the app user"
 site=$(run python -c 'import corelata, pathlib; print(pathlib.Path(corelata.__file__).parent)')

@@ -1,6 +1,15 @@
 import { useTrace } from "../../api/reports";
 import { ErrorMessage } from "../../components/ErrorMessage";
 import { Loading } from "../../components/Loading";
+import { plural } from "../../lib/words";
+
+/** What the Notes column says about a source: summarised, read from a scan (CRL-95), both. */
+function notes(source: { digested: boolean; ocr_pages: number }): string {
+  const out: string[] = [];
+  if (source.digested) out.push("summarised before drafting");
+  if (source.ocr_pages > 0) out.push(`text recovered by OCR (${plural(source.ocr_pages, "page")})`);
+  return out.join("; ");
+}
 
 export function SourcesTab({ runId }: { runId: string }) {
   const trace = useTrace(runId);
@@ -40,7 +49,7 @@ export function SourcesTab({ runId }: { runId: string }) {
               <td>
                 {s.units} unit{s.units === 1 ? "" : "s"}
               </td>
-              <td>{s.digested ? "summarised before drafting" : ""}</td>
+              <td>{notes(s)}</td>
             </tr>
           ))}
         </tbody>

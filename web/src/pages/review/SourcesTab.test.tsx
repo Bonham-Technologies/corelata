@@ -3,6 +3,7 @@ import { http, HttpResponse } from "msw";
 import { RUN_ID, runTrace } from "../../test/fixtures";
 import { renderWithClient } from "../../test/render";
 import { server } from "../../test/server";
+import { expectNoEngineWords } from "../../test/engine-words";
 import { SourcesTab } from "./SourcesTab";
 
 it("lists the run's sources with kind, units, digest flag and Coglossa run id", async () => {
@@ -51,4 +52,26 @@ it("shows the profile, a missing Coglossa run id and singular units", async () =
   expect(row).toHaveTextContent("1 unit");
   expect(row).not.toHaveTextContent("1 units");
   expect(screen.getByText(/team profile brief/)).toBeInTheDocument();
+});
+
+it("says when a source's text was recovered by OCR, alongside the summary note", async () => {
+  const [plain, coglossa] = runTrace.summary.sources;
+  const trace = {
+    ...runTrace,
+    summary: {
+      ...runTrace.summary,
+      sources: [
+        { ...plain!, name: "scan.pdf", format: "pdf", ocr_pages: 1 },
+        { ...coglossa!, ocr_pages: 3 },
+      ],
+    },
+  };
+  server.use(http.get(`*/api/runs/${RUN_ID}/trace`, () => HttpResponse.json(trace)));
+  renderWithClient(<SourcesTab runId={RUN_ID} />);
+  const table = await screen.findByRole("table", { name: "Sources" });
+  const rows = within(table).getAllByRole("row").slice(1);
+  expect(rows[0]).toHaveTextContent("text recovered by OCR (1 page)");
+  expect(rows[0]).not.toHaveTextContent("summarised");
+  expect(rows[1]).toHaveTextContent("summarised before drafting; text recovered by OCR (3 pages)");
+  expectNoEngineWords(table);
 });

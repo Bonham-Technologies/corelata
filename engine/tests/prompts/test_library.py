@@ -7,18 +7,25 @@ from corelata.config import ConfigError
 from corelata.prompts.check import _CHECKS, run_prompt_ids, validate_prompts
 from corelata.prompts.library import PromptLibrary, PromptNotFoundError
 
-# CRL-93 moved the prompts that mention quotes to a new version, and CRL-97 those that mention
-# earlier reports; the previous ones stay for the record (a trace names the version it ran with)
-LATEST = {"writer": 3, "conveyor": 2, "auditor": 4}
-# The versions sent before quotes existed (CRL-93) and before project memory existed (CRL-97)
-BEFORE_QUOTES = {"writer": 1, "conveyor": 1, "auditor": 2}
-BEFORE_PRIOR_REPORTS = {"writer": 2, "auditor": 3}
+# CRL-93 moved the prompts that mention quotes to a new version, CRL-97 those that mention
+# earlier reports to the next, and CRL-95 those that explain the OCR flag to the one after; the
+# previous ones stay for the record (a trace names the version it ran with)
+LATEST = {"writer": 4, "conveyor": 2, "auditor": 5}
+QUOTES_VERSION = {"writer": 2, "conveyor": 2, "auditor": 3}
+PRIOR_REPORTS_VERSION = {"writer": 3, "auditor": 4}
+OCR_VERSION = {"writer": 4, "auditor": 5}
+_ARGS = {
+    "writer": {"tone": "t", "section_order": ["title"], "iteration": 1, "extra_guidance": ""},
+    "conveyor": {"tone": "", "heading_style": "plain", "findings": [{"x": 1}]},
+    "auditor": {},
+}
 
 
-def _render_file(prompt_id: str, version: int, **variables: object) -> str:
-    path = PromptLibrary().resolve(prompt_id)[1].with_name(f"v{version}.j2")
-    template = Environment(undefined=StrictUndefined).from_string(path.read_text("utf-8"))
-    return template.render(**variables).strip()
+def _render_version(prompt_id: str, version: int, **variables: object) -> str:
+    """One built-in version of a prompt, rendered as the library renders the latest."""
+    _, path = PromptLibrary().resolve(prompt_id)
+    text = path.with_name(f"v{version}.j2").read_text(encoding="utf-8")
+    return Environment(undefined=StrictUndefined).from_string(text).render(**variables).strip()
 
 
 @pytest.mark.parametrize(("prompt_id", "variables"), _CHECKS)
@@ -29,22 +36,28 @@ def test_builtin_templates_render(prompt_id, variables):
     assert "{{" not in rendered.text and "{%" not in rendered.text
 
 
-@pytest.mark.parametrize(
-    ("prompt_id", "variables"),
-    [
-        ("writer", {"tone": "t", "section_order": ["title"], "iteration": 1, "extra_guidance": ""}),
-        ("conveyor", {"tone": "", "heading_style": "plain", "findings": [{"x": 1}]}),
-        ("auditor", {}),
-    ],
-)
-def test_evidence_quotes_off_renders_the_prompt_unchanged(prompt_id, variables):
-    """CRL-93: with `off` a model reads what the prompt said before quotes existed."""
-    library = PromptLibrary()
-    before = _render_file(prompt_id, BEFORE_QUOTES[prompt_id], **variables)
-    assert library.render(prompt_id, **variables, evidence_quotes="off").text == before
-    assert library.render(prompt_id, **variables).text == before
+@pytest.mark.parametrize("prompt_id", sorted(QUOTES_VERSION))
+def test_evidence_quotes_off_renders_the_prompt_unchanged(prompt_id):
+    """CRL-93: with `off` a model reads what the previous version of the prompt said, the one
+    sent before quotes existed."""
+    variables = _ARGS[prompt_id]
+    version = QUOTES_VERSION[prompt_id]
+    before = _render_version(prompt_id, version - 1, **variables)
+    assert _render_version(prompt_id, version, **variables, evidence_quotes="off") == before
+    assert _render_version(prompt_id, version, **variables) == before
     assert "quotes" not in before
-    assert "quotes" in library.render(prompt_id, **variables, evidence_quotes="required").text
+    assert "quotes" in _render_version(prompt_id, version, **variables, evidence_quotes="required")
+
+
+@pytest.mark.parametrize("prompt_id", sorted(QUOTES_VERSION))
+@pytest.mark.parametrize("prior_reports", [None, False, True])
+def test_the_library_serves_the_latest_version(prompt_id, prior_reports):
+    library = PromptLibrary()
+    extra = {} if prior_reports is None else {"prior_reports": prior_reports}
+    variables = _ARGS[prompt_id] | extra
+    for quotes in ("off", "optional", "required"):
+        latest = _render_version(prompt_id, LATEST[prompt_id], **variables, evidence_quotes=quotes)
+        assert library.render(prompt_id, **variables, evidence_quotes=quotes).text == latest
 
 
 @pytest.mark.parametrize("evidence_quotes", ["off", "optional", "required"])
@@ -64,14 +77,37 @@ def test_without_prior_reports_the_prompt_renders_as_the_previous_version(
 ):
     """CRL-97: a run that read no earlier report (`max_reports: 0`, a project with none, a run
     outside a project) sends what the prompt said before project memory existed."""
-    library = PromptLibrary()
     variables = {**variables, "evidence_quotes": evidence_quotes}
-    before = _render_file(prompt_id, BEFORE_PRIOR_REPORTS[prompt_id], **variables)
-    assert library.render(prompt_id, **variables, prior_reports=False).text == before
-    assert library.render(prompt_id, **variables).text == before
+    version = PRIOR_REPORTS_VERSION[prompt_id]
+    before = _render_version(prompt_id, version - 1, **variables)
+    assert _render_version(prompt_id, version, **variables, prior_reports=False) == before
+    assert _render_version(prompt_id, version, **variables) == before
     assert "prior_reports" not in before
-    with_prior = library.render(prompt_id, **variables, prior_reports=True).text
+    with_prior = _render_version(prompt_id, version, **variables, prior_reports=True)
     assert "INPUT_JSON.prior_reports" in with_prior and "changes_from_previous" in with_prior
+    latest = PromptLibrary().render(prompt_id, **variables, prior_reports=True).text
+    assert "INPUT_JSON.prior_reports" in latest and "changes_from_previous" in latest
+
+
+@pytest.mark.parametrize("prompt_id", sorted(OCR_VERSION))
+@pytest.mark.parametrize("quotes", [None, "off", "optional", "required"])
+@pytest.mark.parametrize("prior_reports", [None, False, True])
+def test_ocr_version_only_adds_the_ocr_wording(prompt_id, quotes, prior_reports):
+    """CRL-95: the OCR version is the previous one, quotes and earlier reports and all, with one
+    line extended by what the "ocr" flag on a unit means."""
+    variables = (
+        _ARGS[prompt_id]
+        | ({} if quotes is None else {"evidence_quotes": quotes})
+        | ({} if prior_reports is None else {"prior_reports": prior_reports})
+    )
+    version = OCR_VERSION[prompt_id]
+    before = _render_version(prompt_id, version - 1, **variables).splitlines()
+    after = _render_version(prompt_id, version, **variables).splitlines()
+    assert len(before) == len(after)
+    changed = [(b, a) for b, a in zip(before, after, strict=True) if b != a]
+    assert len(changed) == 1
+    b, a = changed[0]
+    assert '"ocr": true' in a and '"ocr"' not in b and len(a) > len(b)
 
 
 def test_gate_modes_differ():
@@ -115,3 +151,13 @@ def test_validate_prompts_reports_broken_override(make_config, tmp_path):
     validate_prompts(make_config(), PromptLibrary())
     assert run_prompt_ids() == ["gate", "discover", "digest", "writer", "conveyor", "auditor"]
     assert Path("corelata/prompts/templates/ping").exists() is False
+
+
+def test_writer_and_auditor_explain_the_ocr_flag():
+    """CRL-95: a unit OCR read carries "ocr": true; both prompts say what it means."""
+    lib = PromptLibrary()
+    writer = lib.render("writer", tone="", section_order=["title"], iteration=0, extra_guidance="")
+    auditor = lib.render("auditor")
+    for text in (writer.text, auditor.text):
+        assert '"ocr": true' in text and "scanned page" in text
+    assert "icd203.tc.1" in auditor.text and "reliability note" in writer.text
