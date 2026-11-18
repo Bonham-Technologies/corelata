@@ -19,6 +19,7 @@ from corelata.trace import ClaimProvenance, RunTrace, run_trace
 from fastapi import APIRouter, Response
 
 from corelata_api.context import ApiContext, Ctx
+from corelata_api.headers import REPORT_CSP
 from corelata_api.uploads import content_disposition
 
 router = APIRouter(tags=["reports"])
@@ -38,6 +39,8 @@ ExportName = Literal[
 
 def _file(content: bytes, *, media: str, filename: str, attachment: bool) -> Response:
     headers = {"Content-Disposition": content_disposition(filename, inline=not attachment)}
+    if media == MEDIA["html"]:
+        headers["Content-Security-Policy"] = REPORT_CSP  # CRL-68
     return Response(content=content, media_type=media, headers=headers)
 
 

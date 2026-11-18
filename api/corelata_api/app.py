@@ -27,6 +27,7 @@ from fastapi import APIRouter, Depends, FastAPI, Request
 from corelata_api.auth import current_user
 from corelata_api.context import ApiContext
 from corelata_api.errors import ErrorBody, install_error_handlers
+from corelata_api.headers import SecurityHeadersMiddleware
 from corelata_api.pack_index import PackIndex
 from corelata_api.progress_feed import ProgressFeed
 from corelata_api.proxy import ProxySecretMiddleware
@@ -153,6 +154,8 @@ def create_app(
         # validate_config refused an unset variable; the middleware refuses an empty one anyway
         secret = os.environ.get(cfg.auth.proxy_secret_env, "")
         app.add_middleware(ProxySecretMiddleware, secret=secret)
+    # added last, so outermost: a refused request's 401 carries the headers too
+    app.add_middleware(SecurityHeadersMiddleware)
     app.include_router(health)
     protected = APIRouter(
         prefix="/api",

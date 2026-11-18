@@ -570,10 +570,15 @@ authentication, where the browser keeps the password until it is closed.
 
 ### Content-Security-Policy
 
-Corelata sends no `Content-Security-Policy` header of its own. The review screen shows the report
-inside a sandboxed frame that carries its own policy (`default-src 'none'`; its one script and its
-highlight style bound by a nonce; the report's stylesheet allowed by its SHA-256 hash; no other
-inline script or style), so nothing in a report can load or send anything.
+Every response from Corelata carries `X-Content-Type-Options: nosniff` and
+`Referrer-Policy: same-origin`. The app's pages carry no `Content-Security-Policy` of
+Corelata's own; an HTML report or export (the report link, `report.html`) carries
+`Content-Security-Policy: sandbox; default-src 'none'; style-src 'unsafe-inline'; frame-ancestors
+'none'`, so a report opened at the app's address runs no script and loads nothing but its own
+stylesheet. The review screen shows the report inside a sandboxed frame that carries its
+own policy (`default-src 'none'`; its one script and its highlight style bound by a nonce; the
+report's stylesheet allowed by its SHA-256 hash; no other inline script or style), so nothing in
+a report can load or send anything.
 
 If your proxy adds a `Content-Security-Policy` header to every response, the frame inherits that
 policy too. A policy whose `script-src` or `style-src` lacks `'unsafe-inline'` blocks the frame's
@@ -590,6 +595,12 @@ add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsaf
 
 and check in the browser's developer console (F12) on a review screen that no "Refused to execute
 inline script" or "Refused to apply inline style" message appears.
+
+With nginx's `add_header`, as in the sample, the report keeps its own policy as well and the
+browser enforces both. A proxy that replaces the header instead (Caddy's `header` directive,
+Traefik's headers middleware, nginx with `proxy_hide_header`) drops the report's `sandbox`
+policy: there, leave `Content-Security-Policy` alone on `/api/` responses. The sample policy does
+not add `X-Content-Type-Options` or `Referrer-Policy`, since Corelata sends them.
 
 ## 7. Running it
 
