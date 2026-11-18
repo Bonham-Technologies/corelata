@@ -16,15 +16,15 @@ Font License; their licences are next to them in `public/assets/fonts/`.
 | `check.mjs`                    | the site check (below)                                                                                                                     |
 | `tools/record-walkthrough.mjs` | records the walkthrough against a local dev stack                                                                                          |
 
-Every change under `site/` is merged by the owner (`ap-owner-merge`); the CODEOWNERS entry for
-`site/` is added in a separate PR.
+Every change under `site/` is merged by the owner (`ap-owner-merge`), and `.github/CODEOWNERS`
+names the owner for `site/`.
 
 The page links to no GitHub repository: the repository stays private until a later go/no-go
 decision. `index.html` has an HTML comment in the Licence section where the link goes.
 
 ## Check
 
-    node site/check.mjs
+    make site-check        # or: node site/check.mjs
 
 Node 22, with Playwright and axe from `web/node_modules` (`cd web && pnpm install` first); no other
 dependency. It serves `public/` on a free local port with the headers `vercel.json` sets and fails
@@ -51,7 +51,8 @@ on any of these:
   `frame-ancestors 'none'` CSP on every page or the `ignoreCommand`.
 
 It uses `/opt/pw-browsers/chromium` when it exists (cloud sessions), otherwise `CHROMIUM_PATH` or
-Playwright's own browser. There is no CI job for it yet.
+Playwright's own browser. CI runs it as the `site` job on every pull request and every push to
+`main`, and `ci-status` requires it.
 
 ## Deploy
 
@@ -83,7 +84,6 @@ changed `report.css`, update the hash in `vercel.json`; `check.mjs` reports the 
    non-commercial use).
 8. In the repository's Actions settings, require **approval before running workflows for outside
    contributors**.
-9. Merge the Apache-2.0 licence PR before this one: the page states the licence as Apache-2.0.
 
 ## How the demo and the sample were made
 

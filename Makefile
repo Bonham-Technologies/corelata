@@ -1,4 +1,4 @@
-.PHONY: test test-engine test-api test-web e2e dev-stack lint fmt schema db-up db-down image-app demo demo-down deploy-check bundle airgap-test
+.PHONY: test test-engine test-api test-web e2e dev-stack lint fmt schema db-up db-down image-app demo demo-down deploy-check site-check bundle airgap-test
 
 CORELATA_VERSION ?= dev
 # deploy/bundle.sh refuses any other platform: the bundle is linux/amd64 only
@@ -71,6 +71,10 @@ deploy-check:
 	deploy/tests/test-restore.sh
 	python3 deploy/tests/check_compose.py
 	python3 deploy/tests/check_workflows.py
+
+# The public site's check (site/README.md); needs `cd web && pnpm install` for Playwright and axe.
+site-check:
+	node site/check.mjs
 
 bundle:
 	deploy/bundle.sh
