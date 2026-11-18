@@ -1,13 +1,18 @@
 id: icd206.src.1
 title: Source summary statement present
-source: "ICD 206 (2015) D.2"
+source: "ICD 206 (2015) D.3.d"
 text: >
-  Analytic products shall include a source summary statement that characterises the body of
-  sourcing used, its strengths and weaknesses, and how it supports the key judgments.
+  Source summary statements are strongly encouraged in covered analytic products to provide a
+  holistic assessment of sourcing that supports a covered analytic product. A source summary
+  statement should cover strengths and weaknesses of the source base, which sources are most
+  important to key judgments, what sources are meaningfully corroborative or conflicting, and
+  should highlight any specific subject matter expertise used to develop the assessment.
 severity: major
 checkability: verifiable
 applies_to: [writer, auditor]
 evidence_required: >
-  The scope note or sources section contains a summary of the sourcing as a whole, not only
-  per-source entries.
+  The source summary states the strengths and weaknesses of the source base, names the sources
+  the key judgments depend on most, and names the sources that corroborate or conflict with one
+  another (or says that none conflict). A report without a source_summary section may give this
+  summary in its scope note or sources section.
 route_to: writer

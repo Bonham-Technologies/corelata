@@ -16,6 +16,7 @@ from pydantic import BaseModel, ValidationError
 
 from corelata.config import ConfigIssue
 from corelata.standards.schema import (
+    SOURCE_SUMMARY,
     Lexicon,
     PackMeta,
     Profile,
@@ -241,10 +242,21 @@ def resolve(chain: list[RawPack], profile: Profile | None) -> ResolvedPack:
             if r.id in rules:
                 raise PackError(f"profile '{profile.name}' adds rule '{r.id}' that already exists")
             rules[r.id] = (r, profile.name)
+        source_access = lexicon.source_access
         if profile.template is not None:
-            changes = {k: v for k, v in profile.template.model_dump().items() if v is not None}
+            switches = {"source_summary", "source_details"}
+            changes = {
+                k: v
+                for k, v in profile.template.model_dump().items()
+                if v is not None and k not in switches
+            }
             if "key_judgments" in changes:
                 changes["key_judgments"] = profile.template.key_judgments
+            if profile.template.source_summary is False:  # CRL-96: the profile turns them off
+                order = [s for s in template.section_order if s != SOURCE_SUMMARY]
+                changes["section_order"] = order
+            if profile.template.source_details is False:
+                source_access = []
             template = template.model_copy(update=changes)
         lexicon = lexicon.model_copy(
             update={
@@ -256,6 +268,7 @@ def resolve(chain: list[RawPack], profile: Profile | None) -> ResolvedPack:
                     *lexicon.source_descriptors,
                     *profile.lexicon.source_descriptors,
                 ],
+                "source_access": source_access,
             }
         )
         tone = profile.tone

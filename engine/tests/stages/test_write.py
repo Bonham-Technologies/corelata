@@ -15,7 +15,7 @@ def _writer_payload(ctx):
     return {
         "task": "writer",
         "value_statement": ctx.value_statement,
-        "template": {},
+        "template": ctx.pack.template.model_dump(),
         "rules": [],
         "lexicon": ctx.pack.lexicon.model_dump(),
         "digests": [],

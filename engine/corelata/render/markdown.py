@@ -10,6 +10,11 @@ def _ids(claim_ids: tuple[str, ...], on: bool) -> str:
     return f" ^[{', '.join(claim_ids)}]" if on and claim_ids else ""
 
 
+def _refs(refs: tuple[int, ...]) -> str:
+    """Source reference numbers as a superscript (Pandoc's `^…^`), right after the text."""
+    return f"^{','.join(map(str, refs))}^" if refs else ""
+
+
 def render_markdown(
     report: Report,
     pack: ResolvedPack,
@@ -27,11 +32,13 @@ def render_markdown(
                 out += [f"# {text}", ""]
             case Heading():
                 out += [f"## {block.label}", ""]
-            case Para(text, claim_ids):
-                out += [f"{text}{_ids(claim_ids, with_claim_ids)}", ""]
-            case Bullets(items):
-                for item in items:
+            case Para(text, claim_ids, refs):
+                out += [f"{text}{_refs(refs)}{_ids(claim_ids, with_claim_ids)}", ""]
+            case Bullets(items, numbered=numbered):
+                for n, item in enumerate(items, start=1):
+                    mark = f"{n}." if numbered else "-"
                     lead = f"**{item.lead}** " if item.lead else ""
-                    out.append(f"- {lead}{item.text}{_ids(item.claim_ids, with_claim_ids)}")
+                    tail = f"{_refs(item.refs)}{_ids(item.claim_ids, with_claim_ids)}"
+                    out.append(f"{mark} {lead}{item.text}{tail}")
                 out.append("")
     return "\n".join(out).rstrip() + "\n"

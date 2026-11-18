@@ -4,6 +4,7 @@ section_order:
   - key_judgments
   - scope_note
   - sources
+  - source_summary
   - analysis
   - alternatives
   - gaps_and_indicators

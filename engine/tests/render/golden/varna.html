@@ -10,8 +10,9 @@ body.corelata-report { font-family: Georgia, "Times New Roman", serif; line-heig
 .marking.bottom { margin: 2rem 0 0; }
 h1 { font-size: 1.6rem; margin: 0 0 1rem; }
 h2 { font-size: 1.15rem; margin: 1.5rem 0 .5rem; border-bottom: 1px solid rgba(128,128,128,.4); padding-bottom: .15rem; }
-ul { padding-left: 1.25rem; }
+ul, ol { padding-left: 1.25rem; }
 li { margin: .3rem 0; }
+sup.source-refs { font-size: .7em; margin-left: .1em; }
 sup.claim-ids { font-family: system-ui, sans-serif; font-size: .7em; margin-left: .15em; opacity: .7; }
 section.appendix { border-top: 2px solid currentColor; margin-top: 2rem; padding-top: .5rem; }
 footer.meta { font-family: system-ui, sans-serif; font-size: .8rem; opacity: .7; margin-top: 2rem; }
@@ -24,7 +25,7 @@ footer.meta { font-family: system-ui, sans-serif; font-size: .8rem; opacity: .7;
 <section>
 <h2>1. Key judgments</h2>
 <ul class="key_judgments">
-<li data-claim-ids="c1"><strong>Moderate confidence.</strong> Capacity grew.<sup class="claim-ids">c1</sup></li>
+<li data-claim-ids="c1"><strong>Moderate confidence.</strong> Capacity grew.<sup class="source-refs">1</sup><sup class="claim-ids">c1</sup></li>
 </ul>
 </section>
 <section>
@@ -33,23 +34,29 @@ footer.meta { font-family: system-ui, sans-serif; font-size: .8rem; opacity: .7;
 </section>
 <section>
 <h2>3. Sources</h2>
-<ul class="sources">
-<li data-claim-ids="">a.txt — open-source report; Current. (sha256 abcdef01)</li>
+<ol class="sources">
+<li data-claim-ids="">a.txt — open-source report; originator: Varna Port Authority; date of information: 2025-11-03; access: direct; Current. (sha256 abcdef01)</li>
 <li data-claim-ids="">b.json — translated document; Tier B. (sha256 ffffffff; Coglossa run run-42)</li>
-</ul>
+</ol>
 </section>
 <section>
-<h2>4. Capacity</h2>
-<p data-claim-ids="c1">Grew 40 percent.<sup class="claim-ids">c1</sup></p>
+<h2>4. Source summary</h2>
+<p data-claim-ids="">One official notice; one translation.</p>
+<p data-claim-ids="">Most important to the key judgments: a.txt.<sup class="source-refs">1</sup></p>
+<p data-claim-ids="">Neither source contradicts the other.</p>
 </section>
 <section>
-<h2>5. Alternatives considered</h2>
+<h2>5. Capacity</h2>
+<p data-claim-ids="c1">Grew 40 percent.<sup class="source-refs">1</sup><sup class="claim-ids">c1</sup></p>
+</section>
+<section>
+<h2>6. Alternatives considered</h2>
 <ul class="alternatives">
 <li data-claim-ids=""><strong>Flat.</strong> Unlikely.</li>
 </ul>
 </section>
 <section>
-<h2>6. Gaps and indicators</h2>
+<h2>7. Gaps and indicators</h2>
 <ul class="gaps">
 <li data-claim-ids="">Customs data.</li>
 </ul>

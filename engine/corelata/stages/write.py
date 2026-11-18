@@ -4,7 +4,7 @@ from collections.abc import Callable
 from typing import Any
 
 from corelata.config import EvidenceQuotes
-from corelata.schema import Finding, ReportBody
+from corelata.schema import Finding, ReportBody, Source, SourceEntry, reliability_tier
 from corelata.stages.context import StageContext, estimate_tokens
 from corelata.stages.prior import prior_report_entry
 from corelata.stages.report_schema import report_output_type
@@ -12,27 +12,62 @@ from corelata.stages.report_schema import report_output_type
 
 def report_schema(ctx: StageContext) -> dict[str, Any]:
     """The writer's and conveyor's per-call schema (R-M12-1), with `Claim.quotes` unless
-    `pipeline.evidence_quotes` is `off` (CRL-93), and `changes_from_previous` when the run read
-    earlier accepted reports (CRL-97)."""
+    `pipeline.evidence_quotes` is `off` (CRL-93), the source details and source summary the pack
+    asks for (CRL-96), and `changes_from_previous` when the run read earlier accepted reports
+    (CRL-97)."""
     return report_output_type(
         ctx.index.refs(),
         [s.id for s in ctx.sources],
         quotes=ctx.evidence_quotes is not EvidenceQuotes.OFF,
+        access_terms=ctx.pack.lexicon.source_access,
+        summary=ctx.pack.source_summary,
         prior_run_ids=[r.run_id for r in ctx.prior_reports],
     ).model_json_schema()
 
 
-def without_unasked(ctx: StageContext, body: ReportBody) -> ReportBody:
-    """A reply's stray elements the run did not ask for are dropped, as the parser ignored the
-    unknown keys before they existed: quotes with `evidence_quotes: off` (CRL-93), and
-    `changes_from_previous` when the run read no earlier report (CRL-97). Otherwise `body`
-    unchanged."""
-    update: dict[str, Any] = {}
+def tier_note(source: Source, note: str) -> str:
+    """`note` with the source's Coglossa reliability tier in front unless it already names it
+    (CRL-96: a Coglossa source's note shows its tier by default)."""
+    tier = reliability_tier(source)
+    if tier is None or f"tier {tier}".casefold() in note.casefold():
+        return note
+    lead = f"Coglossa reliability tier {tier}."
+    return f"{lead} {note}" if note else lead
+
+
+def filled_entry(ctx: StageContext, entry: SourceEntry) -> SourceEntry:
+    """`entry` as the engine completes it (CRL-96): a Coglossa source's reliability note names its
+    tier; without the pack's source details the details are dropped. A date of information or
+    origin is the writer's answer as given: ingest's hints are offered in the writer's payload
+    (`ctx.source_payload`), and one the writer left blank stays blank."""
+    source = next((s for s in ctx.sources if s.id == entry.source_id), None)
+    if source is None:  # an unknown id: the validator reports it
+        return entry
+    changes: dict[str, str] = {"reliability_note": tier_note(source, entry.reliability_note)}
+    if not ctx.pack.source_details:
+        changes.update(date_of_information="", origin="", access="")
+    if all(getattr(entry, k) == v for k, v in changes.items()):
+        return entry
+    return entry.model_copy(update=changes)
+
+
+def shape_reply(ctx: StageContext, body: ReportBody) -> ReportBody:
+    """A parsed writer or conveyor reply as the run keeps it. A reply's stray elements the run did
+    not ask for are dropped, as the parser ignored the unknown keys before they existed: quotes
+    with `evidence_quotes: off` (CRL-93), `changes_from_previous` when the run read no earlier
+    report (CRL-97), and the source details or summary the pack does not ask for (CRL-96); source
+    entries are completed (`filled_entry`). Otherwise `body` unchanged."""
+    changes: dict[str, Any] = {}
     if ctx.evidence_quotes is EvidenceQuotes.OFF and any(c.quotes for c in body.claims):
-        update["claims"] = [c.model_copy(update={"quotes": []}) for c in body.claims]
+        changes["claims"] = [c.model_copy(update={"quotes": []}) for c in body.claims]
     if not ctx.prior_reports and body.changes_from_previous:
-        update["changes_from_previous"] = []
-    return body.model_copy(update=update) if update else body
+        changes["changes_from_previous"] = []
+    if body.source_summary is not None and not ctx.pack.source_summary:
+        changes["source_summary"] = None
+    sources = [filled_entry(ctx, e) for e in body.sources]
+    if any(a is not b for a, b in zip(sources, body.sources, strict=True)):
+        changes["sources"] = sources
+    return body.model_copy(update=changes) if changes else body
 
 
 def change_errors(ctx: StageContext, body: ReportBody) -> list[str]:
@@ -100,9 +135,41 @@ def report_validator(ctx: StageContext) -> Callable[[ReportBody], list[str]]:
         n = len(body.key_judgments)
         if not limits.min <= n <= limits.max:
             errors.append(f"key judgments: {n} (allowed {limits.min}-{limits.max})")
+        errors += source_reference_errors(ctx, body)
         return errors
 
     return validate
+
+
+def source_reference_errors(ctx: StageContext, body: ReportBody) -> list[str]:
+    """CRL-96: each source entry's access is a lexicon term, and the source summary is present
+    and names only the run's sources, when the pack asks for them."""
+    errors: list[str] = []
+    terms = ctx.pack.lexicon.source_access
+    for entry in body.sources if terms else []:
+        if entry.access not in terms:
+            errors.append(
+                f"source '{entry.source_id}': access '{entry.access}' is not in the lexicon "
+                f"(allowed: {', '.join(terms)})"
+            )
+    if not ctx.pack.source_summary:
+        return errors
+    summary = body.source_summary
+    if summary is None:
+        return [
+            *errors,
+            "source_summary is missing: assess the sources together (strengths and weaknesses, "
+            "the sources the key judgments depend on most, corroboration and conflict)",
+        ]
+    known = {s.id for s in ctx.sources}
+    for name, ids in (
+        ("key_sources", summary.key_sources),
+        ("conflicting_sources", summary.conflicting_sources),
+    ):
+        errors += [
+            f"unknown source id '{sid}' in source_summary.{name}" for sid in ids if sid not in known
+        ]
+    return errors
 
 
 def select_writer_units(ctx: StageContext) -> list[str]:
@@ -148,6 +215,8 @@ async def run_writer(
             "iteration": iteration,
             "extra_guidance": ctx.extra_guidance,
             "evidence_quotes": ctx.evidence_quotes.value,
+            "source_details": ctx.pack.source_details,
+            "source_summary": ctx.pack.source_summary,
             "prior_reports": bool(ctx.prior_reports),
         },
         payload={
@@ -171,7 +240,7 @@ async def run_writer(
         schema=report_schema(ctx),
         validate=check,
     )
-    return without_unasked(ctx, parsed)
+    return shape_reply(ctx, parsed)
 
 
 def prior_reports_payload(ctx: StageContext) -> dict[str, Any]:

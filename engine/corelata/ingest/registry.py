@@ -7,6 +7,7 @@ from corelata.ingest.base import IngestError, Ingestor, UnsupportedFormatError
 from corelata.ingest.docx import DocxIngestor
 from corelata.ingest.html import HtmlIngestor
 from corelata.ingest.markdown import MarkdownIngestor
+from corelata.ingest.ocr import OcrSettings
 from corelata.ingest.pdf import PdfIngestor
 from corelata.ingest.tabular import CsvIngestor, JsonIngestor
 from corelata.ingest.txt import TextIngestor
@@ -14,13 +15,14 @@ from corelata.schema import BlockKind, SourceDocument
 from corelata.text import clean_text
 
 
-def available_ingestors() -> list[Ingestor]:
+def available_ingestors(ocr: OcrSettings | None = None) -> list[Ingestor]:
+    """`ocr`: the settings of `ingest.ocr: auto`, or None when it is off."""
     ingestors: list[Ingestor] = [
         TextIngestor(),
         MarkdownIngestor(),
         DocxIngestor(),
         HtmlIngestor(),
-        PdfIngestor(),
+        PdfIngestor(ocr),
         JsonIngestor(),
         CsvIngestor(),
     ]
@@ -46,10 +48,10 @@ def check_supported(path: Path) -> None:
     check_extension(path.name)
 
 
-def ingest_file(path: Path) -> SourceDocument:
+def ingest_file(path: Path, *, ocr: OcrSettings | None = None) -> SourceDocument:
     check_supported(path)
     ext = path.suffix.lower()
-    for ingestor in available_ingestors():
+    for ingestor in available_ingestors(ocr):
         if ext in ingestor.extensions:
             try:
                 doc = ingestor.ingest(path)

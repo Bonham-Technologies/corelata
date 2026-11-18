@@ -1,8 +1,25 @@
+import asyncio
 import json
 import uuid
 from datetime import datetime
 
+from corelata.ingest import ocr
+from corelata.testing.pdf import Scan, make_pdf
+
 from tests.conftest import STATEMENT, coglossa_export, project_with_source, set_run_state
+
+HEADER = (
+    "level\tpage_num\tblock_num\tpar_num\tline_num\tword_num\tleft\ttop\twidth\theight\tconf\ttext"
+)
+
+
+def tsv(*rows):
+    return "\n".join([HEADER, *rows]) + "\n"
+
+
+def _word(block, par, line, word, conf, text):
+    return f"5\t1\t{block}\t{par}\t{line}\t{word}\t0\t0\t1\t1\t{conf}\t{text}"
+
 
 PORT_TEXT = (
     "The port of Varna handles grain, containers and general cargo.\n\n"
@@ -100,6 +117,39 @@ async def test_upload_too_large_leaves_no_file(make_api):
         )
         assert not list(api.storage_root.rglob("*"))
         assert (await api.client.get(f"/api/projects/{project['id']}/sources")).json() == []
+
+
+async def test_a_scanned_pdf_is_read_by_ocr_off_the_event_loop(make_api, monkeypatch):
+    """CRL-95 (AC1, AC2): with ingest.ocr: auto the upload reads the scanned page before it
+    answers, in a worker thread, and records it; with OCR off it is refused with needs_ocr."""
+    on_loop: list[bool] = []
+
+    def read(image, languages):
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            on_loop.append(False)
+        else:  # pragma: no cover - the failure this test exists to catch
+            on_loop.append(True)
+        assert languages == ("eng", "fra")
+        return tsv(_word(1, 1, 1, 1, 91, "Varna."))
+
+    monkeypatch.setattr(ocr, "tesseract_path", lambda: "/usr/bin/tesseract")
+    monkeypatch.setattr(ocr, "DPI", 20)
+    monkeypatch.setattr(ocr, "read_image", read)
+    pdf = make_pdf([Scan(("Varna.",)), ["Page two."]])
+    async with make_api(ingest={"ocr": "auto", "ocr_languages": ["eng", "fra"]}) as api:
+        project = await _project(api)
+        response = await _upload(api, project["id"], "scan.pdf", pdf)
+        assert response.status_code == 201, response.text
+        [source] = response.json()
+        assert source["provenance"] == {"ocr_pages": [1], "ocr_languages": ["eng", "fra"]}
+        assert on_loop == [False]
+    async with make_api() as api:
+        project = await _project(api, "No OCR")
+        refused = await _upload(api, project["id"], "scan.pdf", pdf)
+        assert refused.status_code == 422
+        assert refused.json()["detail"].startswith("scan.pdf needs OCR (needs_ocr): page(s) 1")
 
 
 async def test_projects_carry_the_sidebar_summary_and_runs_their_decision(api):

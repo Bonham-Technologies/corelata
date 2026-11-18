@@ -15,6 +15,7 @@ from corelata.config import (
     load_config,
     validate_config,
 )
+from corelata.ingest.ocr import OcrSettings
 from tests.conftest import BASE_CONFIG
 
 
@@ -489,6 +490,46 @@ def test_a_plugin_backend_keeps_its_own_scheme_but_not_a_query(tmp_path, make_co
     )
     with pytest.raises(ConfigError, match="backends.fake.base_url: Value error, must not contain"):
         load_config(path)
+
+
+def test_ingest_ocr_is_off_by_default_and_auto_gives_its_languages(make_config):
+    """CRL-95: OCR is opt-in; auto reads scanned pages in the configured languages."""
+    cfg = make_config()
+    assert cfg.ingest.ocr == "off" and cfg.ingest.ocr_languages == ["eng"]
+    assert cfg.ingest.ocr_settings() is None
+    auto = make_config(ingest={"ocr": "auto", "ocr_languages": ["eng", "chi_sim"]})
+    assert auto.ingest.ocr_settings() == OcrSettings(languages=("eng", "chi_sim"))
+    assert make_config(ingest=None).ingest.ocr == "off"
+
+
+def test_ingest_ocr_off_written_bare_in_yaml_reads_as_off(tmp_path):
+    path = tmp_path / "corelata.yaml"
+    path.write_text(yaml.safe_dump(BASE_CONFIG) + "ingest:\n  ocr: off\n", encoding="utf-8")
+    cfg, _ = load_config(path)
+    assert cfg.ingest.ocr == "off"
+    path.write_text(yaml.safe_dump(BASE_CONFIG) + "ingest:\n  ocr: on\n", encoding="utf-8")
+    with pytest.raises(ConfigError, match=r"ingest\.ocr: Input should be 'off' or 'auto'"):
+        load_config(path)
+
+
+@pytest.mark.parametrize("languages", [[], ["eng+fra"], ["../x"], ["e ng"]])
+def test_ingest_ocr_languages_are_tesseract_codes(make_config, languages):
+    with pytest.raises(ValidationError, match="ocr_languages"):
+        make_config(ingest={"ocr": "auto", "ocr_languages": languages})
+
+
+def test_ingest_leaves_the_config_hash(make_config):
+    """What OCR read is recorded on each source; the run's settings hash does not change."""
+    assert config_hash(make_config()) == config_hash(make_config(ingest={"ocr": "auto"}))
+
+
+def test_deploy_configs_load_with_their_ocr_settings():
+    deploy = Path(__file__).parents[2] / "deploy" / "config"
+    example, demo = (
+        CorelataConfig.model_validate(yaml.safe_load((deploy / name).read_text(encoding="utf-8")))
+        for name in ("corelata.example.yaml", "corelata.demo.yaml")
+    )
+    assert example.ingest.ocr == "off" and demo.ingest.ocr == "auto"
 
 
 def test_prior_judgments_default_and_bounds():

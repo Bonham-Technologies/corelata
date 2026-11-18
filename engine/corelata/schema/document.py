@@ -2,7 +2,7 @@
 
 from enum import StrEnum
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class BlockKind(StrEnum):
@@ -19,6 +19,8 @@ class Provenance(BaseModel):
     index: int  # ordinal of the block within the source file
     page: int | None = None
     locator: str | None = None  # format-specific, e.g. "table 2 row 1 col 3"
+    ocr: bool = False  # the text was recovered by OCR from a scanned page (CRL-95)
+    ocr_confidence: float | None = None  # mean Tesseract word confidence, 0 to 100
 
 
 class Block(BaseModel):
@@ -33,3 +35,7 @@ class SourceDocument(BaseModel):
     format: str
     sha256: str
     blocks: list[Block]
+    # CRL-96: what the file says about itself, as hints for the report's source entry: "date"
+    # (when it was issued, ISO 8601 where the file gives one) and "origin" (its author or
+    # publisher). They become the source's provenance.
+    meta: dict[str, str] = Field(default_factory=dict)

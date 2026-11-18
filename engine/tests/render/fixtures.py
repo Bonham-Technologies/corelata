@@ -16,6 +16,7 @@ from corelata.schema import (
     Source,
     SourceEntry,
     SourceKind,
+    SourceSummaryStatement,
     SourceUnit,
     Verdict,
 )
@@ -59,7 +60,12 @@ def make_report(**metadata) -> Report:
         scope_note="Two sources.",
         sources=[
             SourceEntry(
-                source_id="src1", descriptor="open-source report", reliability_note="Current."
+                source_id="src1",
+                descriptor="open-source report",
+                reliability_note="Current.",
+                origin="Varna Port Authority",
+                date_of_information="2025-11-03",
+                access="direct",
             ),
             SourceEntry(
                 source_id="src2", descriptor="translated document", reliability_note="Tier B."
@@ -74,6 +80,11 @@ def make_report(**metadata) -> Report:
         alternatives=[Alternative(hypothesis="Flat.", assessment="Unlikely.")],
         gaps_and_indicators=["Customs data."],
         claims=[Claim(id="c1", text="Grew.", kind=ClaimKind.FACT, evidence=["src1/u1"])],
+        source_summary=SourceSummaryStatement(
+            strengths_and_weaknesses="One official notice; one translation.",
+            key_sources=["src1"],
+            corroboration="Neither source contradicts the other.",
+        ),
         metadata=ReportMetadata(pack_name="icd203-base", pack_hash="h", **metadata),
     )
 

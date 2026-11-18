@@ -80,6 +80,13 @@ print(json.load(urllib.request.urlopen('http://127.0.0.1:8080/api/health'))['ver
 echo "health reports the bundle version $health"
 smoke run airgap
 
+step "6a. a scanned PDF page is read by OCR with no network (CRL-95)"
+# the demo config sets ingest.ocr: auto; Tesseract and its eng pack come from the bundle's image
+grep -q 'ocr: auto' config/corelata.yaml || die "config/corelata.yaml does not set ingest.ocr: auto"
+source_id=$(compose exec -T api python3 - "http://127.0.0.1:8080" <"$tests/ocr_smoke.py" | tail -1)
+[ "$(sql "SELECT count(*) FROM source_unit WHERE source_id = '$source_id' AND meta->>'ocr' = 'true' AND text LIKE '%Varna%'")" = 1 ] \
+  || die "the scanned page's unit is not marked ocr: $(sql "SELECT text, meta FROM source_unit WHERE source_id = '$source_id'")"
+
 step "6b. the guide's housekeeping SQL removes old closed jobs and nothing else"
 # The SQL is copied verbatim from the operator guide ("Housekeeping"; the worker runs the same
 # statement nightly, this step proves the statement itself). The worker deletes

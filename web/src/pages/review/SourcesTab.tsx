@@ -1,6 +1,18 @@
 import { useTrace } from "../../api/reports";
+import type { SourceSummary } from "../../api/types";
 import { ErrorMessage } from "../../components/ErrorMessage";
 import { Loading } from "../../components/Loading";
+import { plural } from "../../lib/words";
+
+/** What the Notes column says about a source: a Coglossa export's reliability tier (CRL-96),
+ * whether it was summarised before drafting, and whether it was read from a scan (CRL-95). */
+function notes(s: SourceSummary): string {
+  const parts: string[] = [];
+  if (s.reliability_tier) parts.push(`Coglossa reliability tier ${s.reliability_tier}`);
+  if (s.digested) parts.push("summarised before drafting");
+  if (s.ocr_pages > 0) parts.push(`text recovered by OCR (${plural(s.ocr_pages, "page")})`);
+  return parts.join("; ");
+}
 
 export function SourcesTab({ runId }: { runId: string }) {
   const trace = useTrace(runId);
@@ -40,7 +52,7 @@ export function SourcesTab({ runId }: { runId: string }) {
               <td>
                 {s.units} unit{s.units === 1 ? "" : "s"}
               </td>
-              <td>{s.digested ? "summarised before drafting" : ""}</td>
+              <td>{notes(s)}</td>
             </tr>
           ))}
         </tbody>

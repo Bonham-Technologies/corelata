@@ -1,9 +1,11 @@
 import pytest
 
-from corelata.ingest.base import IngestError
+from corelata.ingest.base import HINT_MAX_CHARS, IngestError, source_meta
 from corelata.ingest.html import HtmlIngestor, collect_blocks, parse_html
 from corelata.ingest.registry import check_supported, ingest_file
+from corelata.render.docx import render_docx
 from corelata.schema import BlockKind
+from tests.render.fixtures import PACK, SOURCES, make_report
 
 H, P, LI, TD, FN, BR = (
     BlockKind.HEADING,
@@ -160,3 +162,66 @@ def test_nested_blocks_keep_the_outer_kind(tmp_path):
         )
     )
     assert _kinds(doc) == [(TD, "x"), (FN, "note"), (LI, "titre")]
+
+
+def test_meta_elements_become_date_and_origin_hints(tmp_path):
+    """CRL-96: the page's own date and author win over the site's name; a timestamp is cut to
+    its date."""
+    doc = HtmlIngestor().ingest(
+        _write(
+            tmp_path,
+            "<html><head>"
+            '<meta property="og:site_name" content="Halden Courier">'
+            '<meta property="article:published_time" content="2026-10-16T07:30:00+02:00">'
+            '<meta name="Author" content="  Ina   Berg ">'
+            '<meta name="date" content="">'
+            "</head><body><p>Text.</p></body></html>",
+        )
+    )
+    assert doc.meta == {"date": "2026-10-16", "origin": "Ina Berg"}
+    site_only = HtmlIngestor().ingest(
+        _write(
+            tmp_path,
+            '<html><head><meta property="og:site_name" content="Halden Courier">'
+            '<meta name="dc.date" content="October 2026"></head><body><p>T.</p></body></html>',
+        )
+    )
+    assert site_only.meta == {"date": "October 2026", "origin": "Halden Courier"}
+    assert HtmlIngestor().ingest(_write(tmp_path, "<p>No head.</p>")).meta == {}
+    assert HtmlIngestor().ingest(_write(tmp_path, "<!-- -->")).meta == {}
+
+
+def test_meta_hints_are_capped_and_clean(tmp_path):
+    """A page's metadata is anyone's writing: a hint is cut to HINT_MAX_CHARS and loses NULs."""
+    long_name = "Agency " * 100
+    doc = HtmlIngestor().ingest(
+        _write(
+            tmp_path,
+            f'<html><head><meta name="author" content="{long_name}">'
+            '<meta name="date" content="2026-10-16&#0;"></head><body><p>T.</p></body></html>',
+        )
+    )
+    assert len(doc.meta["origin"]) == HINT_MAX_CHARS and doc.meta["origin"].endswith("…")
+    assert "\x00" not in doc.meta["date"]
+    assert source_meta("2026\x00-10-16", "A\x00B") == {"date": "2026-10-16", "origin": "AB"}
+
+
+def test_meta_hints_lose_control_characters_and_still_render_as_docx(tmp_path):
+    """A control character in a page's `<meta>` is not text, and python-docx refuses it: it would
+    reach the source entry's origin and cost the run its DOCX export. Ordinary whitespace,
+    C0 or C1, collapses to one space."""
+    doc = HtmlIngestor().ingest(
+        _write(
+            tmp_path,
+            '<html><head><meta name="author" content="Ina\x01 \x1b[31mBerg\x7f\x9b">'
+            '<meta name="date" content="2026-10-16\x08"></head><body><p>T.</p></body></html>',
+        )
+    )
+    assert doc.meta == {"date": "2026-10-16", "origin": "Ina [31mBerg"}
+    assert source_meta("2026\t10\x0b16", "A\x1fB\x85C\nD\x0cE") == {
+        "date": "2026 10 16",
+        "origin": "A B C D E",
+    }
+    entry = make_report().sources[0].model_copy(update={"origin": doc.meta["origin"]})
+    report = make_report().model_copy(update={"sources": [entry, *make_report().sources[1:]]})
+    assert render_docx(report, PACK, SOURCES)[:2] == b"PK"

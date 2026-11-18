@@ -197,3 +197,21 @@ async def test_an_auditor_fail_keeps_its_own_words(quoting_ctx):
     # Unsourced claims alone keep the earlier rule: the auditor's own finding is left as it is.
     plain = engine_only_findings(draft, ctx.pack, 0)
     assert apply_engine_checks(draft, [own], ctx.pack) == [own] and plain == []
+
+
+async def test_a_unit_ocr_read_is_quoted_and_flagged_like_any_other(quoting_ctx, fake_backend):
+    """CRL-95 with CRL-93: the writer quotes an OCR'd unit; the auditor reads its flag and the
+    quotes together, and the engine checks those quotes like any other."""
+    source = text_source("src1", *PORT)
+    ocr = {"ocr": True, "ocr_confidence": 71.5}
+    units = [u.model_copy(update={"meta": ocr}) for u in source.units]
+    ctx = quoting_ctx(source.model_copy(update={"units": units}))
+    draft = await run_writer(ctx, iteration=0, prior=None, findings=[])
+    assert all(u | ocr == u for u in _sent(ctx)["units"])
+    assert all(c.quotes for c in draft.claims)
+    assert engine_only_findings(draft, ctx.pack, 0, ctx.quote_check()) == []
+    await run_auditor(ctx, iteration=0, draft=draft)
+    cited = _sent(ctx)["cited_units"]
+    assert cited and all(u | ocr == u and u["quotes"] for u in cited)
+    system = fake_backend.requests[-1].messages[0].content
+    assert '"ocr": true' in system and '"quotes": the words each claim' in system

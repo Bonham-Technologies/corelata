@@ -233,7 +233,7 @@ roles:
   only the verdicts the rule allows, only unit ids the draft cites. With `json_object` or `none`
   the same schema is in the prompt and Corelata checks the reply itself, so a small model needs
   its repair turn more often. If you override prompts (`prompts_dir`), an `auditor` override
-  must return `findings` as an object keyed by rule id, as the built-in `auditor/v4.j2` does; an
+  must return `findings` as an object keyed by rule id, as the built-in `auditor/v5.j2` does; an
   override that still returns a list fails every audit.
 - `max_output_tokens` is unset by default (the server decides); `temperature` defaults to 0.2.
 - The four roles: `gate` decides whether the sources can support the value statement at all,
@@ -251,7 +251,8 @@ config/packs/icd203-base/
   pack.yaml             name, version, description
   rules/<id>.yaml       one rule per file, e.g. icd203.as.1.yaml
   template.yaml         section order, key-judgment limits, word limit
-  lexicon.yaml          likelihood terms, confidence definitions, source descriptors, markings
+  lexicon.yaml          likelihood terms, confidence definitions, source descriptors, markings,
+                        source access terms
   profiles/<team>.yaml  an overlay for one team (optional)
 ```
 
@@ -275,6 +276,16 @@ config/packs/icd203-base/
   (`profiles/team-east.docx`) and name it relative to the pack directory
   (`docx_reference: profiles/team-east.docx`); a file that is not a readable .docx is refused when
   the pack loads.
+- **Sourcing (ICD 206).** A lexicon with a `source_access` list (the base pack's is `direct`,
+  `indirect`, `unknown`) has every source entry carry its date of information, its originator
+  and its access, one of those terms; a template whose `section_order` lists `source_summary`
+  has the report carry a source summary statement (the source base's strengths and weaknesses,
+  the sources the key judgments depend on most, which sources corroborate and which conflict).
+  Every render numbers the sources and cites them by superscript number. A profile turns either
+  off with `template: {source_details: false}` or `template: {source_summary: false}`. The
+  writer reads a date and an author or publisher from an HTML page's `<meta>` elements and a
+  Word file's properties as hints, and a Coglossa export's note names its reliability tier (the
+  lowest tier among its scored spans), which the review screen's Sources tab shows too.
 - `draft: true` marks a profile that is still under review. A run cannot use a draft profile;
   remove the flag when the team has approved it.
 - `standards.default_pack` (default `icd203-base`) and `standards.default_profile` choose what a
@@ -397,8 +408,8 @@ pipeline:
   install never overwrites `config/packs/`) has no `with_prior_reports` block: the writer still
   reads the earlier judgments, and `icd203.tc.7` stays advisory; merge the block from
   `config/packs.example/icd203-base/rules/icd203.tc.7.yaml` to check it. The built-in `writer`
-  (v3) and `auditor` (v4) prompts ask for and read them, and say what the previous versions said
-  when a run read none; a `prompts_dir` override of either should mention
+  (v3 and later) and `auditor` (v4 and later) prompts ask for and read them, and say what the
+  versions before them said when a run read none; a `prompts_dir` override of either should mention
   `INPUT_JSON.prior_reports` and `changes_from_previous` itself.
 
 ### Uploads and the API
@@ -453,6 +464,51 @@ reload. `GET /api/discoveries/<id>` reports the limit that applies as `deadline_
 creation plus `worker.discovery_start_deadline_s` while it waits, and the worker's first claim
 plus `worker.discovery_deadline_s` once it has started. Raise `worker.discovery_deadline_s` for a slow model server, and
 `worker.concurrency` or `worker.discovery_start_deadline_s` when long runs keep the worker busy.
+
+### Scanned PDFs
+
+```yaml
+ingest: { ocr: off, ocr_languages: [eng] }   # off (the default) or auto
+```
+
+A PDF page that shows a picture and has no text layer (a scan, a photographed or faxed page) has
+no text to read. With `ocr: off` such an upload is refused with "needs OCR (needs_ocr)". With
+`ocr: auto`, Corelata reads those pages with Tesseract, an offline text recognition program in the
+app image: each page is rendered at 300 dpi and read in the languages `ocr_languages` lists, in
+Tesseract's codes (`eng`, `fra`, `deu`, `rus`, `ara`, `chi_sim`, ...). Pages that have a text layer
+are read as before; nothing leaves the machine. The demo configuration sets `ocr: auto`.
+
+Text recovered this way may contain recognition errors, so it is marked. Each passage read by
+OCR carries `ocr: true` and Tesseract's mean word confidence (0 to 100) in the trace; the writer
+and the auditor are told which passages came from a scan (prompts `writer/v4` and `auditor/v5`), so
+the source's reliability note and the quality-of-sources rule (`icd203.tc.1`) can say so; the report's Sources section, the Sources tab
+of the review screen and `corelata trace` say "text recovered by OCR (N pages)".
+
+The pages are read while the upload is answered, one page per CPU at a time across all uploads:
+about three seconds per page per CPU core, and up to six for a page of dense small print, so a
+50-page scan is answered in one to two minutes on four cores. The API sets
+no time limit on an upload, but a reverse proxy may: raise its read timeout (nginx:
+`proxy_read_timeout 5m;` in `location /`) if large scans fail with 504. A page with some text
+and a picture (a typed header over a scanned body) has a text layer and is not read by OCR.
+
+`corelata doctor` prints an `ocr` line: whether Tesseract is installed, its version and the
+languages it has. It warns when `ocr: auto` is set and Tesseract or one of `ocr_languages` is
+missing; such uploads are then refused with a message that names the problem.
+
+**Adding a language pack.** The app image carries Tesseract (about 90 MB with its libraries and
+the English pack, `eng`); each further pack adds 1 to 15 MB. A language is a Debian package,
+`tesseract-ocr-<code>` (with `_` written as `-`: `chi_sim` is `tesseract-ocr-chi-sim`), so it has
+to be in the image, and the image is built where there is internet access. On the build machine:
+
+```sh
+OCR_LANGUAGES="eng fra rus" deploy/bundle.sh --version 0.2.0-ocr   # codes separated by spaces
+deploy/tests/check-bundle.sh dist/corelata-0.2.0-ocr-linux-amd64.tar
+```
+
+Carry the bundle across and upgrade to it as in section 10; then add the codes to
+`ingest.ocr_languages` and apply the change ("Applying changes"). `corelata doctor` lists the
+languages the image has, and `docker image inspect --format '{{ index .Config.Labels
+"org.corelata.ocr-languages" }}' corelata/app:<version>` shows the ones it was built with.
 
 ### Coglossa
 
@@ -923,7 +979,9 @@ writable, and `/etc/corelata` is read-only), then
 `docker compose exec api corelata pack diff /data/files/run-<id> /etc/corelata/packs/icd203-base`.
 The exported directory's `trace.json` carries the snapshot.
 
-Take the rules you want, then run `pack validate` (section 5).
+Take the rules you want, then run `pack validate` (section 5). Base pack 1.1.0 (CRL-96) adds the
+`source_summary` section to `template.yaml`, the `source_access` list to `lexicon.yaml` and the
+ICD 206 D.3.d wording of `icd206.src.1`; a pack without them runs exactly as before.
 
 **Going back.** Migrations only go forward, so an older version cannot run on an upgraded
 database. Run `docker compose down` in the new directory, then restore the pre-upgrade backup
@@ -956,6 +1014,7 @@ with the state before the upgrade and starts the old version.
 | `restore.sh` stops with "could not list the database's schemas" | Read the lines under `psql said:` (a refused connection, a database that does not accept connections); start the database (`docker compose up -d --wait postgres`) or fix what psql names, then run the restore again. |
 | A report is `findings_open` and lists "Stages incomplete at delivery" (the review's banner says "Delivered without a full check" and names the step) | The auditor or the conveyor could not produce valid output after its repair turn and one retry, so the report was delivered without it. "audit incomplete" means the rules were not checked on the delivered draft (any findings listed are the previous audit's, plus the engine's own unsourced-claim checks on the delivered draft); "conveyance skipped" means the writer's draft was delivered unedited. The writing page shows the failed step and its error. Usually the model is too small for that role: give the role a stronger model, or set `structured_output: json_schema` if the server supports it, then return the report for a rerun. |
 | `doctor` or a run cannot reach a model server on the host (`host.docker.internal`) | The server listens on 127.0.0.1 only (Ollama's default), which a container cannot reach, or the host firewall blocks the Docker subnet. Make the server listen on 0.0.0.0 or on the Docker bridge address (for Ollama, `OLLAMA_HOST=0.0.0.0`), or allow the Docker subnet through the firewall. |
+| An upload is refused with "needs OCR (needs_ocr)" | The PDF has scanned pages (pictures with no text layer). Set `ingest.ocr: auto` (section 5, "Scanned PDFs"). If it already is, the message says Tesseract is missing or names the language it could not load: run `corelata doctor` and follow its `ocr` line. |
 | A profile is refused as a draft | It has `draft: true`. Review it and remove the flag. |
 | The web app shows "could not be reached" | The API is down or restarting: `docker compose ps api`, `docker compose logs api`. Behind a proxy, check the proxy too. |
 | 401 "missing X-Remote-User" | `auth.mode` is `trusted_header` and the request did not come through the proxy, or the header name differs. |
@@ -981,7 +1040,8 @@ without `-v`. If you ran the demo, remove it too:
   10001:10001, with the configuration read-only at `/etc/corelata`, the files volume at
   `/data/files`, the web app at `/opt/corelata/web` and the example sources at
   `/opt/corelata/examples`. The same image runs `migrate`, `worker` and `api`; only the command
-  differs.
+  differs. It also carries Tesseract and the language packs it was built with, for scanned PDFs
+  (section 5, "Scanned PDFs").
 - **The database image** is the official `postgres:16-alpine`, unchanged.
 - **`sbom/`** holds a software bill of materials in CycloneDX JSON for the app image
   (`app.cdx.json`), the database image (`postgres.cdx.json`) and the web app's dependencies

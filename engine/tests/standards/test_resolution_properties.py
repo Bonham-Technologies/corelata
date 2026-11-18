@@ -82,3 +82,32 @@ def test_disable_wins_and_add_appends_and_result_sorted(base_ids, data):
     # idempotent: resolving the resolved rules as a base with no profile changes nothing
     again = resolve([raw("base", resolved.rules)], None)
     assert again.rules == resolved.rules
+
+
+@settings(max_examples=40, deadline=None)
+@given(
+    summary=st.sampled_from([None, True, False]),
+    details=st.sampled_from([None, True, False]),
+    order=st.permutations(["title", "sources", "source_summary", "analysis"]),
+    access=st.lists(st.sampled_from(["direct", "indirect", "unknown"]), unique=True),
+)
+def test_source_switches_only_ever_turn_off_what_the_pack_has(summary, details, order, access):
+    """CRL-96: `false` drops the section or the access terms; `true` or absent changes nothing;
+    nothing else in the template or lexicon moves."""
+    base = raw("base", [rule("a.b.1")])
+    base.template = TEMPLATE.model_copy(update={"section_order": list(order)})
+    base.lexicon = LEXICON.model_copy(update={"source_access": access})
+    profile = Profile.model_validate(
+        {
+            "name": "p",
+            "extends": "base",
+            "template": {"source_summary": summary, "source_details": details},
+        }
+    )
+    plain = resolve([base], None)
+    resolved = resolve([base], profile)
+    want_order = [s for s in order if summary is not False or s != "source_summary"]
+    assert resolved.template.section_order == want_order
+    assert resolved.lexicon.source_access == ([] if details is False else access)
+    assert resolved.template.model_copy(update={"section_order": list(order)}) == plain.template
+    assert resolved.lexicon.model_copy(update={"source_access": access}) == plain.lexicon
