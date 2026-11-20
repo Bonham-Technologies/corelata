@@ -68,7 +68,12 @@ def _read_yaml(path: Path) -> object:
         return yaml.safe_load(path.read_text(encoding="utf-8"))
     except yaml.YAMLError as e:
         raise PackError(f"{path.name}: invalid YAML: {' '.join(str(e).split())}") from e
-    except (OSError, UnicodeDecodeError) as e:
+    except OSError as e:  # its text names the absolute path: the client gets the reason only
+        raise PackError(
+            f"{path.name}: cannot read: {e}",
+            public=f"{path.name}: cannot read: {e.strerror or type(e).__name__}",
+        ) from e
+    except UnicodeDecodeError as e:
         raise PackError(f"{path.name}: cannot read: {e}") from e
 
 
@@ -351,8 +356,9 @@ def _docx_reference_path(profile: Profile, owner: RawPack) -> Path | None:
     try:
         docx.Document(str(path))
     except DOCX_OPEN_ERRORS as e:
-        raise PackError(
-            f"profile '{profile.name}': docx_reference '{ref}' is not a readable .docx: {e}"
+        raise PackError(  # python-docx names the resolved path: the log gets it, not the client
+            f"profile '{profile.name}': docx_reference '{ref}' is not a readable .docx: {e}",
+            public=f"profile '{profile.name}': docx_reference '{ref}' is not a readable .docx",
         ) from e
     return path
 
