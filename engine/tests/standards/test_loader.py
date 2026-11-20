@@ -221,8 +221,24 @@ def test_find_pack_dir_prefers_customer_dir_then_builtin(tmp_path):
     write_pack(tmp_path, "icd203-base", rules=[RULE])
     assert find_pack_dir("icd203-base", tmp_path) == tmp_path / "icd203-base"
     assert find_pack_dir("icd203-base", None).name == "icd203-base"
-    with pytest.raises(PackError, match="pack 'zzz' not found"):
+    with pytest.raises(PackError, match="pack 'zzz' not found") as e:
         find_pack_dir("zzz", tmp_path)
+    # CRL-114: the operator sees where it looked; an API client sees only the name
+    assert str(tmp_path) in str(e.value) and e.value.public == "pack 'zzz' not found"
+
+
+def test_an_unreadable_pack_file_keeps_its_path_out_of_the_public_message(tmp_path):
+    pack = write_pack(tmp_path, "base", rules=[RULE])
+    (pack / "rules" / "zz.yaml").mkdir()  # globbed as a rule file; reading it fails
+    with pytest.raises(PackError) as e:
+        read_pack_dir(pack)
+    assert str(pack) in str(e.value)  # the OS names the absolute path: CLI and log only
+    assert e.value.public == "zz.yaml: cannot read: Is a directory"
+    (pack / "rules" / "zz.yaml").rmdir()
+    (pack / "rules" / "zz.yaml").write_bytes(b"id: \xff")  # no path in a decode error
+    with pytest.raises(PackError, match="zz.yaml: cannot read: 'utf-8' codec") as e:
+        read_pack_dir(pack)
+    assert e.value.public == str(e.value)
 
 
 def test_validate_pack_reports_issues_instead_of_raising(tmp_path):
@@ -325,8 +341,10 @@ def test_docx_reference_must_open_as_a_docx_at_pack_load(tmp_path, content):
         tmp_path, "base", rules=[RULE], profiles={"east": _profile_with_reference("t.docx")}
     )
     (pack / "t.docx").write_bytes(content)
-    with pytest.raises(PackError, match="not a readable .docx"):
+    with pytest.raises(PackError, match="not a readable .docx") as e:
         load_pack("base", packs_dir=tmp_path, profile="east")
+    # CRL-114: python-docx names the resolved path, which an API client never sees
+    assert e.value.public == "profile 'east': docx_reference 't.docx' is not a readable .docx"
     issues = validate_pack("base", packs_dir=tmp_path)
     where = (pack / "t.docx").resolve()
     assert [(i.level, i.message) for i in issues] == [

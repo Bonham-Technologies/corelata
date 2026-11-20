@@ -14,7 +14,7 @@ import corelata
 import httpx
 from corelata import service
 from corelata.config import CorelataConfig
-from corelata.integrations.coglossa import CoglossaClient
+from corelata.integrations.coglossa import MAX_EXPORT_BYTES, CoglossaClient
 from corelata.prompts.library import PromptLibrary
 from corelata.service import JobQueue
 from corelata.storage import build_storage
@@ -117,7 +117,14 @@ def create_app(
                         prompts=PromptLibrary(cfg.prompts_dir),
                         queue=queue,
                         coglossa=(
-                            CoglossaClient(cfg.integrations.coglossa, transport=coglossa_transport)
+                            CoglossaClient(
+                                cfg.integrations.coglossa,
+                                transport=coglossa_transport,
+                                # an import is an upload by another route (CRL-114)
+                                max_bytes=min(
+                                    MAX_EXPORT_BYTES, cfg.api.max_upload_mb * 1024 * 1024
+                                ),
+                            )
                             if cfg.integrations.coglossa is not None
                             else None
                         ),
