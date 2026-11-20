@@ -245,16 +245,17 @@ async def run_doctor(
     coglossa_transport: httpx.AsyncBaseTransport | None = None,
 ) -> DoctorReport:
     try:
-        cfg, issues = load_config(config_path)
+        # off the event loop, like every filesystem walk below: the API runs doctor (CRL-113)
+        cfg, issues = await asyncio.to_thread(load_config, config_path)
     except ConfigError as e:
         return DoctorReport.of(
             [_check("config", CheckStatus.FAIL, str(e), "edit the file; see corelata.example.yaml")]
         )
     checks = [_check("config", CheckStatus.PASS, f"{config_path} is valid")]
     checks += [_check("config", CheckStatus.WARN, i.message) for i in issues]
-    checks.append(_guard("prompts", lambda: _prompts(cfg)))
-    checks.append(_guard("pack", lambda: _pack(cfg)))
-    checks.append(_guard("pack names", lambda: _pack_names(cfg)))
+    checks.append(await asyncio.to_thread(_guard, "prompts", lambda: _prompts(cfg)))
+    checks.append(await asyncio.to_thread(_guard, "pack", lambda: _pack(cfg)))
+    checks.append(await asyncio.to_thread(_guard, "pack names", lambda: _pack_names(cfg)))
     checks += await _backends(cfg, probe, backends_factory)
     checks.append(await _aguard("database", lambda: _database(cfg)))
     # off the event loop: the API runs doctor for Settings, and S3 is a network call
