@@ -487,6 +487,22 @@ async def test_add_source_parses_off_the_event_loop(svc, monkeypatch):
     assert seen == ["_parse_stored"]
 
 
+async def test_start_run_reads_the_pack_and_reference_off_the_event_loop(svc, monkeypatch):
+    """CRL-113: loading the pack and reading its reference document walk the filesystem."""
+    seen: list[str] = []
+    to_thread = service.asyncio.to_thread
+
+    async def spy(fn, *args, **kwargs):
+        seen.append(fn.__name__)
+        return await to_thread(fn, *args, **kwargs)
+
+    pid = await svc.project()
+    sid = await svc.source(pid)
+    monkeypatch.setattr(service.asyncio, "to_thread", spy)
+    await svc.run(pid, [sid])
+    assert "_run_pack_and_reference" in seen
+
+
 class _DownApp:
     """A procrastinate app whose database is gone: its deferrer fails as the real one does,
     with a message-less ConnectorException and the driver error in __cause__."""
