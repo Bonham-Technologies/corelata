@@ -44,7 +44,13 @@ DOCX_OPEN_ERRORS = (
 
 
 class PackError(ValueError):
-    """A pack directory is unusable; the message names the file and the problem."""
+    """A pack directory is unusable; the message names the file and the problem. `public` is
+    what an API client sees: the message itself unless it names server paths, which only the
+    log gets (CRL-114, the rule of CRL-75 and CRL-86)."""
+
+    def __init__(self, message: str, *, public: str | None = None) -> None:
+        super().__init__(message)
+        self.public = message if public is None else public
 
 
 @dataclass
@@ -80,7 +86,9 @@ def find_pack_dir(name: str, packs_dir: Path | None) -> Path:
         if base is not None and (base / name / "pack.yaml").is_file():
             return base / name
     looked = ", ".join(str(b) for b in (packs_dir, BUILTIN_PACKS_DIR) if b is not None)
-    raise PackError(f"pack '{name}' not found (looked in {looked})")
+    raise PackError(
+        f"pack '{name}' not found (looked in {looked})", public=f"pack '{name}' not found"
+    )
 
 
 def read_pack_dir(path: Path) -> RawPack:
