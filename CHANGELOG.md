@@ -5,4 +5,4 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
-- `GET /api/system/doctor` no longer probes the model servers unless asked (`probe=true`), and concurrent or repeated probes within 30 s share one run. Ticket: CRL-112
+- `GET /api/system/doctor` no longer sends test completions unless asked: an API caller that wants them now passes `probe=true`. Concurrent or repeated probes within 30 s share one run. Ticket: CRL-112
