@@ -26,6 +26,7 @@ from fastapi import APIRouter, Depends, FastAPI, Request
 
 from corelata_api.auth import current_user
 from corelata_api.context import ApiContext
+from corelata_api.doctor_cache import DoctorCache
 from corelata_api.errors import ErrorBody, install_error_handlers
 from corelata_api.headers import SecurityHeadersMiddleware
 from corelata_api.pack_index import PackIndex
@@ -123,6 +124,7 @@ def create_app(
                         renders=RenderCache(max_bytes=cfg.api.render_cache_mb * 1024 * 1024),
                         progress=feed,
                         packs=PackIndex(cfg.standards.packs_dir),
+                        doctor=DoctorCache(),
                     )
                 except BaseException:
                     if kicker is not None:  # nothing else would close its HTTP client

@@ -4502,7 +4502,7 @@
     },
     "/api/system/doctor": {
       "get": {
-        "description": "The checks `corelata doctor` runs, from the API's own config file. The one route that\ntalks to the model servers (spec §10.1); `probe=false` skips the test completions.",
+        "description": "The checks `corelata doctor` runs, from the API's own config file. The one route that\ntalks to the model servers (spec §10.1), and only with `probe=true`, which adds a test\ncompletion per model. Probing runs are shared by concurrent callers and reused for 30 s\n(CRL-112), so repeated calls do not load the model servers the runs use.",
         "operationId": "get_doctor_api_system_doctor_get",
         "parameters": [
           {
@@ -4510,7 +4510,7 @@
             "name": "probe",
             "required": false,
             "schema": {
-              "default": true,
+              "default": false,
               "title": "Probe",
               "type": "boolean"
             }

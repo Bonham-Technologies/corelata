@@ -12,6 +12,7 @@ from corelata.storage import Storage
 from corelata.store.db import Database
 from fastapi import Depends, Request
 
+from corelata_api.doctor_cache import DoctorCache
 from corelata_api.pack_index import PackIndex
 from corelata_api.progress_feed import ProgressFeed
 from corelata_api.render_cache import RenderCache
@@ -29,6 +30,7 @@ class ApiContext:
     renders: RenderCache  # claim-id re-renders per (run, format), within api.render_cache_mb
     progress: ProgressFeed  # one poller per run for the SSE streams, woken by NOTIFY (CRL-22)
     packs: PackIndex  # the pack listing, re-read when a pack file changes (CRL-8)
+    doctor: DoctorCache  # one probing doctor run at a time, reused for 30 s (CRL-112)
 
 
 def get_context(request: Request) -> ApiContext:

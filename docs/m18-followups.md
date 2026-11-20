@@ -167,6 +167,13 @@ Found by the whole-branch review:
 
 ## Later
 
+- `GET /api/system/doctor` gives every signed-in user the config path, the storage target and the
+  model servers' URLs, which CRL-75 and CRL-86 removed from error bodies. Decision (CRL-112): keep
+  them. Corelata has no roles (`SettingsPage` above), so every signed-in user already sees the
+  deployment's Settings, and an operator needs them under Technical details to act on a failed
+  check. Since CRL-112 the route probes only with `probe=true`, and a probe is shared and reused
+  for 30 s, so a caller can no longer make it load the model servers. Revisit if roles land: a
+  non-operator would then get the checks' names and statuses without their messages.
 - Phone-sized layouts (spec §20).
 - ~~The sidebar polls `GET /api/projects` every 5 s while any report is being written; a project
   summary in the run channel's notifications would let it follow without polling.~~ — **CRL-63**:
