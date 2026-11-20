@@ -32,5 +32,8 @@ out=$(deploy/check-release-tag.sh v1.2.4 2>&1) && fail "a tag naming another ver
 git tag -f v1.2.3 "$(git rev-parse v1.2.3-branch)" >/dev/null
 out=$(deploy/check-release-tag.sh v1.2.3 2>&1) && fail "a tag off main passed"
 [[ "$out" == *"is not on origin/main"* ]] || fail "wrong ancestry message: $out"
-out=$(deploy/check-release-tag.sh v9.9.9 2>&1) && fail "a missing tag passed"
+# a tag that names the version but is not in the clone (the version check alone would pass)
+git tag -d v1.2.3 >/dev/null
+out=$(deploy/check-release-tag.sh v1.2.3 2>&1) && fail "a missing tag passed"
+[[ "$out" == *"no tag v1.2.3"* ]] || fail "wrong missing-tag message: $out"
 echo "ok: check-release-tag.sh"

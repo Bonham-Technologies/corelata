@@ -85,6 +85,8 @@ jobs:
         run: |
           v=${GITHUB_REF_NAME#v}
           gh run download "$GITHUB_RUN_ID" --name release --dir release
+          # the files arrived as the build job wrote them (gh does not check the artifact digest)
+          (cd release && sha256sum -c "corelata-$v-linux-amd64.tar.sha256" && sha256sum -c SHA256SUMS)
           gh release create "$GITHUB_REF_NAME" \
             "release/corelata-$v-linux-amd64.tar" \
             "release/corelata-$v-linux-amd64.tar.sha256" \

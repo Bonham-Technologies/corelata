@@ -28,7 +28,7 @@ corelata-<version>/
   install.sh  backup.sh  restore.sh    install or upgrade, back up, restore
   operator-guide.md                    this guide
   sbom/                                software bills of materials (CycloneDX)
-  manifest.json                        version, commit, platform, image ids, packs
+  manifest.json                        version, commit, platform, image ids, Postgres digest, packs
   VERSION                              the bundle's version
   SHA256SUMS                           checksums of every file in the bundle
 ```
@@ -1047,7 +1047,8 @@ without `-v`. If you ran the demo, remove it too:
   (`app.cdx.json`), the database image (`postgres.cdx.json`) and the web app's dependencies
   (`web.cdx.json`).
 - **`manifest.json`** records the bundle's `version`, the source `commit`, the `platform`, when it
-  was built, the id and tag of each image, and the `packs` it carries.
+  was built, the id and tag of each image, the digest the database image was pulled by
+  (`postgres_image`), and the `packs` it carries.
 - **Versions.** `VERSION`, the image's `org.opencontainers.image.version` label
   (`docker image inspect corelata/app:<version>`), `manifest.json`, `GET /api/health`, the foot of
   the web app's sidebar, Settings ▸ Technical details and `corelata --version` all carry the bundle's version. The Python package

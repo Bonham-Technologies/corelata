@@ -33,4 +33,4 @@
 - `purge_closed_jobs` never purges a job with neither `scheduled_at` nor events (the safe direction; such rows would accumulate if procrastinate ever stopped writing events).
 - Migration 0003 creates its indexes without `IF NOT EXISTS`; a hand-created index of the same name would fail the install-time migrate.
 - ~~`restore.sh` keeps `2>/dev/null` on the schema query, so psql's own error is hidden behind the die message.~~ — **closed in M15** (CRL-36). — CRL-36
-- Pin `postgres:16-alpine` by digest across `bundle.sh`, `check-bundle.sh` and the compose files.
+- ~~Pin `postgres:16-alpine` by digest across `bundle.sh`, `check-bundle.sh` and the compose files.~~ — CRL-115
