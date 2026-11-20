@@ -228,6 +228,36 @@ async def test_the_storage_check_runs_off_the_event_loop(tmp_path, server, monke
     assert on_loop == [False]
 
 
+async def test_config_prompts_and_pack_checks_run_off_the_event_loop(tmp_path, server, monkeypatch):
+    """CRL-113: each reads files a customer may keep on a slow or network-mounted disk."""
+    import corelata.doctor as doctor
+
+    on_loop: dict[str, bool] = {}
+
+    def watched(name, fn):
+        def run(*args, **kwargs):
+            try:
+                asyncio.get_running_loop()
+            except RuntimeError:
+                on_loop[name] = False  # a worker thread: what we want
+            else:
+                on_loop[name] = True
+            return fn(*args, **kwargs)
+
+        return run
+
+    for name in ("load_config", "_prompts", "_pack", "_pack_names"):
+        monkeypatch.setattr(doctor, name, watched(name, getattr(doctor, name)))
+    report = await run_doctor(_config(tmp_path, server.base_url), probe=False)
+    assert _by_name(report)["pack"].status is CheckStatus.PASS
+    assert on_loop == {
+        "load_config": False,
+        "_prompts": False,
+        "_pack": False,
+        "_pack_names": False,
+    }
+
+
 async def test_storage_not_writable(tmp_path, server):
     blocker = tmp_path / "file"
     blocker.write_text("x")
