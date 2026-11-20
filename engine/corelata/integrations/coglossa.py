@@ -2,6 +2,7 @@
 translation by run id instead of uploading the file. The adapter path after the fetch is the
 same as for an upload (`service.add_source(..., coglossa_export=True)`)."""
 
+import json
 import os
 import re
 
@@ -12,23 +13,40 @@ from corelata.config import CoglossaIntegration
 _RUN_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 USER_HEADER = "X-Remote-User"  # Coglossa's trusted header (its default auth.header)
 MAX_EXPORT_BYTES = 50 * 1024 * 1024
+# An error answer is read only this far: its detail is cut to 200 characters anyway (CRL-114).
+MAX_ERROR_BODY_BYTES = 64 * 1024
+UNREACHABLE = "cannot reach Coglossa; the operator's log has the reason"
 
 
 class CoglossaFetchError(Exception):
-    """The export could not be fetched; `status` is the HTTP status the API answers with."""
+    """The export could not be fetched; `status` is the HTTP status the API answers with. The
+    message is what the client sees; `log_detail`, when set, is what only the log gets, since it
+    names Coglossa's address (CRL-114, the rule of CRL-75 and CRL-86)."""
 
-    def __init__(self, message: str, *, status: int) -> None:
+    def __init__(self, message: str, *, status: int, log_detail: str | None = None) -> None:
         super().__init__(message)
         self.status = status
+        self.log_detail = log_detail
 
 
-def _detail(response: httpx.Response) -> str:
+async def _read_error_body(response: httpx.Response) -> bytes:
+    """At most MAX_ERROR_BODY_BYTES of an error answer; the rest is never read."""
+    body = b""
+    async for chunk in response.aiter_bytes():
+        body += chunk
+        if len(body) >= MAX_ERROR_BODY_BYTES:
+            return body[:MAX_ERROR_BODY_BYTES]
+    return body
+
+
+def _detail(body: bytes) -> str:
+    text = body.decode("utf-8", errors="replace")
     try:
-        payload = response.json()
+        payload = json.loads(text)
     except ValueError:
         payload = None
     detail = payload.get("detail") if isinstance(payload, dict) else None
-    text = detail if isinstance(detail, str) else response.text
+    text = detail if isinstance(detail, str) else text
     return " ".join(text.split())[:200]
 
 
@@ -90,19 +108,22 @@ class CoglossaClient:
                             )
                         chunks.append(chunk)
                     return b"".join(chunks)
-                await response.aread()
+                body = await _read_error_body(response)
         except (httpx.HTTPError, httpx.InvalidURL) as e:
             raise CoglossaFetchError(
-                f"cannot reach Coglossa at {self.cfg.base_url}: {str(e) or type(e).__name__}",
+                UNREACHABLE,
                 status=502,
+                log_detail=(
+                    f"cannot reach Coglossa at {self.cfg.base_url}: {str(e) or type(e).__name__}"
+                ),
             ) from e
         if response.status_code == 404:
             raise CoglossaFetchError(f"Coglossa run {run_id} not found", status=404)
         if response.status_code == 409:
             raise CoglossaFetchError(
-                f"Coglossa run {run_id} is not complete: {_detail(response)}", status=409
+                f"Coglossa run {run_id} is not complete: {_detail(body)}", status=409
             )
         raise CoglossaFetchError(
-            f"Coglossa answered {response.status_code} for run {run_id}: {_detail(response)}",
+            f"Coglossa answered {response.status_code} for run {run_id}: {_detail(body)}",
             status=502,
         )

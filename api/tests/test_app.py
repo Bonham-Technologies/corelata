@@ -120,9 +120,13 @@ ERRORS = {
         "Coglossa run r not found",
     ),
     "coglossa_down": (
-        CoglossaFetchError("cannot reach Coglossa at http://c: refused", status=502),
+        CoglossaFetchError(
+            "cannot reach Coglossa; the operator's log has the reason",
+            status=502,
+            log_detail="cannot reach Coglossa at http://c: refused",
+        ),
         502,
-        "cannot reach Coglossa at http://c: refused",
+        "cannot reach Coglossa; the operator's log has the reason",
     ),
     "state": (InvalidRunStateError("run 1 is failed"), 409, "run 1 is failed"),
     "too_large": (
@@ -144,6 +148,14 @@ ERRORS = {
         PackError("profile 'z' not found in pack 'icd203-base'"),
         422,
         "profile 'z' not found in pack 'icd203-base'",
+    ),
+    "pack_missing": (
+        PackError(
+            "pack 'acme' not found (looked in /srv/packs, /opt/corelata/site-packages)",
+            public="pack 'acme' not found",
+        ),
+        422,
+        "pack 'acme' not found",
     ),
     "config": (ConfigError("bad\n  config"), 500, "bad config"),
     "storage": (StorageError("disk full"), 500, _STORAGE_DOWN),
@@ -244,6 +256,60 @@ async def test_a_storage_failure_keeps_its_paths_in_the_log_not_the_response(wri
     [record] = [r for r in caplog.records if r.name == "corelata.api"]
     assert record.levelno == logging.ERROR
     assert reason in record.getMessage() and "/api/boom" in record.getMessage()
+
+
+@pytest.mark.parametrize(
+    ("exc", "detail", "logged"),
+    [
+        (
+            CoglossaFetchError(
+                "cannot reach Coglossa; the operator's log has the reason",
+                status=502,
+                log_detail="cannot reach Coglossa at http://10.0.0.7:8081: connection refused",
+            ),
+            "cannot reach Coglossa; the operator's log has the reason",
+            "cannot reach Coglossa at http://10.0.0.7:8081: connection refused",
+        ),
+        (
+            PackError(
+                "pack 'acme' not found (looked in /srv/packs, /opt/corelata/site-packages)",
+                public="pack 'acme' not found",
+            ),
+            "pack 'acme' not found",
+            "pack 'acme' not found (looked in /srv/packs, /opt/corelata/site-packages)",
+        ),
+    ],
+    ids=["coglossa", "pack"],
+)
+async def test_hosts_and_paths_go_to_the_log_not_the_response(
+    write_config, caplog, exc, detail, logged
+):
+    """CRL-114: the rest of CRL-75 and CRL-86."""
+    path = write_config()
+    cfg, _ = load_config(path)
+    app = create_app(cfg, path)
+
+    async def boom() -> dict:
+        raise exc
+
+    app.add_api_route("/api/boom", boom, methods=["GET"])
+    with caplog.at_level(logging.WARNING, logger="corelata.api"):
+        async with serve(app) as client:
+            response = await client.get("/api/boom")
+    assert response.json() == {"detail": detail}
+    for secret in ("10.0.0.7", "8081", "/srv", "site-packages"):
+        assert secret not in response.text
+    [record] = [r for r in caplog.records if r.name == "corelata.api"]
+    assert record.levelno == logging.WARNING and record.getMessage() == logged
+
+
+async def test_a_coglossa_import_is_held_to_the_upload_limit(make_api):
+    """CRL-114: the fetch honours min(50 MB, api.max_upload_mb)."""
+    coglossa = {"base_url": "http://coglossa.test"}
+    async with make_api(api={"max_upload_mb": 2}, integrations={"coglossa": coglossa}) as small:
+        assert small.app.state.ctx.coglossa.max_bytes == 2 * 1024 * 1024
+    async with make_api(api={"max_upload_mb": 500}, integrations={"coglossa": coglossa}) as big:
+        assert big.app.state.ctx.coglossa.max_bytes == 50 * 1024 * 1024
 
 
 async def test_a_utf8_user_name_survives_the_latin1_header_decoding(make_api):

@@ -40,7 +40,6 @@ _STATUS: tuple[tuple[type[Exception], int], ...] = (
     (UploadTooLargeError, 413),
     (InvalidRequestError, 422),
     (IngestError, 422),
-    (PackError, 422),  # an unknown or draft profile on POST /runs
     (ConfigError, 500),
 )
 
@@ -88,7 +87,18 @@ async def _storage_down(request: Request, exc: Exception) -> JSONResponse:
 
 async def _coglossa_failed(request: Request, exc: Exception) -> JSONResponse:
     assert isinstance(exc, CoglossaFetchError)
+    if exc.log_detail is not None:
+        log.warning("%s", exc.log_detail)
     return _response(exc.status, str(exc))
+
+
+async def _pack_failed(request: Request, exc: Exception) -> JSONResponse:
+    """An unknown pack or profile on POST /runs (422). A message that names server paths goes
+    to the log; the client gets the pack's own name (CRL-114)."""
+    assert isinstance(exc, PackError)
+    if exc.public != str(exc):
+        log.warning("%s", exc)
+    return _response(422, exc.public)
 
 
 async def _internal(request: Request, exc: Exception) -> JSONResponse:
@@ -103,6 +113,7 @@ def install_error_handlers(app: FastAPI) -> None:
     for exc_type, status in _STATUS:
         app.add_exception_handler(exc_type, _handler(status))
     app.add_exception_handler(CoglossaFetchError, _coglossa_failed)
+    app.add_exception_handler(PackError, _pack_failed)
     app.add_exception_handler(QueueUnavailableError, _queue_down)
     app.add_exception_handler(StorageError, _storage_down)
     # Mirrors corelata.worker.execute.DB_ERRORS (not imported: the API does not import the worker).

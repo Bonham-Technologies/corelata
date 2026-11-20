@@ -4,7 +4,7 @@ import httpx
 import pytest
 
 from corelata.config import CoglossaIntegration
-from corelata.integrations.coglossa import CoglossaClient, CoglossaFetchError
+from corelata.integrations.coglossa import MAX_ERROR_BODY_BYTES, CoglossaClient, CoglossaFetchError
 
 EXPORT = {"schema_version": "1", "spans": []}
 
@@ -100,7 +100,12 @@ async def test_fetch_export_reports_an_unreachable_coglossa():
     with pytest.raises(CoglossaFetchError) as info:
         await _client(handler).fetch_export("run-42", user=None)
     assert info.value.status == 502
-    assert str(info.value) == "cannot reach Coglossa at http://coglossa.test/: connection refused"
+    # CRL-114: the client gets a fixed sentence; Coglossa's address is for the log only
+    assert str(info.value) == "cannot reach Coglossa; the operator's log has the reason"
+    assert "coglossa.test" not in str(info.value)
+    assert info.value.log_detail == (
+        "cannot reach Coglossa at http://coglossa.test/: connection refused"
+    )
 
 
 async def test_fetch_export_names_an_exception_that_has_no_message():
@@ -110,7 +115,7 @@ async def test_fetch_export_names_an_exception_that_has_no_message():
     with pytest.raises(CoglossaFetchError) as info:
         await _client(handler).fetch_export("run-42", user=None)
     assert info.value.status == 502
-    assert str(info.value).endswith(": ReadTimeout")
+    assert info.value.log_detail is not None and info.value.log_detail.endswith(": ReadTimeout")
 
 
 @pytest.mark.parametrize("run_id", ["", "   ", "a/b", "a b", "x" * 65, "../etc"])
@@ -154,3 +159,40 @@ async def test_fetch_export_refuses_an_oversized_body():
     with pytest.raises(CoglossaFetchError) as e:
         await client.fetch_export("run-1", user=None)
     assert e.value.status == 502 and "larger than 1024 bytes" in str(e.value)
+
+
+async def test_fetch_export_reads_at_most_64_kb_of_an_error_answer():
+    """CRL-114: an error body of any size is read only as far as its detail needs."""
+    sent = 0
+
+    async def stream():
+        nonlocal sent
+        for _ in range(1024):  # 64 MB if read to the end
+            sent += 1
+            yield b"x" * 65536
+
+    class Body(httpx.AsyncByteStream):
+        async def __aiter__(self):
+            async for chunk in stream():
+                yield chunk
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(500, stream=Body())
+
+    with pytest.raises(CoglossaFetchError) as info:
+        await _client(handler).fetch_export("run-42", user=None)
+    assert info.value.status == 502
+    assert str(info.value) == "Coglossa answered 500 for run run-42: " + "x" * 200
+    assert sent <= 2
+
+
+async def test_fetch_export_details_an_error_answer_cut_inside_a_character():
+    body = b"\xc3" * (MAX_ERROR_BODY_BYTES + 10)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(409, content=body)
+
+    with pytest.raises(CoglossaFetchError) as info:
+        await _client(handler).fetch_export("run-42", user=None)
+    assert info.value.status == 409
+    assert str(info.value).startswith("Coglossa run run-42 is not complete: \ufffd")
