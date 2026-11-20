@@ -13,7 +13,12 @@ sha256() { if command -v sha256sum >/dev/null; then sha256sum "$@"; else shasum 
 PLATFORM=${PLATFORM:-linux/amd64}
 # The tarball name, manifest and check-bundle.sh all say linux/amd64 (the air-gapped hosts).
 [ "$PLATFORM" = linux/amd64 ] || die "PLATFORM=$PLATFORM is not supported; the bundle is linux/amd64 only"
-POSTGRES_IMAGE=postgres:16-alpine
+# Pulled by digest, so a re-pushed tag cannot change the bundle's database (CRL-115). The image
+# is saved under POSTGRES_TAG, the name compose.yaml runs: an engine on the classic image store
+# keeps no digest through `docker load`. compose.dev.yaml and ci.yml use the same digest
+# (deploy/tests/check_compose.py and check_workflows.py hold them to this line).
+POSTGRES_TAG=postgres:16-alpine
+POSTGRES_IMAGE=$POSTGRES_TAG@sha256:1d5b02d3a9941fbd52437db4107f8c52d6297dac553ca1e5c299ebb3756b4857
 OCR_LANGUAGES=${OCR_LANGUAGES:-eng}
 [[ "$OCR_LANGUAGES" =~ ^[A-Za-z0-9_\ ]+$ ]] || die "OCR_LANGUAGES='$OCR_LANGUAGES': give Tesseract codes separated by spaces, such as \"eng fra\""
 SYFT_IMAGE=anchore/syft:v1.18.1
@@ -56,8 +61,9 @@ docker build --provenance=false --platform "$PLATFORM" -f "$repo/deploy/docker/a
   --build-arg VERSION="$version" --build-arg OCR_LANGUAGES="$OCR_LANGUAGES" -t "$app" "$repo"
 "$repo/deploy/tests/check-app-image.sh" "$app"
 docker pull --platform "$PLATFORM" "$POSTGRES_IMAGE"
+docker tag "$POSTGRES_IMAGE" "$POSTGRES_TAG"
 docker save -o "$stage/images/app.tar" "$app"
-docker save -o "$stage/images/postgres.tar" "$POSTGRES_IMAGE"
+docker save -o "$stage/images/postgres.tar" "$POSTGRES_TAG"
 
 echo "== files"
 for f in compose.yaml compose.demo.yaml; do
@@ -99,10 +105,10 @@ done
 sbom web dir:/src "$repo/web:/src:ro" --exclude './node_modules/**'
 
 echo "== manifest and checksums"
-python3 - "$stage" "$version" "$(git -C "$repo" rev-parse HEAD)" "$PLATFORM" "$app" "$POSTGRES_IMAGE" <<'PY'
+python3 - "$stage" "$version" "$(git -C "$repo" rev-parse HEAD)" "$PLATFORM" "$POSTGRES_IMAGE" "$app" "$POSTGRES_TAG" <<'PY'
 import datetime, json, subprocess, sys
 from pathlib import Path
-stage, version, commit, platform, *images = sys.argv[1:]
+stage, version, commit, platform, postgres_pin, *images = sys.argv[1:]
 def inspect(image):
     out = subprocess.run(["docker", "image", "inspect", image], capture_output=True, text=True, check=True)
     info = json.loads(out.stdout)[0]
@@ -112,6 +118,7 @@ manifest = {
     "version": version, "commit": commit, "platform": platform,
     "built_at": datetime.datetime.now(datetime.UTC).isoformat(timespec="seconds"),
     "images": [{"file": f, "tag": i, **inspect(i)} for f, i in zip(files, images)],
+    "postgres_image": postgres_pin,  # the digest bundle.sh pulled (CRL-115)
     "packs": sorted(p.name for p in Path(stage, "config", "packs.example").iterdir() if p.is_dir()),
 }
 Path(stage, "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")

@@ -69,6 +69,7 @@ deploy-check:
 	$(SHELLCHECK) deploy/*.sh deploy/tests/*.sh deploy/hosted/vercel/*.sh
 	deploy/tests/test-install.sh
 	deploy/tests/test-restore.sh
+	deploy/tests/test-release-tag.sh
 	python3 deploy/tests/check_compose.py
 	python3 deploy/tests/check_workflows.py
 

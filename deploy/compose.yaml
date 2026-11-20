@@ -29,6 +29,7 @@ x-app: &app
 
 services:
   postgres:
+    # the bundle loads this tag from images/postgres.tar, pulled by digest (bundle.sh, manifest.json)
     image: postgres:16-alpine
     restart: unless-stopped
     environment:

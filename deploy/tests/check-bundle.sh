@@ -58,6 +58,10 @@ manifest = json.loads((b / "manifest.json").read_text())
 assert manifest["version"] == version, manifest["version"]
 assert manifest["platform"] == "linux/amd64"
 assert manifest["packs"] == ["icd203-base"], manifest["packs"]
+pin = manifest["postgres_image"]  # CRL-115: the database image is pinned by digest
+assert pin.startswith("postgres:16-alpine@sha256:") and len(pin) == len("postgres:16-alpine@sha256:") + 64, pin
+[postgres] = [i for i in manifest["images"] if i["file"] == "images/postgres.tar"]
+assert any(d.endswith(pin.split("@")[1]) for d in postgres["repo_digests"]), (pin, postgres["repo_digests"])
 expected = {"app.tar": f"corelata/app:{version}", "postgres.tar": "postgres:16-alpine"}
 for archive, tag in expected.items():
     with tarfile.open(b / "images" / archive) as t:
