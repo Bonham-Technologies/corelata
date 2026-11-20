@@ -1,4 +1,5 @@
 import asyncio
+import gc
 
 import pytest
 from corelata.schema import CheckStatus, DoctorCheck, DoctorReport
@@ -75,6 +76,9 @@ async def test_a_caller_that_goes_away_does_not_cancel_the_run_for_the_others():
 
 
 async def test_a_run_that_fails_after_every_caller_left_is_not_reported_as_unretrieved():
+    loop = asyncio.get_running_loop()
+    reported = []
+    loop.set_exception_handler(lambda _loop, context: reported.append(context))
     cache = DoctorCache()
     release = asyncio.Event()
 
@@ -89,6 +93,10 @@ async def test_a_run_that_fails_after_every_caller_left_is_not_reported_as_unret
     release.set()
     for _ in range(3):
         await asyncio.sleep(0)
+    del caller
+    gc.collect()  # a task whose exception nobody retrieved reports it when it is collected
+    loop.set_exception_handler(None)
+    assert reported == []
     assert (await cache.get(lambda: _ok())).checks[0].message == "ok"
 
 
