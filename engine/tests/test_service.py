@@ -1,3 +1,4 @@
+import asyncio
 import io
 import json
 import uuid
@@ -489,18 +490,23 @@ async def test_add_source_parses_off_the_event_loop(svc, monkeypatch):
 
 async def test_start_run_reads_the_pack_and_reference_off_the_event_loop(svc, monkeypatch):
     """CRL-113: loading the pack and reading its reference document walk the filesystem."""
-    seen: list[str] = []
-    to_thread = service.asyncio.to_thread
+    on_loop: list[bool] = []
+    load_run_pack = service.load_run_pack
 
-    async def spy(fn, *args, **kwargs):
-        seen.append(fn.__name__)
-        return await to_thread(fn, *args, **kwargs)
+    def watched(cfg, profile):
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            on_loop.append(False)  # a worker thread: what we want
+        else:
+            on_loop.append(True)
+        return load_run_pack(cfg, profile)
 
+    monkeypatch.setattr(service, "load_run_pack", watched)
     pid = await svc.project()
     sid = await svc.source(pid)
-    monkeypatch.setattr(service.asyncio, "to_thread", spy)
     await svc.run(pid, [sid])
-    assert "_run_pack_and_reference" in seen
+    assert on_loop == [False]
 
 
 class _DownApp:
