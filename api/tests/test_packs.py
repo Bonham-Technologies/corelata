@@ -7,6 +7,7 @@ import yaml
 from corelata.standards.loader import PACK_NAME_MAX_LENGTH
 
 from corelata_api import pack_index
+from corelata_api.routes import packs
 
 
 async def test_list_packs_shows_the_builtin_pack(api):
@@ -134,3 +135,21 @@ async def test_the_pack_walk_runs_off_the_event_loop(make_api, monkeypatch):
         now["t"] += 2.0  # past the interval: the _known path walks again
         assert (await api.client.get("/api/packs/icd203-base/validate")).status_code == 200
         assert threads == [False, False]
+
+
+async def test_resolving_and_validating_run_off_the_event_loop(api, monkeypatch):
+    """CRL-113: both read the pack's directories on every call."""
+    threads: dict[str, bool] = {}
+
+    def watched(name, fn):
+        def run(*args, **kwargs):
+            threads[name] = threading.current_thread() is threading.main_thread()
+            return fn(*args, **kwargs)
+
+        return run
+
+    monkeypatch.setattr(packs, "load_pack", watched("load_pack", packs.load_pack))
+    monkeypatch.setattr(packs, "validate_pack", watched("validate_pack", packs.validate_pack))
+    assert (await api.client.get("/api/packs/icd203-base/resolved")).status_code == 200
+    assert (await api.client.get("/api/packs/icd203-base/validate")).status_code == 200
+    assert threads == {"load_pack": False, "validate_pack": False}

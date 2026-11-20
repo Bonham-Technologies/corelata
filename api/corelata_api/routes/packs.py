@@ -44,11 +44,13 @@ async def get_packs(ctx: Ctx) -> list[PackSummary]:
 async def get_resolved(name: PackName, ctx: Ctx, profile: str | None = None) -> ResolvedPack:
     """The pack as a run would snapshot it (spec §6.6); draft profiles may be inspected here."""
     await _known(ctx, name)
-    return load_pack(name, packs_dir=ctx.cfg.standards.packs_dir, profile=profile, allow_draft=True)
+    return await asyncio.to_thread(
+        load_pack, name, packs_dir=ctx.cfg.standards.packs_dir, profile=profile, allow_draft=True
+    )
 
 
 @router.get("/packs/{name}/validate")
 async def get_validation(name: PackName, ctx: Ctx) -> PackValidation:
     await _known(ctx, name)
-    issues = validate_pack(name, packs_dir=ctx.cfg.standards.packs_dir)
+    issues = await asyncio.to_thread(validate_pack, name, packs_dir=ctx.cfg.standards.packs_dir)
     return PackValidation(ok=all(i.level != "error" for i in issues), issues=issues)

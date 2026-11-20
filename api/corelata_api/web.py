@@ -1,6 +1,7 @@
 """Serve the built web app (spec §10.3) from api.web_dir: hashed assets forever, everything else
 the index so the SPA router owns the URL. Copied from Coglossa."""
 
+import asyncio
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -34,10 +35,9 @@ def mount_web(app: FastAPI, web_dir: Path) -> None:
     if (root / "assets").is_dir():
         app.mount("/assets", _Assets(directory=root / "assets"), name="assets")
 
-    @app.get("/{path:path}", include_in_schema=False)
-    async def web_app(path: str) -> FileResponse:
-        if path == "api" or path.startswith("api/"):
-            raise HTTPException(status_code=404)
+    def static_file(path: str) -> Path | None:
+        """The file under the web root that `path` names, other than the index; None for a
+        route the SPA owns."""
         try:
             candidate = (root / path).resolve()
             if (
@@ -46,7 +46,17 @@ def mount_web(app: FastAPI, web_dir: Path) -> None:
                 and candidate.is_file()
                 and candidate.is_relative_to(root)
             ):
-                return FileResponse(candidate)
+                return candidate
         except (OSError, ValueError):  # a null byte or an over-long name is not a file
             pass
+        return None
+
+    @app.get("/{path:path}", include_in_schema=False)
+    async def web_app(path: str) -> FileResponse:
+        if path == "api" or path.startswith("api/"):
+            raise HTTPException(status_code=404)
+        # off the event loop: resolve() and is_file() touch the filesystem (CRL-113)
+        found = await asyncio.to_thread(static_file, path)
+        if found is not None:
+            return FileResponse(found)
         return FileResponse(index, headers={"Cache-Control": "no-cache"})

@@ -1,3 +1,6 @@
+import threading
+from pathlib import Path
+
 import pytest
 from corelata.config import load_config
 
@@ -53,3 +56,19 @@ async def test_paths_outside_the_web_dir_fall_back_to_the_index(web):
 
 async def test_posting_to_a_page_is_405(web):
     assert (await web.post("/runs/1")).status_code == 405
+
+
+async def test_the_static_file_lookup_runs_off_the_event_loop(web, web_dir, monkeypatch):
+    """CRL-113: resolve() and is_file() touch the disk on every path the SPA serves."""
+    on_main: list[bool] = []
+    is_file = Path.is_file
+
+    def watched(self):
+        if self.is_relative_to(web_dir.resolve()):
+            on_main.append(threading.current_thread() is threading.main_thread())
+        return is_file(self)
+
+    monkeypatch.setattr(Path, "is_file", watched)
+    assert (await web.get("/favicon.svg")).text == "<svg/>"
+    assert (await web.get("/runs/123/review")).status_code == 200
+    assert on_main and not any(on_main)

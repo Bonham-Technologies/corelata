@@ -40,6 +40,7 @@ from corelata.schema import (
     Usage,
 )
 from corelata.standards.loader import pack_hash
+from corelata.standards.schema import ResolvedPack
 from corelata.storage import Storage, StorageError, display_name, safe_filename, storage_call
 from corelata.store import discoveries, records, runs
 from corelata.store.db import Database, error_reason
@@ -435,10 +436,8 @@ async def start_run(
 ) -> uuid.UUID:
     """Snapshot the pack, store the run and queue it (spec §7.2 `created`)."""
     _validate(req)
-    pack = load_run_pack(cfg, req.profile)  # PackError for an unknown or draft profile
-    reference = (
-        pack.docx_reference_path.read_bytes() if pack.docx_reference_path is not None else None
-    )
+    # off the event loop: it reads the packs directory and the reference document (CRL-113)
+    pack, reference = await asyncio.to_thread(_run_pack_and_reference, cfg, req.profile)
     run_id = await _create_run(
         db,
         storage,
@@ -453,6 +452,16 @@ async def start_run(
     )
     await _defer_run(db, queue, run_id)
     return run_id
+
+
+def _run_pack_and_reference(
+    cfg: CorelataConfig, profile: str | None
+) -> tuple[ResolvedPack, bytes | None]:
+    """The pack a run snapshots and its profile's reference document, if it has one. PackError
+    for an unknown or draft profile."""
+    pack = load_run_pack(cfg, profile)
+    path = pack.docx_reference_path
+    return pack, path.read_bytes() if path is not None else None
 
 
 async def cancel_run(
