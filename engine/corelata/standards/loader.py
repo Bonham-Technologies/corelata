@@ -44,7 +44,13 @@ DOCX_OPEN_ERRORS = (
 
 
 class PackError(ValueError):
-    """A pack directory is unusable; the message names the file and the problem."""
+    """A pack directory is unusable; the message names the file and the problem. `public` is
+    what an API client sees: the message itself unless it names server paths, which only the
+    log gets (CRL-114, the rule of CRL-75 and CRL-86)."""
+
+    def __init__(self, message: str, *, public: str | None = None) -> None:
+        super().__init__(message)
+        self.public = message if public is None else public
 
 
 @dataclass
@@ -62,7 +68,12 @@ def _read_yaml(path: Path) -> object:
         return yaml.safe_load(path.read_text(encoding="utf-8"))
     except yaml.YAMLError as e:
         raise PackError(f"{path.name}: invalid YAML: {' '.join(str(e).split())}") from e
-    except (OSError, UnicodeDecodeError) as e:
+    except OSError as e:  # its text names the absolute path: the client gets the reason only
+        raise PackError(
+            f"{path.name}: cannot read: {e}",
+            public=f"{path.name}: cannot read: {e.strerror or type(e).__name__}",
+        ) from e
+    except UnicodeDecodeError as e:
         raise PackError(f"{path.name}: cannot read: {e}") from e
 
 
@@ -80,7 +91,9 @@ def find_pack_dir(name: str, packs_dir: Path | None) -> Path:
         if base is not None and (base / name / "pack.yaml").is_file():
             return base / name
     looked = ", ".join(str(b) for b in (packs_dir, BUILTIN_PACKS_DIR) if b is not None)
-    raise PackError(f"pack '{name}' not found (looked in {looked})")
+    raise PackError(
+        f"pack '{name}' not found (looked in {looked})", public=f"pack '{name}' not found"
+    )
 
 
 def read_pack_dir(path: Path) -> RawPack:
@@ -343,8 +356,9 @@ def _docx_reference_path(profile: Profile, owner: RawPack) -> Path | None:
     try:
         docx.Document(str(path))
     except DOCX_OPEN_ERRORS as e:
-        raise PackError(
-            f"profile '{profile.name}': docx_reference '{ref}' is not a readable .docx: {e}"
+        raise PackError(  # python-docx names the resolved path: the log gets it, not the client
+            f"profile '{profile.name}': docx_reference '{ref}' is not a readable .docx: {e}",
+            public=f"profile '{profile.name}': docx_reference '{ref}' is not a readable .docx",
         ) from e
     return path
 
