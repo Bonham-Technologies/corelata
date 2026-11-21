@@ -146,6 +146,77 @@ async def test_add_coglossa_export_gives_the_translation_and_its_guide(svc):
     assert guide.format == "coglossa-guide"
 
 
+def _stored_dirs(tmp_path, pid) -> list[str]:
+    stored = tmp_path / "files" / "projects" / str(pid) / "sources"
+    return sorted(p.name for p in stored.iterdir())
+
+
+async def test_the_same_file_twice_is_one_source(svc, tmp_path):
+    """CRL-126: an upload whose sha256 a source of the project has gives that source back,
+    stores nothing and parses nothing, whatever its name; another project gets its own."""
+    pid = await svc.project()
+    data = PORT_TEXT.encode()
+    first = await service.store_source(svc.db, svc.storage, pid, "port.txt", data)
+    assert not first.existing
+    again = await service.store_source(svc.db, svc.storage, pid, "renamed.txt", io.BytesIO(data))
+    assert again.existing and again.ids == first.ids
+    assert await service.add_source(svc.db, svc.storage, pid, "port.txt", data) == first.ids
+    assert [r.id for r in await service.list_sources(svc.db, pid)] == first.ids
+    assert _stored_dirs(tmp_path, pid) == [str(first.ids[0])]
+    other = await svc.project("other")
+    elsewhere = await service.store_source(svc.db, svc.storage, other, "port.txt", data)
+    assert not elsewhere.existing and elsewhere.ids != first.ids
+
+
+async def test_the_same_coglossa_export_twice_is_one_import(svc, tmp_path):
+    """CRL-126 (AC3): the translation and its guide come back as they were stored."""
+    pid = await svc.project()
+    data = json.dumps(coglossa_export()).encode("utf-8")
+    first = await service.store_source(
+        svc.db, svc.storage, pid, "a.coglossa.json", data, coglossa_export=True
+    )
+    again = await service.store_source(
+        svc.db, svc.storage, pid, "coglossa-run-42.json", data, coglossa_export=True
+    )
+    assert len(first.ids) == 2 and again.existing and again.ids == first.ids
+    assert [r.id for r in await service.list_sources(svc.db, pid)] == first.ids
+    assert _stored_dirs(tmp_path, pid) == [str(first.ids[0])]
+
+
+async def test_a_duplicate_that_lands_while_parsing_is_found_under_the_lock(
+    svc, tmp_path, monkeypatch
+):
+    """CRL-126: two identical uploads at once both miss the first look; the second to reach
+    the insert finds the first's rows under the project lock and removes its own file."""
+    pid = await svc.project()
+    data = PORT_TEXT.encode()
+    first = await service.store_source(svc.db, svc.storage, pid, "port.txt", data)
+    real = runs.find_source
+    calls = []
+
+    async def miss_once(s, *args):
+        calls.append(args)
+        return [] if len(calls) == 1 else await real(s, *args)
+
+    monkeypatch.setattr(runs, "find_source", miss_once)
+    again = await service.store_source(svc.db, svc.storage, pid, "port.txt", data)
+    assert len(calls) == 2 and again.existing and again.ids == first.ids
+    assert [r.id for r in await service.list_sources(svc.db, pid)] == first.ids
+    assert _stored_dirs(tmp_path, pid) == [str(first.ids[0])]
+
+
+async def test_identical_uploads_at_once_give_one_source(svc, tmp_path):
+    pid = await svc.project()
+    data = PORT_TEXT.encode()
+    results = await asyncio.gather(
+        *(service.store_source(svc.db, svc.storage, pid, f"{i}.txt", data) for i in range(3))
+    )
+    assert len({tuple(r.ids) for r in results}) == 1
+    assert sorted(r.existing for r in results) == [False, True, True]
+    assert len(await service.list_sources(svc.db, pid)) == 1
+    assert _stored_dirs(tmp_path, pid) == [str(results[0].ids[0])]
+
+
 async def test_start_run_queues_one_job_and_snapshots_the_pack(svc):
     pid = await svc.project()
     sid = await svc.source(pid)
@@ -485,7 +556,7 @@ async def test_add_source_parses_off_the_event_loop(svc, monkeypatch):
     monkeypatch.setattr(service.asyncio, "to_thread", spy)
     pid = await svc.project()
     await svc.source(pid)
-    assert seen == ["_parse_stored"]
+    assert seen == ["_sha256", "_parse_stored"]  # hashing the upload too (CRL-126)
 
 
 async def test_start_run_reads_the_pack_and_reference_off_the_event_loop(svc, monkeypatch):

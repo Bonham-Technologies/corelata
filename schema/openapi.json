@@ -1987,6 +1987,12 @@
       },
       "SourceView": {
         "properties": {
+          "already_in_project": {
+            "default": false,
+            "description": "True on an upload's or a Coglossa import's answer (200, not 201) when the project had this file already, by sha256: the source it has, and nothing was added (CRL-126). Always false in a list.",
+            "title": "Already In Project",
+            "type": "boolean"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -3250,7 +3256,7 @@
         ]
       },
       "post": {
-        "description": "Store and parse one upload (spec §5): one source, or two for a Coglossa export that\ncarries a translation guide. Nothing is kept when the file cannot be parsed. With\n`ingest.ocr: auto` a PDF's scanned pages are read by OCR before the answer (CRL-95).",
+        "description": "Store and parse one upload (spec §5): one source, or two for a Coglossa export that\ncarries a translation guide. Nothing is kept when the file cannot be parsed. With\n`ingest.ocr: auto` a PDF's scanned pages are read by OCR before the answer (CRL-95). A file\nthe project has already (same sha256 and kind) is not added again: 200 with that source\n(CRL-126).",
         "operationId": "upload_source_api_projects__project_id__sources_post",
         "parameters": [
           {
@@ -3275,6 +3281,20 @@
           "required": true
         },
         "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SourceView"
+                  },
+                  "title": "Response 200 Upload Source Api Projects  Project Id  Sources Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "the project had this file already: its source, already_in_project"
+          },
           "201": {
             "content": {
               "application/json": {
@@ -3351,7 +3371,7 @@
     },
     "/api/projects/{project_id}/sources/from-coglossa": {
       "post": {
-        "description": "Fetch the run's export from Coglossa and add it like an uploaded export: the translation\nand, when it has one, its guide. 409 when the integration is not configured.",
+        "description": "Fetch the run's export from Coglossa and add it like an uploaded export: the translation\nand, when it has one, its guide; 200 with those when the project has that export already\n(CRL-126). 409 when the integration is not configured.",
         "operationId": "source_from_coglossa_api_projects__project_id__sources_from_coglossa_post",
         "parameters": [
           {
@@ -3376,6 +3396,20 @@
           "required": true
         },
         "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SourceView"
+                  },
+                  "title": "Response 200 Source From Coglossa Api Projects  Project Id  Sources From Coglossa Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "the project had this file already: its source, already_in_project"
+          },
           "201": {
             "content": {
               "application/json": {

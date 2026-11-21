@@ -176,6 +176,33 @@ it("imports from Coglossa by run id and selects the imported source", async () =
   ).not.toBeChecked();
 });
 
+it("says when the Coglossa run is in the project already, and selects nothing new (CRL-126)", async () => {
+  serve(sources);
+  server.use(
+    http.get("*/api/system/info", () => HttpResponse.json({ ...info, coglossa: true })),
+    http.post(`*/api/projects/${project.id}/sources/from-coglossa`, () =>
+      HttpResponse.json([{ ...sources[1]!, already_in_project: true }]),
+    ),
+  );
+  const { user } = renderApp(`/new?project=${project.id}`);
+  const field = await screen.findByRole("textbox", { name: "Coglossa run id" });
+  await user.click(
+    await screen.findByRole("checkbox", { name: `Use ${sources[1]!.name} in this report` }),
+  );
+  await user.type(field, "run-42");
+  await user.click(screen.getByRole("button", { name: "Fetch from Coglossa" }));
+  const form = within(screen.getByRole("form", { name: "Import from Coglossa" }));
+  expect(await form.findByRole("status")).toHaveTextContent(
+    `Coglossa run run-42 is already in this project as ${sources[1]!.name}.`,
+  );
+  expect(field).toHaveValue("");
+  expect(
+    screen.getByRole("checkbox", { name: `Use ${sources[1]!.name} in this report` }),
+  ).not.toBeChecked();
+  await user.type(field, "run-43"); // the note is for the run fetched, not the next one
+  expect(form.queryByRole("status")).toBeNull();
+});
+
 it("shows a Coglossa fetch failure inline and keeps the run id", async () => {
   serve([source]);
   server.use(

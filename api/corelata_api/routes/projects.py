@@ -7,7 +7,7 @@ from typing import Annotated, Any
 from corelata import service
 from corelata.schema import LatestRun, ProjectSummary, SourceKind
 from corelata.store.models import Project, SourceRow
-from fastapi import APIRouter, Form, UploadFile
+from fastapi import APIRouter, Form, Response, UploadFile
 from pydantic import BaseModel, Field
 
 from corelata_api.context import Ctx
@@ -53,9 +53,17 @@ class SourceView(BaseModel):
     sha256: str
     provenance: dict[str, Any]
     created_at: datetime
+    already_in_project: bool = Field(
+        default=False,
+        description=(
+            "True on an upload's or a Coglossa import's answer (200, not 201) when the project "
+            "had this file already, by sha256: the source it has, and nothing was added "
+            "(CRL-126). Always false in a list."
+        ),
+    )
 
     @classmethod
-    def of(cls, row: SourceRow) -> "SourceView":
+    def of(cls, row: SourceRow, *, already_in_project: bool = False) -> "SourceView":
         return cls(
             id=str(row.id),
             project_id=str(row.project_id),
@@ -65,13 +73,27 @@ class SourceView(BaseModel):
             sha256=row.sha256,
             provenance=dict(row.provenance or {}),
             created_at=row.created_at,
+            already_in_project=already_in_project,
         )
 
 
-async def source_views(ctx: Ctx, project_id: uuid.UUID, ids: list[uuid.UUID]) -> list[SourceView]:
-    """The views of `ids` in that order (what an upload just created)."""
+# An upload or an import of a file the project has already answers 200 with that source.
+ADDED_RESPONSES: dict[int | str, dict[str, Any]] = {
+    200: {
+        "model": list[SourceView],
+        "description": "the project had this file already: its source, already_in_project",
+    },
+}
+
+
+async def added_views(
+    ctx: Ctx, project_id: uuid.UUID, added: service.AddedSources, response: Response
+) -> list[SourceView]:
+    """The views of what an upload gave, in its order; 200 when the project had the file."""
+    if added.existing:
+        response.status_code = 200
     by_id = {row.id: row for row in await service.list_sources(ctx.db, project_id)}
-    return [SourceView.of(by_id[i]) for i in ids]
+    return [SourceView.of(by_id[i], already_in_project=added.existing) for i in added.ids]
 
 
 @router.get("/projects")
@@ -98,15 +120,18 @@ async def list_sources(project_id: uuid.UUID, ctx: Ctx) -> list[SourceView]:
 async def upload_source(
     project_id: uuid.UUID,
     ctx: Ctx,
+    response: Response,
     file: UploadFile,
     kind: Annotated[SourceKind, Form()] = SourceKind.FILE,
 ) -> list[SourceView]:
     """Store and parse one upload (spec §5): one source, or two for a Coglossa export that
     carries a translation guide. Nothing is kept when the file cannot be parsed. With
-    `ingest.ocr: auto` a PDF's scanned pages are read by OCR before the answer (CRL-95)."""
+    `ingest.ocr: auto` a PDF's scanned pages are read by OCR before the answer (CRL-95). A file
+    the project has already (same sha256 and kind) is not added again: 200 with that source
+    (CRL-126)."""
     await service.get_project(ctx.db, project_id)  # 404 before reading the body
     data = await read_upload(file, ctx.cfg.api.max_upload_mb)
-    ids = await service.add_source(
+    added = await service.store_source(
         ctx.db,
         ctx.storage,
         project_id,
@@ -115,7 +140,7 @@ async def upload_source(
         coglossa_export=kind is SourceKind.COGLOSSA_EXPORT,
         ocr=ctx.cfg.ingest.ocr_settings(),  # scanned PDF pages are read here, off the loop
     )
-    return await source_views(ctx, project_id, ids)
+    return await added_views(ctx, project_id, added, response)
 
 
 # UploadRoute answers 413 for an over-limit body before it is spooled (CRL-88, CRL-104).
@@ -124,5 +149,6 @@ router.add_api_route(
     upload_source,
     methods=["POST"],
     status_code=201,
+    responses=ADDED_RESPONSES,
     route_class_override=UploadRoute,
 )
