@@ -763,7 +763,8 @@ severity does not keep a report open, so it is listed under **Minor issues**; a 
 minor issues is clean, its pill says "✓ Meets the standards", and the banner reads "Every
 blocking and major standard that could be checked was met. 1 minor issue is listed under
 Standards." (R-M18-27). **Settings** has the theme, the installation's status in one plain sentence
-(**Run a full check** sends a test completion to each model) and **Technical details** (version,
+(**Run a full check** sends a test completion to each model; a check run within the last 30 s,
+from any browser, is shown again rather than repeated, CRL-112) and **Technical details** (version,
 sign-in mode, upload limit, default pack and team profile, the packs and their profiles, and every
 doctor check by name). The theme follows the computer until someone picks one, per browser.
 

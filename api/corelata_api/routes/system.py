@@ -54,7 +54,11 @@ async def get_info(ctx: Ctx, user: User) -> SystemInfo:
 
 
 @router.get("/system/doctor")
-async def get_doctor(ctx: Ctx, probe: bool = True) -> DoctorReport:
+async def get_doctor(ctx: Ctx, probe: bool = False) -> DoctorReport:
     """The checks `corelata doctor` runs, from the API's own config file. The one route that
-    talks to the model servers (spec §10.1); `probe=false` skips the test completions."""
-    return await run_doctor(ctx.config_path, probe=probe)
+    talks to the model servers (spec §10.1): it lists their models on every call, and sends a
+    test completion per model only with `probe=true`. Probing runs are shared by concurrent
+    callers and reused for 30 s (CRL-112), so repeated calls do not spend tokens."""
+    if not probe:
+        return await run_doctor(ctx.config_path, probe=False)
+    return await ctx.doctor.get(lambda: run_doctor(ctx.config_path, probe=True))
