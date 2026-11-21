@@ -89,6 +89,22 @@ async def test_upload_a_coglossa_export_gives_the_translation_and_its_guide(api)
     assert bad.status_code == 422 and "not valid JSON" in bad.json()["detail"]
 
 
+async def test_uploading_the_same_file_twice_gives_one_source(api):
+    """CRL-126: the second upload answers 200 with the source the project has, flagged
+    already_in_project, and stores nothing; the list still has one row."""
+    project = await _project(api)
+    first = await _upload(api, project["id"], "meta.txt", PORT_TEXT.encode())
+    assert first.status_code == 201, first.text
+    [source] = first.json()
+    assert source["already_in_project"] is False
+    again = await _upload(api, project["id"], "meta (copy).txt", PORT_TEXT.encode())
+    assert again.status_code == 200, again.text
+    assert again.json() == [{**source, "already_in_project": True}]
+    listed = (await api.client.get(f"/api/projects/{project['id']}/sources")).json()
+    assert listed == [source]
+    assert len([p for p in api.storage_root.rglob("*") if p.is_file()]) == 1
+
+
 async def test_upload_rejections(api):
     project = await _project(api)
     empty = await _upload(api, project["id"], "x.txt", b"")

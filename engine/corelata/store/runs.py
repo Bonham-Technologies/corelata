@@ -281,6 +281,43 @@ async def add_source(
     return row
 
 
+async def find_source(
+    s: AsyncSession, project_id: uuid.UUID, sha256: str, kind: SourceKind
+) -> list[uuid.UUID]:
+    """The ids of the project's earliest source of this kind made from a file with this
+    sha256, with the rows that share its stored file (a Coglossa export's guide), in list
+    order; empty when the project has none (CRL-126). A project from before CRL-126 may hold
+    the file twice: the first one answers."""
+    key = await s.scalar(
+        select(SourceRow.storage_key)
+        .where(
+            SourceRow.project_id == project_id,
+            SourceRow.sha256 == sha256,
+            SourceRow.kind == kind.value,
+        )
+        .order_by(SourceRow.created_at, SourceRow.id)
+        .limit(1)
+    )
+    if key is None:
+        return []
+    return list(
+        await s.scalars(
+            select(SourceRow.id)
+            .where(SourceRow.project_id == project_id, SourceRow.storage_key == key)
+            .order_by(SourceRow.created_at, SourceRow.id)
+        )
+    )
+
+
+async def lock_project(s: AsyncSession, project_id: uuid.UUID) -> None:
+    """Hold the project row until the transaction ends, so two uploads of one file cannot both
+    find nothing and both insert (CRL-126). FOR NO KEY UPDATE: inserting runs and sources,
+    which takes KEY SHARE on the project, is not held up."""
+    await s.execute(
+        select(Project.id).where(Project.id == project_id).with_for_update(key_share=True)
+    )
+
+
 async def get_source(s: AsyncSession, source_id: uuid.UUID) -> SourceRow:
     row = await s.get(SourceRow, source_id)
     if row is None:

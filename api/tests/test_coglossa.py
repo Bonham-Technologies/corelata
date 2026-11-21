@@ -50,7 +50,18 @@ async def test_from_coglossa_imports_the_run_export(make_api):
         ]
         info = (await api.client.get("/api/system/info", headers=headers)).json()
         assert info["coglossa"] is True
-    [request] = seen
+        # CRL-126 (AC3): the same run again is the import the project has
+        again = await api.client.post(
+            f"/api/projects/{pid}/sources/from-coglossa", json={"run_id": "run-42"}, headers=headers
+        )
+        assert again.status_code == 200, again.text
+        assert again.json() == [
+            {**translation, "already_in_project": True},
+            {**guide, "already_in_project": True},
+        ]
+        listed = await api.client.get(f"/api/projects/{pid}/sources", headers=headers)
+        assert len(listed.json()) == 2
+    request = seen[0]
     assert str(request.url) == "http://coglossa.test/api/runs/run-42/exports/json"
     assert request.headers["x-remote-user"] == "ana"
 
