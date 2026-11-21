@@ -15,7 +15,7 @@ from corelata.schema import Finding, RunRecord, RunState
 from corelata.service import InvalidRunStateError
 from corelata.standards.schema import ResolvedPack
 from corelata.store.runs import NotFoundError
-from corelata.trace import ClaimProvenance, RunTrace, run_trace
+from corelata.trace import ClaimProvenance, RunTrace
 from fastapi import APIRouter, Response
 
 from corelata_api.context import ApiContext, Ctx
@@ -151,8 +151,9 @@ async def get_export(run_id: uuid.UUID, name: ExportName, ctx: Ctx) -> Response:
 async def get_trace(run_id: uuid.UUID, ctx: Ctx) -> RunTrace:
     """Summary, draft-to-draft changes and model calls (spec §10.3 Process tab), any state."""
     # The calls are summaries without their bodies: the stored request and response are not
-    # read (CRL-103). The docstrings here are the OpenAPI descriptions.
-    return run_trace(await service.get_run_record(ctx.db, run_id, with_io=False))
+    # read (CRL-103), nor the sources' units (CRL-124). The docstrings here are the OpenAPI
+    # descriptions.
+    return await service.get_run_trace(ctx.db, run_id)
 
 
 @router.get("/runs/{run_id}/findings")

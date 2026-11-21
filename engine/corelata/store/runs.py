@@ -2,14 +2,29 @@
 take an AsyncSession and never commit: the caller owns the transaction
 (`async with db.session() as s, s.begin(): ...`)."""
 
+import asyncio
 import hashlib
+import json
 import logging
 import uuid
-from collections.abc import Iterable
+from collections.abc import Collection, Iterable, Sequence
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import and_, cast, delete, func, null, or_, select, text, tuple_, update
+from sqlalchemy import (
+    Row,
+    Text,
+    and_,
+    cast,
+    delete,
+    func,
+    null,
+    or_,
+    select,
+    text,
+    tuple_,
+    update,
+)
 from sqlalchemy.dialects.postgresql import JSONB, TIMESTAMP
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import DBAPIError, SQLAlchemyError
@@ -320,30 +335,44 @@ async def list_sources(s: AsyncSession, project_id: uuid.UUID) -> list[SourceRow
     )
 
 
-async def load_source(s: AsyncSession, row: SourceRow, *, as_id: str) -> Source:
-    units = await s.scalars(
-        select(SourceUnitRow)
-        .where(SourceUnitRow.source_id == row.id)
-        .order_by(SourceUnitRow.ordinal)
-    )
-    return Source(
-        id=as_id,
-        kind=SourceKind(row.kind),
-        name=row.name,
-        format=row.format,
-        sha256=row.sha256,
-        provenance=dict(row.provenance),
-        units=[
-            SourceUnit(
-                id=u.unit_id,
-                text=u.text,
-                locator=u.locator,
-                kind=BlockKind(u.kind),
-                meta=dict(u.meta),
-            )
-            for u in units
-        ],
-    )
+async def load_source(
+    s: AsyncSession, row: SourceRow, *, as_id: str, unit_ids: Collection[str] | None = None
+) -> Source:
+    """`unit_ids`: only the units with those ids, and none (nor a query) when it is empty
+    (CRL-124). The units are read as plain rows, their `meta` as JSON text, and parsed and
+    validated off the event loop, which a source of tens of thousands of units would otherwise
+    hold for most of a second."""
+    rows: Sequence[Row[Any]] = ()
+    if unit_ids is None or unit_ids:
+        query = select(
+            SourceUnitRow.unit_id,
+            SourceUnitRow.text,
+            SourceUnitRow.locator,
+            SourceUnitRow.kind,
+            cast(SourceUnitRow.meta, Text),
+        ).where(SourceUnitRow.source_id == row.id)
+        if unit_ids is not None:
+            query = query.where(SourceUnitRow.unit_id.in_(sorted(unit_ids)))
+        rows = (await s.execute(query.order_by(SourceUnitRow.ordinal))).all()
+    head = {
+        "id": as_id,
+        "kind": SourceKind(row.kind),
+        "name": row.name,
+        "format": row.format,
+        "sha256": row.sha256,
+        "provenance": dict(row.provenance),
+    }
+    return await asyncio.to_thread(_source, head, rows)
+
+
+def _source(head: dict[str, Any], rows: Sequence[Row[Any]]) -> Source:
+    units = [
+        SourceUnit(
+            id=unit_id, text=body, locator=locator, kind=BlockKind(kind), meta=json.loads(meta)
+        )
+        for unit_id, body, locator, kind, meta in rows
+    ]
+    return Source(**head, units=units)
 
 
 # ---------------------------------------------------------------- runs
