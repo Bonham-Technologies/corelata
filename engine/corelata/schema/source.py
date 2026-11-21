@@ -60,7 +60,8 @@ def reliability_tier(source: Source) -> str | None:
 
 
 def lowest_tier(tiers: Iterable[object]) -> str | None:
-    """The lowest of the Coglossa tiers among `tiers`; None when none of them is one."""
-    present = set(tiers)
+    """The lowest of the Coglossa tiers among `tiers`; None when none of them is one. A value
+    that is not a string is not a tier (the database's count reads each as text, CRL-124)."""
+    present = {t for t in tiers if isinstance(t, str)}
     scored = [t for t in COGLOSSA_TIERS if t in present]
     return scored[-1] if scored else None
