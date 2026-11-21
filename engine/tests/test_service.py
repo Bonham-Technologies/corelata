@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import io
 import json
 import uuid
@@ -14,6 +15,7 @@ from sqlalchemy import select, text
 from corelata import service
 from corelata.config import CorelataConfig
 from corelata.ingest.base import IngestError
+from corelata.ingest.units import source_from_paragraphs
 from corelata.prompts.library import PromptLibrary
 from corelata.schema import DiscoveryState, ReviewAction, RunState, RunSummary
 from corelata.service import QueueUnavailableError
@@ -215,6 +217,45 @@ async def test_identical_uploads_at_once_give_one_source(svc, tmp_path):
     assert sorted(r.existing for r in results) == [False, True, True]
     assert len(await service.list_sources(svc.db, pid)) == 1
     assert _stored_dirs(tmp_path, pid) == [str(results[0].ids[0])]
+
+
+async def _waiting_on_a_lock(db) -> bool:
+    async with db.session() as s:
+        waiting = await s.scalar(
+            text(
+                "SELECT count(*) FROM pg_stat_activity"
+                " WHERE wait_event_type = 'Lock' AND datname = current_database()"
+                " AND query LIKE '%FOR NO KEY UPDATE%'"
+            )
+        )
+    return bool(waiting)
+
+
+async def test_an_identical_upload_waits_for_the_project_lock_and_finds_the_first(svc, tmp_path):
+    """CRL-126: an insert of this file not yet committed holds the project row; the second
+    upload missed it on the first look, waits at the lock, then finds it and keeps nothing."""
+    pid = await svc.project()
+    data = PORT_TEXT.encode()
+    first = source_from_paragraphs("src1", PORT).model_copy(
+        update={"sha256": hashlib.sha256(data).hexdigest()}
+    )
+    async with svc.db.session() as s, s.begin():
+        await runs.lock_project(s, pid)
+        row = await runs.add_source(s, pid, first, storage_key=f"projects/{pid}/held/port.txt")
+        second = asyncio.create_task(
+            service.store_source(svc.db, svc.storage, pid, "port.txt", data)
+        )
+        for _ in range(200):
+            if await _waiting_on_a_lock(svc.db):
+                break
+            assert not second.done(), "the second upload went past the project lock"
+            await asyncio.sleep(0.05)
+        else:
+            pytest.fail("the second upload never waited on the project lock")
+    again = await second
+    assert again.existing and again.ids == [row.id]
+    assert [r.id for r in await service.list_sources(svc.db, pid)] == [row.id]
+    assert not [p for p in (tmp_path / "files").rglob("*") if p.is_file()]  # its file is gone
 
 
 async def test_start_run_queues_one_job_and_snapshots_the_pack(svc):
