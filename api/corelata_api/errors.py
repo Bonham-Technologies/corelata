@@ -1,4 +1,5 @@
-"""Engine exceptions → HTTP statuses, in one table; the body is always {"detail": "<one line>"}.
+"""Engine exceptions → HTTP statuses, in one table; the body is {"detail": "<one line>"}, except a
+request that fails validation, whose detail is FastAPI's list of {type, loc, msg}.
 Copied from Coglossa with Corelata's exception types."""
 
 import logging
@@ -14,6 +15,7 @@ from corelata.store.db import error_reason
 from corelata.store.runs import NotFoundError
 from corelata.trace import TraceError
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy.exc import InterfaceError, OperationalError
@@ -51,8 +53,16 @@ QUEUE_DOWN = "the job queue is unavailable; the operator's log has the reason"
 STORAGE_DOWN = "the file store is unavailable; see the server log"
 
 
+def _encodable(text: str) -> str:
+    """Text a JSON response can encode: an unpaired surrogate an exception message repeats from
+    the request (a profile name, say) is spelled out as \\udXXX instead of failing (CRL-128)."""
+    return text.encode("utf-8", "backslashreplace").decode("utf-8")
+
+
 def _response(status: int, message: str) -> JSONResponse:
-    return JSONResponse(status_code=status, content={"detail": " ".join(message.split())})
+    return JSONResponse(
+        status_code=status, content={"detail": _encodable(" ".join(message.split()))}
+    )
 
 
 def _handler(status: int) -> Handler:
@@ -101,6 +111,18 @@ async def _pack_failed(request: Request, exc: Exception) -> JSONResponse:
     return _response(422, exc.public)
 
 
+async def _invalid_request(request: Request, exc: Exception) -> JSONResponse:
+    """A body, query or path that fails validation (422). Each error keeps its type, field and
+    message, but not FastAPI's echo of the input: a lone surrogate pasted from a broken export
+    cannot be encoded back, and the default handler failed with a 500 (CRL-128)."""
+    assert isinstance(exc, RequestValidationError)
+    errors = [
+        {"type": error["type"], "loc": list(error["loc"]), "msg": _encodable(error["msg"])}
+        for error in exc.errors()
+    ]
+    return JSONResponse(status_code=422, content={"detail": errors})
+
+
 async def _internal(request: Request, exc: Exception) -> JSONResponse:
     log.error("internal error on %s %s", request.method, request.url.path, exc_info=exc)
     # sent by ServerErrorMiddleware, outside SecurityHeadersMiddleware (CRL-68)
@@ -114,6 +136,7 @@ def install_error_handlers(app: FastAPI) -> None:
         app.add_exception_handler(exc_type, _handler(status))
     app.add_exception_handler(CoglossaFetchError, _coglossa_failed)
     app.add_exception_handler(PackError, _pack_failed)
+    app.add_exception_handler(RequestValidationError, _invalid_request)
     app.add_exception_handler(QueueUnavailableError, _queue_down)
     app.add_exception_handler(StorageError, _storage_down)
     # Mirrors corelata.worker.execute.DB_ERRORS (not imported: the API does not import the worker).
