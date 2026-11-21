@@ -266,6 +266,21 @@ async def test_an_unpaired_surrogate_is_a_one_line_422_not_a_500(api, caplog, ro
     assert len(api.queue.jobs) == queued
 
 
+async def test_an_unpaired_surrogate_an_error_repeats_is_a_422_not_a_500(api, caplog):
+    """CRL-128: `profile` has no length limit, so a lone surrogate passes validation and reaches
+    the pack loader, whose message repeats it; the answer spells it out instead of failing."""
+    pid, sid = await project_with_source(api)
+    body = json.dumps({"project_id": pid, "source_ids": [sid], "value_statement": "x"})
+    body = body[:-1] + ', "profile": "a\\ud800b"}'
+    with caplog.at_level(logging.WARNING):
+        response = await api.client.post(
+            "/api/runs", content=body.encode(), headers={"content-type": "application/json"}
+        )
+    assert response.status_code == 422, response.text
+    assert "profile" in response.json()["detail"]
+    assert [r for r in caplog.records if r.levelno >= logging.ERROR] == []
+
+
 async def test_review_needs_a_completed_run(api):
     run = await start_run(api)
     response = await api.client.post(f"/api/runs/{run['run_id']}/review", json={"action": "accept"})

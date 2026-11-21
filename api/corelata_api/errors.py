@@ -1,4 +1,5 @@
-"""Engine exceptions → HTTP statuses, in one table; the body is always {"detail": "<one line>"}.
+"""Engine exceptions → HTTP statuses, in one table; the body is {"detail": "<one line>"}, except a
+request that fails validation, whose detail is FastAPI's list of {type, loc, msg}.
 Copied from Coglossa with Corelata's exception types."""
 
 import logging
@@ -52,8 +53,16 @@ QUEUE_DOWN = "the job queue is unavailable; the operator's log has the reason"
 STORAGE_DOWN = "the file store is unavailable; see the server log"
 
 
+def _encodable(text: str) -> str:
+    """Text a JSON response can encode: an unpaired surrogate an exception message repeats from
+    the request (a profile name, say) is spelled out as \\udXXX instead of failing (CRL-128)."""
+    return text.encode("utf-8", "backslashreplace").decode("utf-8")
+
+
 def _response(status: int, message: str) -> JSONResponse:
-    return JSONResponse(status_code=status, content={"detail": " ".join(message.split())})
+    return JSONResponse(
+        status_code=status, content={"detail": _encodable(" ".join(message.split()))}
+    )
 
 
 def _handler(status: int) -> Handler:
@@ -108,7 +117,7 @@ async def _invalid_request(request: Request, exc: Exception) -> JSONResponse:
     cannot be encoded back, and the default handler failed with a 500 (CRL-128)."""
     assert isinstance(exc, RequestValidationError)
     errors = [
-        {"type": error["type"], "loc": list(error["loc"]), "msg": error["msg"]}
+        {"type": error["type"], "loc": list(error["loc"]), "msg": _encodable(error["msg"])}
         for error in exc.errors()
     ]
     return JSONResponse(status_code=422, content={"detail": errors})
