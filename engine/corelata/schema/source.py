@@ -1,5 +1,6 @@
 """Sources and their addressable units (spec §5.2). A unit ref is "<source_id>/<unit_id>"."""
 
+from collections.abc import Iterable
 from enum import StrEnum
 from typing import Any
 
@@ -55,6 +56,12 @@ def reliability_tier(source: Source) -> str | None:
     as its weakest part; None for any other source, or when no span was scored."""
     if source.kind is not SourceKind.COGLOSSA_EXPORT:
         return None
-    tiers = {u.meta.get("reliability") for u in source.units}
-    scored = [t for t in COGLOSSA_TIERS if t in tiers]
+    return lowest_tier(u.meta.get("reliability") for u in source.units)
+
+
+def lowest_tier(tiers: Iterable[object]) -> str | None:
+    """The lowest of the Coglossa tiers among `tiers`; None when none of them is one. A value
+    that is not a string is not a tier (the database's count reads each as text, CRL-124)."""
+    present = {t for t in tiers if isinstance(t, str)}
+    scored = [t for t in COGLOSSA_TIERS if t in present]
     return scored[-1] if scored else None

@@ -161,7 +161,9 @@ export interface paths {
          * Upload Source
          * @description Store and parse one upload (spec §5): one source, or two for a Coglossa export that
          *     carries a translation guide. Nothing is kept when the file cannot be parsed. With
-         *     `ingest.ocr: auto` a PDF's scanned pages are read by OCR before the answer (CRL-95).
+         *     `ingest.ocr: auto` a PDF's scanned pages are read by OCR before the answer (CRL-95). A file
+         *     the project has already (same sha256 and kind) is not added again: 200 with that source
+         *     (CRL-126).
          */
         post: operations["upload_source_api_projects__project_id__sources_post"];
         delete?: never;
@@ -182,7 +184,8 @@ export interface paths {
         /**
          * Source From Coglossa
          * @description Fetch the run's export from Coglossa and add it like an uploaded export: the translation
-         *     and, when it has one, its guide. 409 when the integration is not configured.
+         *     and, when it has one, its guide; 200 with those when the project has that export already
+         *     (CRL-126). 409 when the integration is not configured.
          */
         post: operations["source_from_coglossa_api_projects__project_id__sources_from_coglossa_post"];
         delete?: never;
@@ -1211,6 +1214,12 @@ export interface components {
         /** SourceView */
         SourceView: {
             /**
+             * Already In Project
+             * @description True on an upload's or a Coglossa import's answer (200, not 201) when the project had this file already, by sha256: the source it has, and nothing was added (CRL-126). Always false in a list.
+             * @default false
+             */
+            already_in_project: boolean;
+            /**
              * Created At
              * Format: date-time
              */
@@ -2087,6 +2096,15 @@ export interface operations {
             };
         };
         responses: {
+            /** @description the project had this file already: its source, already_in_project */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceView"][];
+                };
+            };
             /** @description Successful Response */
             201: {
                 headers: {
@@ -2165,6 +2183,15 @@ export interface operations {
             };
         };
         responses: {
+            /** @description the project had this file already: its source, already_in_project */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceView"][];
+                };
+            };
             /** @description Successful Response */
             201: {
                 headers: {

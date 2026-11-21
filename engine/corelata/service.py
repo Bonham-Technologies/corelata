@@ -4,6 +4,7 @@ work reaches the worker through a JobQueue. Task 7 adds discoveries."""
 
 import asyncio
 import contextlib
+import hashlib
 import logging
 import uuid
 from dataclasses import dataclass
@@ -37,6 +38,7 @@ from corelata.schema import (
     RunState,
     RunSummary,
     Source,
+    SourceKind,
     Usage,
 )
 from corelata.standards.loader import pack_hash
@@ -45,7 +47,7 @@ from corelata.storage import Storage, StorageError, display_name, safe_filename,
 from corelata.store import discoveries, records, runs
 from corelata.store.db import Database, error_reason
 from corelata.store.models import Project, ReviewEvent, Run, SourceRow
-from corelata.trace import ClaimProvenance, report_claim_provenance
+from corelata.trace import ClaimProvenance, RunTrace, report_claim_provenance, run_trace
 
 log = logging.getLogger("corelata.service")
 
@@ -289,7 +291,37 @@ def _parse_stored(
         return [make_source("src1", path, ocr=ocr)]
 
 
-async def add_source(
+def _sha256(data: bytes | BinaryIO) -> str:
+    """The upload's sha256, as its ingestor will record it; a file is read a piece at a time
+    from where it stands and left there."""
+    if isinstance(data, bytes):
+        return hashlib.sha256(data).hexdigest()
+    start = data.tell()
+    digest = hashlib.sha256()
+    while chunk := data.read(1 << 20):
+        digest.update(chunk)
+    data.seek(start)
+    return digest.hexdigest()
+
+
+class _AlreadyThere(Exception):  # noqa: N818 - control flow, never seen outside
+    """Rolls back an insert that found the file in the project after all (CRL-126)."""
+
+    def __init__(self, ids: list[uuid.UUID]) -> None:
+        super().__init__()
+        self.ids = ids
+
+
+@dataclass(frozen=True)
+class AddedSources:
+    """What an upload gave the project: the new source ids, or, when the project had the file
+    already (`existing`), that source's ids and nothing new (CRL-126)."""
+
+    ids: list[uuid.UUID]
+    existing: bool = False
+
+
+async def store_source(
     db: Database,
     storage: Storage,
     project_id: uuid.UUID,
@@ -298,13 +330,18 @@ async def add_source(
     *,
     coglossa_export: bool = False,
     ocr: OcrSettings | None = None,
-) -> list[uuid.UUID]:
-    """Store an upload, parse it into units (spec §5) and record it. Returns the new source ids:
-    one, or two for a Coglossa export that carries a translation guide. A file that cannot be
-    parsed is not kept. `data` is the content, or a binary file read from where it stands (the
-    API passes the file Starlette spooled the upload to, so the body is never held in memory).
-    `ocr` is `ingest.ocr`'s settings when it is auto: a PDF's scanned pages are read on this
-    request, off the event loop (CRL-95)."""
+) -> AddedSources:
+    """Store an upload, parse it into units (spec §5) and record it. It gives the new source
+    ids: one, or two for a Coglossa export that carries a translation guide. A file that cannot
+    be parsed is not kept. `data` is the content, or a binary file read from where it stands
+    (the API passes the file Starlette spooled the upload to, so the body is never held in
+    memory). `ocr` is `ingest.ocr`'s settings when it is auto: a PDF's scanned pages are read on
+    this request, off the event loop (CRL-95).
+
+    A file the project has already, by sha256 and kind, whatever its name, is neither stored
+    nor parsed again: the answer is that source, `existing` (CRL-126). Two identical uploads at
+    once both store and parse; the second to insert finds the first under the project's lock
+    and removes its own file."""
     name = display_name(filename)
     if not name:
         raise InvalidRequestError("the upload has no file name")
@@ -318,8 +355,12 @@ async def add_source(
         empty = await asyncio.to_thread(_nothing_left, data)
     if empty:
         raise IngestError(f"{name} is empty")
+    kind = SourceKind.COGLOSSA_EXPORT if coglossa_export else SourceKind.FILE
+    sha256 = await asyncio.to_thread(_sha256, data)
     async with db.session() as s:
         await runs.get_project(s, project_id)
+        if found := await runs.find_source(s, project_id, sha256, kind):
+            return AddedSources(found, existing=True)
     source_id = uuid.uuid4()
     prefix = f"projects/{project_id}/sources/{source_id}/"
     key = prefix + safe_filename(name)
@@ -329,6 +370,10 @@ async def add_source(
         parsed[0] = parsed[0].model_copy(update={"name": name})
         ids: list[uuid.UUID] = []
         async with db.session() as s, s.begin():
+            await runs.lock_project(s, project_id)
+            # an identical upload may have been inserted while this one was parsed
+            if found := await runs.find_source(s, project_id, sha256, kind):
+                raise _AlreadyThere(found)
             for i, source in enumerate(parsed):
                 row = await runs.add_source(
                     s,
@@ -338,11 +383,32 @@ async def add_source(
                     source_id=source_id if i == 0 else None,
                 )
                 ids.append(row.id)
+    except _AlreadyThere as there:
+        with contextlib.suppress(StorageError):
+            await storage_call(storage.delete_prefix, prefix)
+        return AddedSources(there.ids, existing=True)
     except BaseException:
         with contextlib.suppress(StorageError):  # nothing points at the file
             await storage_call(storage.delete_prefix, prefix)
         raise
-    return ids
+    return AddedSources(ids)
+
+
+async def add_source(
+    db: Database,
+    storage: Storage,
+    project_id: uuid.UUID,
+    filename: str,
+    data: bytes | BinaryIO,
+    *,
+    coglossa_export: bool = False,
+    ocr: OcrSettings | None = None,
+) -> list[uuid.UUID]:
+    """`store_source`'s ids: the new sources, or the ones the project has for this file."""
+    added = await store_source(
+        db, storage, project_id, filename, data, coglossa_export=coglossa_export, ocr=ocr
+    )
+    return added.ids
 
 
 # ---------------------------------------------------------------- runs
@@ -802,15 +868,27 @@ async def get_findings(db: Database, run_id: uuid.UUID) -> list[Finding]:
         return found
 
 
+async def get_run_trace(db: Database, run_id: uuid.UUID) -> RunTrace:
+    """`GET /api/runs/{id}/trace`: the record without the model calls' stored request and
+    response (CRL-103) and without the sources' units, which the database counts (CRL-124); the
+    trace is built off the event loop."""
+    async with db.session() as s:
+        record = await records.load_record(s, run_id, with_io=False, with_units=False)
+        units = await records.unit_counts(s, run_id)
+    return await asyncio.to_thread(run_trace, record, units)
+
+
 async def get_claim_provenance(db: Database, run_id: uuid.UUID, claim_id: str) -> ClaimProvenance:
-    """A claim of the delivered report with its evidence units, from the report and the sources'
-    units alone (CRL-103). InvalidRunStateError while the run has no report; TraceError for a
-    claim the report does not have."""
+    """A claim of the delivered report with its evidence units, from the report and the units the
+    claim cites alone (CRL-103, CRL-124). InvalidRunStateError while the run has no report;
+    TraceError for a claim the report does not have."""
     async with db.session() as s:
         state, report = await records.load_report(s, run_id)
         if report is None:
             raise InvalidRunStateError(f"run {run_id} has no report (state {state.value})")
-        sources = await records.load_sources(s, run_id)
+        claim = next((c for c in report.claims if c.id == claim_id), None)
+        refs = claim.evidence if claim is not None else []
+        sources = await records.load_sources(s, run_id, refs=refs)
     return report_claim_provenance(str(run_id), report, sources, claim_id)
 
 

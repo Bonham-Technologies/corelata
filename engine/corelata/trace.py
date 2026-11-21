@@ -3,8 +3,9 @@ what failed in which iteration, where a claim's evidence sits, how a draft chang
 iterations. Pure functions of RunRecord; the CLI calls them now and the API will from M4a."""
 
 import json
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
+from typing import NamedTuple
 
 from pydantic import BaseModel, Field, ValidationError
 
@@ -48,6 +49,14 @@ class SourceSummary(BaseModel):
     # CRL-96: a Coglossa export's lowest span reliability tier (`schema.reliability_tier`)
     reliability_tier: str | None = None
     ocr_pages: int  # pages whose text OCR recovered from a scan (CRL-95); 0 for none
+
+
+class UnitCount(NamedTuple):
+    """What the summary shows of a source's units, when they are counted without being loaded
+    (`store.records.unit_counts`, CRL-124)."""
+
+    units: int
+    reliability_tier: str | None
 
 
 class StageLine(BaseModel):
@@ -173,7 +182,11 @@ def load_record(run_dir: Path) -> RunRecord:
         ) from e
 
 
-def summarize(record: RunRecord) -> TraceSummary:
+def summarize(record: RunRecord, units: Mapping[str, UnitCount] | None = None) -> TraceSummary:
+    """`units`: each source's counted units, for a record loaded without them; None counts the
+    record's own."""
+    if units is None:
+        units = {s.id: UnitCount(len(s.units), reliability_tier(s)) for s in record.sources}
     digested = {d.source_id for d in record.digests}
     by_iteration: dict[int, list[Finding]] = {}
     for f in record.findings:
@@ -207,10 +220,10 @@ def summarize(record: RunRecord) -> TraceSummary:
                 kind=s.kind,
                 format=s.format,
                 sha256=s.sha256,
-                units=len(s.units),
+                units=units[s.id].units,
                 digested=s.id in digested,
                 coglossa_run_id=s.provenance.get("coglossa_run_id"),
-                reliability_tier=reliability_tier(s),
+                reliability_tier=units[s.id].reliability_tier,
                 ocr_pages=ocr_page_count(s),
             )
             for s in record.sources
@@ -293,7 +306,8 @@ def draft_changes(prev: ReportBody, new: ReportBody) -> DraftChanges:
     )
 
 
-def run_trace(record: RunRecord) -> RunTrace:
+def run_trace(record: RunRecord, units: Mapping[str, UnitCount] | None = None) -> RunTrace:
+    """`units`: as for `summarize`."""
     steps: list[DraftStep] = []
     prev: ReportBody | None = None
     for draft in record.drafts:
@@ -304,7 +318,7 @@ def run_trace(record: RunRecord) -> RunTrace:
         CallSummary.model_validate(c.model_dump(exclude={"request", "response"}))
         for c in record.llm_calls
     ]
-    return RunTrace(summary=summarize(record), drafts=steps, calls=calls)
+    return RunTrace(summary=summarize(record, units), drafts=steps, calls=calls)
 
 
 def format_summary(s: TraceSummary, degradations: Sequence[str] = ()) -> str:

@@ -46,6 +46,7 @@ export const source: SourceView = {
   sha256: "a".repeat(64),
   provenance: {},
   created_at: "2026-10-13T10:01:00Z",
+  already_in_project: false,
 };
 
 export const RUN_ID = "33333333-3333-3333-3333-333333333333";
