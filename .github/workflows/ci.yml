@@ -14,9 +14,10 @@ permissions:
 jobs:
   engine:
     runs-on: ubuntu-24.04
+    timeout-minutes: 20 # about 6 min; a hung job fails instead of holding the runner
     services:
       postgres:
-        image: postgres:16-alpine
+        image: postgres:16-alpine@sha256:1d5b02d3a9941fbd52437db4107f8c52d6297dac553ca1e5c299ebb3756b4857 # deploy/bundle.sh POSTGRES_IMAGE
         env:
           POSTGRES_USER: corelata
           POSTGRES_PASSWORD: corelata
@@ -45,9 +46,10 @@ jobs:
       - run: uv run pytest
   api:
     runs-on: ubuntu-24.04
+    timeout-minutes: 15 # about 3 min; a hung job fails instead of holding the runner
     services:
       postgres:
-        image: postgres:16-alpine
+        image: postgres:16-alpine@sha256:1d5b02d3a9941fbd52437db4107f8c52d6297dac553ca1e5c299ebb3756b4857 # deploy/bundle.sh POSTGRES_IMAGE
         env:
           POSTGRES_USER: corelata
           POSTGRES_PASSWORD: corelata
@@ -75,6 +77,7 @@ jobs:
   web:
     # A fork's pull request never runs on the self-hosted runner (CRL-105).
     runs-on: ${{ !github.event.pull_request.head.repo.fork && vars.RUNS_ON && fromJSON(vars.RUNS_ON) || 'ubuntu-24.04' }}
+    timeout-minutes: 15 # about 2 min; a hung job fails instead of holding the runner
     defaults:
       run:
         working-directory: web
@@ -101,7 +104,7 @@ jobs:
     timeout-minutes: 20 # a hung stack or browser fails the job instead of holding the runner
     services:
       postgres:
-        image: postgres:16-alpine
+        image: postgres:16-alpine@sha256:1d5b02d3a9941fbd52437db4107f8c52d6297dac553ca1e5c299ebb3756b4857 # deploy/bundle.sh POSTGRES_IMAGE
         env:
           POSTGRES_USER: corelata
           POSTGRES_PASSWORD: corelata
@@ -144,6 +147,7 @@ jobs:
           path: web/playwright-report
   deploy:
     runs-on: ubuntu-24.04
+    timeout-minutes: 10 # under a minute; a hung job fails instead of holding the runner
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

@@ -50,7 +50,8 @@
 - ~~Closed procrastinate job copies (failed, cancelled, aborted; the worker deletes succeeded ones) accumulate; the guide gives a `DELETE` for housekeeping, nothing
   runs it automatically. The SQL is exercised by the air-gap test (step 6b), which plants an old and a
   recent failed job, runs the guide's statement and checks that runs and exports are intact.~~ — **closed in M8** (CRL-10) — CRL-10
-- The `postgres:16-alpine` image is pinned by tag, not digest.
+- ~~The `postgres:16-alpine` image is pinned by tag, not digest.~~ `bundle.sh` pulls it by digest and
+  records the digest in `manifest.json`; `compose.dev.yaml` and CI use the digest. — CRL-115
 - ~~`check-bundle.sh`'s `diff -r` against the repo pack should exclude `__pycache__`.~~ — **closed in M15** (CRL-36). — CRL-36
 - ~~The restore stub test checks the stop/SQL/files/up ordering loosely and the rc-3 path is
   untested (as in Coglossa).~~ — **closed in M8** (CRL-7) — CRL-7

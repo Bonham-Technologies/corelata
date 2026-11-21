@@ -4,6 +4,7 @@ operators rely on and what install.sh, backup.sh and restore.sh assume. Runs
 
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -11,6 +12,17 @@ from pathlib import Path
 DEPLOY = Path(__file__).resolve().parents[1]
 ENV = {**os.environ, "CORELATA_DB_PASSWORD": "check", "CORELATA_VERSION": "9.9.9"}
 LOGGING = {"driver": "json-file", "options": {"max-size": "50m", "max-file": "5"}}
+
+
+def postgres_pin() -> str:
+    """bundle.sh's POSTGRES_IMAGE: the one place the database image's digest is written
+    (CRL-115)."""
+    text = (DEPLOY / "bundle.sh").read_text()
+    tag = re.search(r"^POSTGRES_TAG=(\S+)$", text, re.M)
+    digest = re.search(r"^POSTGRES_IMAGE=\$POSTGRES_TAG@(sha256:[0-9a-f]{64})$", text, re.M)
+    if not (tag and digest):
+        sys.exit("check_compose: bundle.sh must set POSTGRES_TAG and POSTGRES_IMAGE=$POSTGRES_TAG@sha256:<digest>")
+    return f"{tag.group(1)}@{digest.group(1)}"
 
 
 def resolve(*files: str, env: dict | None = None) -> dict:
@@ -34,7 +46,9 @@ def check_stack() -> None:
     expect(set(services) == {"postgres", "migrate", "worker", "api"}, f"services are {sorted(services)}")
     expect(set(model["volumes"]) == {"pgdata", "files"}, f"volumes are {sorted(model['volumes'])}")
     pg = services["postgres"]
-    expect(pg["image"] == "postgres:16-alpine", "postgres image must be postgres:16-alpine")
+    # the tag the bundle saves its digest-pinned pull under (bundle.sh, CRL-115)
+    tag = postgres_pin().split("@")[0]
+    expect(pg["image"] == tag, f"postgres image must be {tag}")
     expect(pg["environment"]["POSTGRES_USER"] == "corelata" and pg["environment"]["POSTGRES_DB"] == "corelata", "postgres user/db")
     expect(pg["healthcheck"]["test"][-1].startswith("pg_isready -h 127.0.0.1 -U corelata"), "postgres healthcheck")
     for name in ("postgres", "migrate", "worker", "api"):
@@ -76,6 +90,13 @@ def check_demo() -> None:
     expect(services["worker"]["depends_on"]["fake-openai"]["condition"] == "service_healthy", "worker waits for the fake model")
 
 
+def check_dev() -> None:
+    """The test database pulls the bundle's pinned image (CRL-115)."""
+    model = resolve("compose.dev.yaml")
+    image = model["services"]["postgres"]["image"]
+    expect(image == postgres_pin(), f"compose.dev.yaml postgres image is {image}, want {postgres_pin()}")
+
+
 def check_password_required() -> None:
     env = {k: v for k, v in ENV.items() if k != "CORELATA_DB_PASSWORD"}
     out = subprocess.run(["docker", "compose", "--env-file", "/dev/null", "-f", str(DEPLOY / "compose.yaml"), "config", "-q"], capture_output=True, text=True, env=env, cwd=DEPLOY)
@@ -85,5 +106,6 @@ def check_password_required() -> None:
 if __name__ == "__main__":
     check_stack()
     check_demo()
+    check_dev()
     check_password_required()
     print("check_compose: ok")

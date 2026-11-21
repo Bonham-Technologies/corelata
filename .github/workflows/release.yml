@@ -1,34 +1,31 @@
 name: release
 # A tag v<version> publishes the offline bundle (spec §12) as a GitHub release: the tar, its
 # .sha256, the manifest and SHA256SUMS (the tar and the manifest). The tag must name the package
-# version, and the bundle must pass the air-gap install test on the runner before anything is
-# published.
+# version and a commit on main (deploy/check-release-tag.sh), and the bundle must pass the air-gap
+# install test on the runner before anything is published.
+#
+# Two jobs (CRL-115): `build` gates the tag, tests and builds with a read-only token, and hands
+# the files to `publish`, the only job that can write, which runs none of the repository's code.
 on:
   push:
     tags: ["v*"]
 permissions:
-  contents: write
+  contents: read
 concurrency:
   group: release-${{ github.ref_name }}
   cancel-in-progress: false
 jobs:
-  release:
+  build:
     runs-on: ubuntu-24.04
     timeout-minutes: 60 # the air-gap test (~15 min), then the bundle build
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0 # bundle.sh names the bundle after the tag at HEAD
+          fetch-depth: 0 # bundle.sh names the bundle after the tag at HEAD; the gate reads main
           fetch-tags: true
-      - name: the tag names the package version
-        run: |
-          tag=${GITHUB_REF_NAME#v}
-          pkg=$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' engine/corelata/__init__.py)
-          if [ "$tag" != "$pkg" ]; then
-            echo "tag $GITHUB_REF_NAME does not match engine/corelata/__init__.py version $pkg;" \
-              "bump the package version first" >&2
-            exit 1
-          fi
+          persist-credentials: false
+      - name: the tag names the package version and is on main
+        run: deploy/check-release-tag.sh "$GITHUB_REF_NAME" origin/main
       - name: free disk space for the images and the bundle
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
@@ -59,14 +56,40 @@ jobs:
             echo
             echo "Built from $(git rev-parse --short HEAD); manifest attached."
           } >dist/notes.md
+      - name: hand the release files to the publish job
+        run: |
+          v=${GITHUB_REF_NAME#v}
+          mkdir release
+          mv "dist/corelata-$v-linux-amd64.tar" "dist/corelata-$v-linux-amd64.tar.sha256" \
+            "dist/corelata-$v-manifest.json" dist/SHA256SUMS dist/notes.md release/
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release
+          path: release
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0 # the image layers are compressed already
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write # create the release
+      actions: read # download the build job's files
+    steps:
+      # No checkout: this job runs no code from the repository, only gh.
       - name: publish
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           v=${GITHUB_REF_NAME#v}
+          gh run download "$GITHUB_RUN_ID" --name release --dir release
+          # the files arrived as the build job wrote them (gh does not check the artifact digest)
+          (cd release && sha256sum -c "corelata-$v-linux-amd64.tar.sha256" && sha256sum -c SHA256SUMS)
           gh release create "$GITHUB_REF_NAME" \
-            "dist/corelata-$v-linux-amd64.tar" \
-            "dist/corelata-$v-linux-amd64.tar.sha256" \
-            "dist/corelata-$v-manifest.json" \
-            dist/SHA256SUMS \
-            --verify-tag --title "Corelata $v" --notes-file dist/notes.md
+            "release/corelata-$v-linux-amd64.tar" \
+            "release/corelata-$v-linux-amd64.tar.sha256" \
+            "release/corelata-$v-manifest.json" \
+            release/SHA256SUMS \
+            --verify-tag --title "Corelata $v" --notes-file release/notes.md
