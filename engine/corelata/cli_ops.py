@@ -227,10 +227,11 @@ def _queue_run(args: argparse.Namespace) -> int:
         if parent is not None:
             await _check_parent(db, parent, args.project)
         pid = await service.create_project(db, args.project)
-        ids = list(source_ids)
-        ids += await _ingest_files(
+        ingested = await _ingest_files(
             db, storage, pid, args.inputs, args.coglossa_export, cfg.ingest.ocr_settings()
         )
+        # a file the project has already gives its source back (CRL-126): listed once
+        ids = list(dict.fromkeys([*source_ids, *ingested]))
         req = service.RunRequest(
             project_id=pid,
             source_ids=ids,
@@ -258,10 +259,11 @@ def _queue_discover(args: argparse.Namespace) -> int:
 
     async def go(db: Database, queue: service.JobQueue) -> uuid.UUID:
         pid = await service.create_project(db, args.project)
-        ids = list(source_ids)
-        ids += await _ingest_files(
+        ingested = await _ingest_files(
             db, storage, pid, args.inputs, args.coglossa_export, cfg.ingest.ocr_settings()
         )
+        # a file the project has already gives its source back (CRL-126): listed once
+        ids = list(dict.fromkeys([*source_ids, *ingested]))
         return await service.start_discovery(db, queue, pid, ids, args.audience)
 
     did = _with_queue(cfg, go)

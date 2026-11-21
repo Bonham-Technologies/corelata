@@ -151,8 +151,18 @@ def test_ingest_then_run_by_source_id(setup, capsys):
     assert code == 0
     [sid] = out.split()
     uuid.UUID(sid)
+    # the same file again is that source (CRL-126), so the run lists it once
     code, out, _ = _cli(
-        capsys, "run", "--project", "p", "--source-id", sid, "--statement", STATEMENT, *args
+        capsys,
+        "run",
+        str(doc),
+        "--project",
+        "p",
+        "--source-id",
+        sid,
+        "--statement",
+        STATEMENT,
+        *args,
     )
     assert code == 0
     run_id = _run_id(out)

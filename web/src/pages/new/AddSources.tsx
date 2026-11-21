@@ -49,13 +49,31 @@ export function uploadErrorText(error: unknown): string {
   return messageOf(error);
 }
 
-type Chosen = { key: number; file: File; uploading: boolean; error: string | null };
+/** What a chip says when the project had the file already: the API answered with the source it
+ * has, by content, under whatever name (CRL-126). */
+export function alreadyText(file: File, existing: SourceView): string {
+  const as = existing.name === file.name ? "" : ` as ${existing.name}`;
+  return `${file.name}: already in this project${as}`;
+}
+
+type Chosen = {
+  key: number;
+  file: File;
+  uploading: boolean;
+  error: string | null;
+  /** Set when the project had the file already: nothing was added and nothing is left to send. */
+  note: string | null;
+};
+
+const waiting = (c: Chosen) => c.error === null && c.note === null;
 
 let counter = 0;
 
 /** Adapted from Coglossa's DropArea (M18 spec §5.2): files by drag and drop or by browsing, as
  * chips; Upload sends them one after another, one request each, as the API takes them. A file
- * that fails keeps its chip with the reason and Try again; the others carry on. */
+ * that fails keeps its chip with the reason and Try again; the others carry on. A file the
+ * project has already keeps its chip, saying so, until it is removed; it is not handed on, so
+ * the selection stays as the analyst left it (CRL-126). */
 export function AddSources({
   projectId,
   maxUploadMb,
@@ -94,7 +112,7 @@ export function AddSources({
     if (files.length === 0) return;
     setChosen((current) => [
       ...current,
-      ...files.map((file) => ({ key: ++counter, file, uploading: false, error: null })),
+      ...files.map((file) => ({ key: ++counter, file, uploading: false, error: null, note: null })),
     ]);
   }
 
@@ -112,6 +130,10 @@ export function AddSources({
       try {
         const added = await upload.mutateAsync({ file: item.file, kind });
         if (!alive.current) return;
+        if (added[0]?.already_in_project) {
+          patch(item.key, { uploading: false, note: alreadyText(item.file, added[0]) });
+          continue;
+        }
         setChosen((current) => current.filter((c) => c.key !== item.key));
         onAdded(added);
         sent = true;
@@ -176,6 +198,11 @@ export function AddSources({
                   {why}
                 </span>
               ) : null}
+              {c.note ? (
+                <span role="status" className="muted" dir="auto">
+                  {c.note}
+                </span>
+              ) : null}
               {c.error ? (
                 <button
                   type="button"
@@ -210,8 +237,8 @@ export function AddSources({
         </select>
         <button
           type="button"
-          onClick={() => void send(sendable.filter((c) => c.error === null))}
-          disabled={busy || sendable.every((c) => c.error !== null)}
+          onClick={() => void send(sendable.filter(waiting))}
+          disabled={busy || !sendable.some(waiting)}
         >
           {busy ? "Uploading…" : "Upload"}
         </button>

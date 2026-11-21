@@ -115,6 +115,64 @@ it("keeps a failed file's chip with the reason and Try again while the next one 
   expect(chips().queryAllByRole("listitem")).toHaveLength(0);
 });
 
+it("keeps the chip of a file the project has already, says so, and hands nothing on (CRL-126)", async () => {
+  const order: string[] = [];
+  server.use(
+    http.post(`*/api/projects/${project.id}/sources`, async ({ request }) => {
+      const name = ((await request.formData()).get("file") as File).name;
+      order.push(name);
+      if (name === "new.txt")
+        return HttpResponse.json([{ ...source, id: "id-new", name }], { status: 201 });
+      const existing = name === "copy.txt" ? source.name : name;
+      return HttpResponse.json([{ ...source, name: existing, already_in_project: true }]);
+    }),
+  );
+  const added = vi.fn();
+  const done = vi.fn();
+  const { user } = renderWithClient(
+    <AddSources projectId={project.id} maxUploadMb={4} onAdded={added} onDone={done} />,
+  );
+  await user.upload(screen.getByLabelText("Choose files"), [
+    file("new.txt"),
+    file("copy.txt"),
+    file("port.txt"),
+  ]);
+  await user.click(screen.getByRole("button", { name: "Upload" }));
+  await waitFor(() => expect(order).toEqual(["new.txt", "copy.txt", "port.txt"]));
+  await waitFor(() => expect(done).toHaveBeenCalledTimes(1));
+  expect(added).toHaveBeenCalledTimes(1);
+  expect(added.mock.calls[0]![0][0].name).toBe("new.txt");
+  const notes = chips().getAllByRole("status");
+  expect(notes.map((n) => n.textContent)).toEqual([
+    "copy.txt: already in this project as port.txt",
+    "port.txt: already in this project",
+  ]);
+  expect(chips().queryByRole("alert")).toBeNull();
+  expect(chips().queryByRole("button", { name: /Try again/ })).toBeNull();
+  // nothing is left to send: Upload does not send them again
+  expect(screen.getByRole("button", { name: "Upload" })).toBeDisabled();
+  await user.click(chips().getByRole("button", { name: "Remove copy.txt" }));
+  await user.click(chips().getByRole("button", { name: "Remove port.txt" }));
+  expect(chips().queryAllByRole("listitem")).toHaveLength(0);
+});
+
+it("does not call onDone when every file was in the project already", async () => {
+  server.use(
+    http.post(`*/api/projects/${project.id}/sources`, () =>
+      HttpResponse.json([{ ...source, already_in_project: true }]),
+    ),
+  );
+  const done = vi.fn();
+  const { user } = renderWithClient(
+    <AddSources projectId={project.id} maxUploadMb={4} onAdded={() => {}} onDone={done} />,
+  );
+  await user.upload(screen.getByLabelText("Choose files"), [file("port.txt")]);
+  await user.click(screen.getByRole("button", { name: "Upload" }));
+  expect(await chips().findByRole("status")).toHaveTextContent("port.txt: already in this project");
+  expect(screen.getByRole("button", { name: "Upload" })).toHaveTextContent("Upload");
+  expect(done).not.toHaveBeenCalled();
+});
+
 it("names the file on each failed chip's Try again, and marks a chip busy while it uploads", async () => {
   let release!: () => void;
   const held = new Promise<void>((resolve) => (release = resolve));
