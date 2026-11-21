@@ -3,8 +3,9 @@ from stored rows). `load_record` rebuilds the `RunRecord` that `corelata run` wo
 written; `save_outcome` stores what a finished (or cancelled, or failed) run produced."""
 
 import uuid
+from collections.abc import Iterable
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from corelata.llm.agent import CallLog
@@ -17,18 +18,55 @@ from corelata.schema import (
     RunRecord,
     RunState,
     Source,
+    SourceKind,
 )
+from corelata.schema.source import lowest_tier
 from corelata.store import runs
-from corelata.store.models import Run
+from corelata.store.models import Run, RunSource, SourceRow, SourceUnitRow
+from corelata.trace import UnitCount
 
 
-async def load_sources(s: AsyncSession, run_id: uuid.UUID) -> list[Source]:
-    """The run's sources, named src1, src2, … by their position (RunSource.ordinal)."""
+async def load_sources(
+    s: AsyncSession, run_id: uuid.UUID, *, refs: Iterable[str] | None = None
+) -> list[Source]:
+    """The run's sources, named src1, src2, … by their position (RunSource.ordinal). `refs`
+    ("src2/u14"): each source with only the units these name, none for a source they do not
+    name; a claim read fetches its evidence and not the whole source (CRL-124)."""
+    wanted: dict[str, set[str]] = {}
+    for ref in refs or ():
+        source_id, _, unit_id = ref.partition("/")
+        wanted.setdefault(source_id, set()).add(unit_id)
     ids = await runs.run_source_ids(s, run_id)
     return [
-        await runs.load_source(s, await runs.get_source(s, sid), as_id=f"src{i}")
+        await runs.load_source(
+            s,
+            await runs.get_source(s, sid),
+            as_id=f"src{i}",
+            unit_ids=None if refs is None else wanted.get(f"src{i}", set()),
+        )
         for i, sid in enumerate(ids, start=1)
     ]
+
+
+async def unit_counts(s: AsyncSession, run_id: uuid.UUID) -> dict[str, UnitCount]:
+    """Each of the run's sources' unit count and Coglossa reliability tier, counted in the
+    database without reading a unit's text (CRL-124): what the trace summary shows of them."""
+    tiers = func.array_agg(func.distinct(SourceUnitRow.meta["reliability"].astext)).filter(
+        SourceRow.kind == SourceKind.COGLOSSA_EXPORT.value
+    )
+    rows = await s.execute(
+        select(func.count(SourceUnitRow.ordinal), tiers)
+        .select_from(RunSource)
+        .join(SourceRow, SourceRow.id == RunSource.source_id)
+        .outerjoin(SourceUnitRow, SourceUnitRow.source_id == RunSource.source_id)
+        .where(RunSource.run_id == run_id)
+        .group_by(RunSource.ordinal)
+        .order_by(RunSource.ordinal)
+    )
+    return {
+        f"src{i}": UnitCount(units=count, reliability_tier=lowest_tier(found or ()))
+        for i, (count, found) in enumerate(rows, start=1)
+    }
 
 
 async def load_report(s: AsyncSession, run_id: uuid.UUID) -> tuple[RunState, Report | None]:
@@ -39,9 +77,12 @@ async def load_report(s: AsyncSession, run_id: uuid.UUID) -> tuple[RunState, Rep
     return RunState(row.state), Report.model_validate(row.report) if row.report else None
 
 
-async def load_record(s: AsyncSession, run_id: uuid.UUID, *, with_io: bool = True) -> RunRecord:
+async def load_record(
+    s: AsyncSession, run_id: uuid.UUID, *, with_io: bool = True, with_units: bool = True
+) -> RunRecord:
     """`with_io=False`: the model calls without their stored request and response
-    (`runs.load_llm_calls`), for readers that do not show them (CRL-103)."""
+    (`runs.load_llm_calls`), for readers that do not show them (CRL-103). `with_units=False`: the
+    sources without their units, for the trace, which counts them (`unit_counts`, CRL-124)."""
     run = await runs.get_run(s, run_id)
     calls = await runs.load_llm_calls(s, run_id, with_io=with_io)
     return RunRecord(
@@ -59,7 +100,7 @@ async def load_record(s: AsyncSession, run_id: uuid.UUID, *, with_io: bool = Tru
         pack_snapshot=run.pack_snapshot,
         config_hash=run.config_hash,
         prompt_versions=run.prompt_versions,
-        sources=await load_sources(s, run_id),
+        sources=await load_sources(s, run_id, refs=None if with_units else ()),
         digests=[Digest.model_validate(d) for d in run.digests],
         prior_reports=[PriorReport.model_validate(p) for p in run.prior_reports or []],
         gate=GateVerdict.model_validate(run.gate) if run.gate else None,

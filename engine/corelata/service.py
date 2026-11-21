@@ -45,7 +45,7 @@ from corelata.storage import Storage, StorageError, display_name, safe_filename,
 from corelata.store import discoveries, records, runs
 from corelata.store.db import Database, error_reason
 from corelata.store.models import Project, ReviewEvent, Run, SourceRow
-from corelata.trace import ClaimProvenance, report_claim_provenance
+from corelata.trace import ClaimProvenance, RunTrace, report_claim_provenance, run_trace
 
 log = logging.getLogger("corelata.service")
 
@@ -802,15 +802,27 @@ async def get_findings(db: Database, run_id: uuid.UUID) -> list[Finding]:
         return found
 
 
+async def get_run_trace(db: Database, run_id: uuid.UUID) -> RunTrace:
+    """`GET /api/runs/{id}/trace`: the record without the model calls' stored request and
+    response (CRL-103) and without the sources' units, which the database counts (CRL-124); the
+    trace is built off the event loop."""
+    async with db.session() as s:
+        record = await records.load_record(s, run_id, with_io=False, with_units=False)
+        units = await records.unit_counts(s, run_id)
+    return await asyncio.to_thread(run_trace, record, units)
+
+
 async def get_claim_provenance(db: Database, run_id: uuid.UUID, claim_id: str) -> ClaimProvenance:
-    """A claim of the delivered report with its evidence units, from the report and the sources'
-    units alone (CRL-103). InvalidRunStateError while the run has no report; TraceError for a
-    claim the report does not have."""
+    """A claim of the delivered report with its evidence units, from the report and the units the
+    claim cites alone (CRL-103, CRL-124). InvalidRunStateError while the run has no report;
+    TraceError for a claim the report does not have."""
     async with db.session() as s:
         state, report = await records.load_report(s, run_id)
         if report is None:
             raise InvalidRunStateError(f"run {run_id} has no report (state {state.value})")
-        sources = await records.load_sources(s, run_id)
+        claim = next((c for c in report.claims if c.id == claim_id), None)
+        refs = claim.evidence if claim is not None else []
+        sources = await records.load_sources(s, run_id, refs=refs)
     return report_claim_provenance(str(run_id), report, sources, claim_id)
 
 

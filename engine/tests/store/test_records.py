@@ -5,8 +5,8 @@ import pytest
 from corelata import service
 from corelata.schema import RunState
 from corelata.store import records, runs
-from corelata.testing.sources import text_source
-from corelata.trace import TraceError, claim_provenance
+from corelata.testing.sources import coglossa_source, text_source
+from corelata.trace import TraceError, UnitCount, claim_provenance, run_trace
 from tests.stages.conftest import PORT
 
 STATEMENT = "Varna port capacity expansion matters to shippers"
@@ -137,3 +137,36 @@ async def test_review_reads_of_a_run_without_a_report_or_findings(db, run):
         await service.get_findings(db, unknown)
     with pytest.raises(runs.NotFoundError, match=f"run {unknown} not found"):
         await service.get_claim_provenance(db, unknown, "c0")
+
+
+async def test_the_trace_counts_units_and_a_claim_reads_only_its_evidence(db, run):
+    """CRL-124: the trace's record leaves the units unread and the database counts them; a
+    claim's sources carry the units its refs name and no others."""
+    rid = uuid.uuid4()
+    sources = [
+        text_source("src1", *PORT),
+        coglossa_source("src2", "A", "C"),
+        text_source("src3", "Shippers welcomed Varna."),
+    ]
+    record = await run(*sources, run_id=str(rid))
+    run_id, source_ids = await _rows_for(db, record, sources)
+    async with db.session() as s, s.begin():
+        row = await runs.get_run(s, run_id, lock=True)
+        await records.save_outcome(s, row, record, source_ids=source_ids)
+    whole = await service.get_run_record(db, run_id, with_io=False)
+    assert await service.get_run_trace(db, run_id) == run_trace(whole)
+    async with db.session() as s:
+        assert await records.unit_counts(s, run_id) == {
+            "src1": UnitCount(3, None),
+            "src2": UnitCount(2, "C"),
+            "src3": UnitCount(1, None),
+        }
+        bare = await records.load_record(s, run_id, with_io=False, with_units=False)
+        cited = await records.load_sources(s, run_id, refs=["src1/u3", "src1/u1", "src2/u2", "x"])
+    assert [(x.id, x.units) for x in bare.sources] == [("src1", []), ("src2", []), ("src3", [])]
+    assert bare.model_copy(update={"sources": whole.sources}) == whole
+    assert [x.units for x in cited] == [
+        [whole.sources[0].units[0], whole.sources[0].units[2]],
+        [whole.sources[1].units[1]],
+        [],
+    ]

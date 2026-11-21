@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import gc
 import hashlib
 import io
 import json
@@ -7,6 +8,7 @@ import re
 import uuid
 from collections.abc import Iterator
 
+import httpx
 import yaml
 from corelata import service
 from corelata.exports import OUTPUT_FILES
@@ -16,7 +18,7 @@ from corelata.store import records, runs
 from corelata.trace import ClaimProvenance, RunTrace, claim_provenance, run_trace
 from docx import Document
 from pydantic import TypeAdapter
-from sqlalchemy import event
+from sqlalchemy import event, text
 
 from corelata_api.headers import REPORT_CSP
 from corelata_api.routes import reports
@@ -436,6 +438,31 @@ def _statements(api) -> Iterator[list[str]]:
         event.remove(engine, "before_cursor_execute", capture)
 
 
+@contextlib.contextmanager
+def _executed(api) -> Iterator[list[tuple[str, object]]]:
+    """`_statements` with each statement's bound parameters."""
+    seen: list[tuple[str, object]] = []
+
+    def capture(conn, cursor, statement, parameters, context, executemany):
+        seen.append((statement, parameters))
+
+    engine = api.app.state.ctx.db.engine.sync_engine
+    event.listen(engine, "before_cursor_execute", capture)
+    try:
+        yield seen
+    finally:
+        event.remove(engine, "before_cursor_execute", capture)
+
+
+def _values(parameters: object) -> list[object]:
+    """Every bound value, however the driver nests them."""
+    if isinstance(parameters, dict):
+        return [v for p in parameters.values() for v in _values(p)]
+    if isinstance(parameters, (list, tuple)):
+        return [v for p in parameters for v in _values(p)]
+    return [parameters]
+
+
 def _tables(statements: list[str]) -> set[str]:
     return {t for st in statements for t in re.findall(r"\bFROM (\w+)", st)}
 
@@ -486,3 +513,75 @@ async def test_a_completed_run_without_a_stored_report_is_409_on_a_claim_id_rend
     )
     assert response.status_code == 409
     assert response.json()["detail"] == f"run {run['run_id']} has no report (state completed)"
+
+
+PROBE_EVERY_S = 0.01
+
+
+async def _widen_source(api, run_id: uuid.UUID, extra: int) -> None:
+    """Append `extra` paragraph units (about 7.7 MB at 40,000) to the run's one source, after its
+    own units, so the claims keep citing what they cited."""
+    async with api.db.session() as s, s.begin():
+        (source_id,) = await runs.run_source_ids(s, run_id)
+        await s.execute(
+            text(
+                "INSERT INTO source_unit (source_id, ordinal, unit_id, text, locator, kind, meta) "
+                "SELECT :sid, 1000 + n, 'w' || n, repeat('Grain moves through Varna. ', 7), "
+                "'para ' || n, 'paragraph', '{}'::jsonb FROM generate_series(1, :extra) AS n"
+            ),
+            {"sid": source_id, "extra": extra},
+        )
+
+
+async def _with_health_probes(api, path: str) -> tuple[httpx.Response, float]:
+    """`path`'s response, and the slowest /api/health call of those made every 10 ms while it was
+    in flight (at least one). The client is in process, so a probe measures from when it was due:
+    a read that holds the event loop delays it as it would delay a browser's request."""
+    gc.collect()  # a full collection the test's earlier allocations owe does not land in the window
+    loop = asyncio.get_running_loop()
+    read = asyncio.create_task(api.client.get(path))
+    slowest = 0.0
+    while True:
+        due = loop.time() + PROBE_EVERY_S
+        await asyncio.sleep(PROBE_EVERY_S)
+        health = await api.client.get("/api/health")
+        slowest = max(slowest, loop.time() - due)
+        assert health.status_code == 200
+        if read.done():
+            return await read, slowest
+
+
+async def test_claim_and_trace_reads_of_a_40000_unit_source_leave_the_loop_free(api):
+    """CRL-124: a claim read fetches only the units its evidence names, the trace counts units
+    without reading their text, and neither holds the event loop while a large source is read."""
+    run = await _completed(api)
+    run_id = uuid.UUID(run["run_id"])
+    async with api.db.session() as s:
+        before = await records.load_record(s, run_id)
+    assert before.report is not None
+    claim = next(c for c in before.report.claims if c.evidence)
+    expected_claim = TypeAdapter(ClaimProvenance).dump_json(claim_provenance(before, claim.id))
+    own_units = len(before.sources[0].units)
+    for path in (f"claims/{claim.id}", "trace"):  # first requests warm caches and the thread pool
+        assert (await api.client.get(f"/api/runs/{run_id}/{path}")).status_code == 200
+    await _widen_source(api, run_id, 40_000)
+
+    with _executed(api) as seen:
+        response, slowest = await _with_health_probes(api, f"/api/runs/{run_id}/claims/{claim.id}")
+    assert response.status_code == 200, response.text
+    assert response.content == expected_claim
+    unit_reads = [(st, p) for st, p in seen if re.search(r"\bFROM source_unit\b", st)]
+    assert len(unit_reads) == 1, unit_reads  # one statement, naming the evidence units alone
+    bound = {v for v in _values(unit_reads[0][1]) if isinstance(v, str)}
+    assert {ref.split("/")[1] for ref in claim.evidence} <= bound
+    assert not any(v.startswith("w") and v[1:].isdigit() for v in bound)
+    assert len(seen) <= 5, seen
+    assert slowest < 0.1, f"claim read held /api/health for {slowest:.3f} s"
+
+    with _executed(api) as seen:
+        response, slowest = await _with_health_probes(api, f"/api/runs/{run_id}/trace")
+    assert response.status_code == 200, response.text
+    (summary_source,) = response.json()["summary"]["sources"]
+    assert summary_source["units"] == own_units + 40_000
+    assert not [st for st, _ in seen if re.search(r"source_unit\.text\b", st)]
+    assert slowest < 0.1, f"trace read held /api/health for {slowest:.3f} s"
