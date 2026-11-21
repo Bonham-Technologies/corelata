@@ -406,7 +406,9 @@ export interface paths {
         /**
          * Get Doctor
          * @description The checks `corelata doctor` runs, from the API's own config file. The one route that
-         *     talks to the model servers (spec §10.1); `probe=false` skips the test completions.
+         *     talks to the model servers (spec §10.1): it lists their models on every call, and sends a
+         *     test completion per model only with `probe=true`. Probing runs are shared by concurrent
+         *     callers and reused for 30 s (CRL-112), so repeated calls do not spend tokens.
          */
         get: operations["get_doctor_api_system_doctor_get"];
         put?: never;
