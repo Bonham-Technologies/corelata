@@ -358,9 +358,9 @@ pipeline:
 - Raise the budgets when your models have a large context window and reports lose detail; lower
   them for a small window or a slow server. Keep them well inside `context_window`.
 - `evidence_quotes` (`required`, `optional` or `off`) decides whether each claim quotes the
-  words of its sources. With `required` (what `config/corelata.example.yaml`, and so a new
-  install, sets; the demo stack sets it too), the writer copies a
-  passage of every unit a claim cites into the claim's `quotes` (units of a digested source
+  words of its sources. With `required` (a new install starts with it from
+  `config/corelata.example.yaml`, and the demo stack sets it too), the writer copies a passage
+  of every unit a claim cites into the claim's `quotes` (units of a digested source
   excepted), and the engine checks each quote against the unit: a quote that is not there, or a
   cited unit left unquoted, fails `icd203.tc.8` (and `icd206.src.2` when a key judgment rests on
   the claim) as an engine finding such as `engine check: quote not found in src2/u14 (c3)`, and
