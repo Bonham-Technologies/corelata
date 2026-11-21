@@ -1,6 +1,9 @@
+import json
+import logging
 import uuid
 from datetime import UTC, datetime, timedelta
 
+import pytest
 from corelata import service
 from corelata.service import QueueUnavailableError
 from corelata.store import runs
@@ -229,6 +232,53 @@ async def test_a_stuck_cancel_is_reported_with_the_configured_threshold(make_api
         await take_job(api.db, uuid.UUID(run["run_id"]), silent_s=31)
         shown = (await api.client.get(f"/api/runs/{run['run_id']}")).json()
         assert shown["cancel_requested"] and shown["worker_gone"]
+
+
+@pytest.mark.parametrize("route", ["project", "run", "review"])
+async def test_an_unpaired_surrogate_is_a_one_line_422_not_a_500(api, caplog, route):
+    """CRL-128: text pasted from a broken export can carry a lone UTF-16 surrogate. The default
+    validation answer echoed the input back and could not encode it, so the analyst got
+    "internal error" and the operator a stack trace."""
+    if route == "project":
+        path, body, field = "/api/projects", '{"name": "a\\ud800b"}', "name"
+    elif route == "run":
+        pid, sid = await project_with_source(api)
+        path, field = "/api/runs", "value_statement"
+        body = json.dumps({"project_id": pid, "source_ids": [sid], "value_statement": "x"})
+        body = body.replace('"x"', '"a\\ud800b"')
+    else:
+        run = await start_run(api)
+        await set_run_state(api.db, run["run_id"], "completed")
+        path, field = f"/api/runs/{run['run_id']}/review", "note"
+        body = '{"action": "return", "note": "a\\ud800b"}'
+    queued = len(api.queue.jobs)
+    with caplog.at_level(logging.WARNING):
+        response = await api.client.post(
+            path, content=body.encode(), headers={"content-type": "application/json"}
+        )
+    assert response.status_code == 422, response.text
+    [error] = response.json()["detail"]
+    assert error["loc"] == ["body", field] and error["msg"]
+    assert "\n" not in error["msg"]
+    # the input is not echoed back, so nothing the client sent has to be encoded again
+    assert set(error) == {"type", "loc", "msg"}
+    assert [r for r in caplog.records if r.levelno >= logging.ERROR] == []
+    assert len(api.queue.jobs) == queued
+
+
+async def test_an_unpaired_surrogate_an_error_repeats_is_a_422_not_a_500(api, caplog):
+    """CRL-128: `profile` has no length limit, so a lone surrogate passes validation and reaches
+    the pack loader, whose message repeats it; the answer spells it out instead of failing."""
+    pid, sid = await project_with_source(api)
+    body = json.dumps({"project_id": pid, "source_ids": [sid], "value_statement": "x"})
+    body = body[:-1] + ', "profile": "a\\ud800b"}'
+    with caplog.at_level(logging.WARNING):
+        response = await api.client.post(
+            "/api/runs", content=body.encode(), headers={"content-type": "application/json"}
+        )
+    assert response.status_code == 422, response.text
+    assert "profile" in response.json()["detail"]
+    assert [r for r in caplog.records if r.levelno >= logging.ERROR] == []
 
 
 async def test_review_needs_a_completed_run(api):
