@@ -14,6 +14,7 @@ from corelata.store.db import error_reason
 from corelata.store.runs import NotFoundError
 from corelata.trace import TraceError
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy.exc import InterfaceError, OperationalError
@@ -101,6 +102,18 @@ async def _pack_failed(request: Request, exc: Exception) -> JSONResponse:
     return _response(422, exc.public)
 
 
+async def _invalid_request(request: Request, exc: Exception) -> JSONResponse:
+    """A body, query or path that fails validation (422). Each error keeps its type, field and
+    message, but not FastAPI's echo of the input: a lone surrogate pasted from a broken export
+    cannot be encoded back, and the default handler failed with a 500 (CRL-128)."""
+    assert isinstance(exc, RequestValidationError)
+    errors = [
+        {"type": error["type"], "loc": list(error["loc"]), "msg": error["msg"]}
+        for error in exc.errors()
+    ]
+    return JSONResponse(status_code=422, content={"detail": errors})
+
+
 async def _internal(request: Request, exc: Exception) -> JSONResponse:
     log.error("internal error on %s %s", request.method, request.url.path, exc_info=exc)
     # sent by ServerErrorMiddleware, outside SecurityHeadersMiddleware (CRL-68)
@@ -114,6 +127,7 @@ def install_error_handlers(app: FastAPI) -> None:
         app.add_exception_handler(exc_type, _handler(status))
     app.add_exception_handler(CoglossaFetchError, _coglossa_failed)
     app.add_exception_handler(PackError, _pack_failed)
+    app.add_exception_handler(RequestValidationError, _invalid_request)
     app.add_exception_handler(QueueUnavailableError, _queue_down)
     app.add_exception_handler(StorageError, _storage_down)
     # Mirrors corelata.worker.execute.DB_ERRORS (not imported: the API does not import the worker).
