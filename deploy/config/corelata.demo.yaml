@@ -10,6 +10,7 @@ roles:
   conveyor: { model: m1 }
   auditor: { model: m1 }
 standards: { packs_dir: /etc/corelata/packs, default_pack: icd203-base }
+pipeline: { evidence_quotes: required, quote_match_threshold: 1.0 }  # the synthetic model quotes its units
 ingest: { ocr: auto, ocr_languages: [eng] }  # scanned PDF pages are read by Tesseract (in the image)
 storage: { path: /data/files }
 worker: { concurrency: 2, stalled_after_s: 120 }
