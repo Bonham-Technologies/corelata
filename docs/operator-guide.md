@@ -639,7 +639,9 @@ The app's pages carry no `Content-Security-Policy` of Corelata's own; an HTML re
 (the report link, `report.html`) carries `Content-Security-Policy: sandbox; default-src 'none';
 style-src 'unsafe-inline'; frame-ancestors 'none'` and `X-Frame-Options: DENY`, so a report opened
 at the app's address runs no script, loads nothing but its own stylesheet and cannot be framed,
-not even by the app. The review screen shows the report inside a sandboxed frame that carries its
+not even by the app (a proxy that replaces Corelata's policy with one allowing `frame-ancestors
+'self'` lets the app's own address frame it again, since browsers then follow that policy over
+`X-Frame-Options`; other sites still cannot). The review screen shows the report inside a sandboxed frame that carries its
 own policy (`default-src 'none'`; its one script and its highlight style bound by a nonce; the
 report's stylesheet allowed by its SHA-256 hash; no other inline script or style), so nothing in
 a report can load or send anything.

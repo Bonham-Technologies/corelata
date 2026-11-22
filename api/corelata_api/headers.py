@@ -25,7 +25,8 @@ CACHEABLE_API_PATHS = frozenset({"/api/health"})
 # stylesheet, so model-derived text cannot act as the app even if it got past escaping. The
 # review screen fetches the HTML as text into its own sandboxed frame, which has its own policy.
 REPORT_CSP = "sandbox; default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'"
-# frame-ancestors 'none' for a browser that predates it, and for a proxy that replaces the policy
+# frame-ancestors 'none' for a browser that predates it, and for a proxy that strips the policy (one
+# that replaces it with its own frame-ancestors wins over this header in current browsers)
 REPORT_FRAME_OPTIONS = "DENY"
 
 
