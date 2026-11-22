@@ -1,5 +1,7 @@
 """CRL-68: every response carries X-Content-Type-Options and Referrer-Policy, set by a pure ASGI
-middleware so the progress stream stays unbuffered (test_progress.py streams through it)."""
+middleware so the progress stream stays unbuffered (test_progress.py streams through it). CRL-131:
+X-Frame-Options too (the HTML report sets its own, test_reports.py), and every /api answer but
+the liveness check is no-store."""
 
 import httpx
 import pytest
@@ -9,7 +11,11 @@ from starlette.responses import PlainTextResponse
 from corelata_api.headers import SecurityHeadersMiddleware
 from corelata_api.proxy import PROXY_SECRET_HEADER
 
-EXPECTED = {"x-content-type-options": "nosniff", "referrer-policy": "same-origin"}
+EXPECTED = {
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "same-origin",
+    "x-frame-options": "SAMEORIGIN",
+}
 
 
 def _has_them(response) -> bool:
@@ -29,6 +35,32 @@ async def test_every_kind_of_response_carries_them(make_api, tmp_path):
         assert missing.status_code == 404 and _has_them(missing)
 
 
+async def test_api_answers_are_not_stored_but_the_health_check_and_the_app_are_as_before(
+    make_api, tmp_path
+):
+    """CRL-131: report and source text must not sit in a shared workstation's disk cache."""
+    web_dir = tmp_path / "dist"
+    (web_dir / "assets").mkdir(parents=True)
+    (web_dir / "index.html").write_text("<title>Corelata</title>", encoding="utf-8")
+    (web_dir / "assets" / "app.js").write_text("1", encoding="utf-8")
+    async with make_api(api={"web_dir": str(web_dir)}) as api:
+        for path in (
+            "/api/projects",
+            "/api/openapi.json",
+            "/api/runs/x",  # a 422
+            "/api/projects/00000000-0000-0000-0000-000000000000",  # a 404
+            "/api/nowhere",
+            "/api",
+        ):
+            response = await api.client.get(path)
+            assert response.headers.get("cache-control") == "no-store", (path, response.headers)
+        health = await api.client.get("/api/health")
+        assert health.status_code == 200 and "cache-control" not in health.headers
+        assert (await api.client.get("/")).headers["cache-control"] == "no-cache"
+        assets = await api.client.get("/assets/app.js")
+        assert assets.headers["cache-control"] == "public, max-age=31536000, immutable"
+
+
 @pytest.fixture
 def secret_env(monkeypatch):
     monkeypatch.setenv("CORELATA_PROXY_SECRET", "s3cret-" * 5)
@@ -39,6 +71,7 @@ async def test_a_request_the_proxy_check_refuses_carries_them(secret_env, make_a
     async with make_api(auth=auth) as api:
         refused = await api.client.get("/api/projects", headers={PROXY_SECRET_HEADER: "x"})
         assert refused.status_code == 401 and _has_them(refused)
+        assert refused.headers["cache-control"] == "no-store"
 
 
 async def test_a_header_the_app_set_is_kept_and_other_scopes_pass_through():
@@ -61,3 +94,33 @@ async def test_a_header_the_app_set_is_kept_and_other_scopes_pass_through():
 
     await SecurityHeadersMiddleware(inner)({"type": "lifespan"}, None, None)
     assert seen == ["lifespan"]  # the lifespan scope passes through untouched
+
+
+async def test_an_api_cache_control_of_the_routes_own_gains_no_store():
+    """The progress stream's no-cache (for proxies) is kept and no-store added; one that says
+    no-store already is left alone; outside /api the route's own value stands."""
+
+    def route(value):
+        async def endpoint(request):
+            return PlainTextResponse("x", headers={"Cache-Control": value})
+
+        return endpoint
+
+    app = Starlette()
+    app.add_route("/api/events", route("no-cache"))
+    app.add_route("/api/stored", route("private, no-store"))
+    app.add_route("/api/health", route("max-age=5"))
+    app.add_route("/assets/a.js", route("public, max-age=60"))
+    app.add_middleware(SecurityHeadersMiddleware)
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://app.test") as client:
+        seen = {
+            p: (await client.get(p)).headers.get_list("cache-control")
+            for p in ("/api/events", "/api/stored", "/api/health", "/assets/a.js")
+        }
+    assert seen == {
+        "/api/events": ["no-cache, no-store"],
+        "/api/stored": ["private, no-store"],
+        "/api/health": ["max-age=5"],
+        "/assets/a.js": ["public, max-age=60"],
+    }

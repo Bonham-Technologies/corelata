@@ -626,12 +626,22 @@ authentication, where the browser keeps the password until it is closed.
 
 ### Content-Security-Policy
 
-Every response from Corelata carries `X-Content-Type-Options: nosniff` and
-`Referrer-Policy: same-origin`. The app's pages carry no `Content-Security-Policy` of
-Corelata's own; an HTML report or export (the report link, `report.html`) carries
-`Content-Security-Policy: sandbox; default-src 'none'; style-src 'unsafe-inline'; frame-ancestors
-'none'`, so a report opened at the app's address runs no script and loads nothing but its own
-stylesheet. The review screen shows the report inside a sandboxed frame that carries its
+Every response from Corelata carries `X-Content-Type-Options: nosniff`,
+`Referrer-Policy: same-origin` and `X-Frame-Options: SAMEORIGIN`, so no other site can show the
+app in a frame and trick a signed-in analyst into clicking **Accept**. Every answer under `/api/`
+except `/api/health` also carries `Cache-Control: no-store` (the progress stream:
+`no-cache, no-store`), so report, source and trace text is never written to the browser's disk
+cache on a shared workstation; the liveness check stays cacheable for monitors, and the app's own
+files keep their caching (`no-cache` for the page, a year for the hashed assets). Leave these
+headers in place at the proxy.
+
+The app's pages carry no `Content-Security-Policy` of Corelata's own; an HTML report or export
+(the report link, `report.html`) carries `Content-Security-Policy: sandbox; default-src 'none';
+style-src 'unsafe-inline'; frame-ancestors 'none'` and `X-Frame-Options: DENY`, so a report opened
+at the app's address runs no script, loads nothing but its own stylesheet and cannot be framed,
+not even by the app (a proxy that replaces Corelata's policy with one allowing `frame-ancestors
+'self'` lets the app's own address frame it again, since browsers then follow that policy over
+`X-Frame-Options`; other sites still cannot). The review screen shows the report inside a sandboxed frame that carries its
 own policy (`default-src 'none'`; its one script and its highlight style bound by a nonce; the
 report's stylesheet allowed by its SHA-256 hash; no other inline script or style), so nothing in
 a report can load or send anything.
@@ -656,7 +666,9 @@ With nginx's `add_header`, as in the sample, the report keeps its own policy as 
 browser enforces both. A proxy that replaces the header instead (Caddy's `header` directive,
 Traefik's headers middleware, nginx with `proxy_hide_header`) drops the report's `sandbox`
 policy: there, leave `Content-Security-Policy` alone on `/api/` responses. The sample policy does
-not add `X-Content-Type-Options` or `Referrer-Policy`, since Corelata sends them.
+not add `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options` or `Cache-Control`, since
+Corelata sends them; its `frame-ancestors 'self'` agrees with `X-Frame-Options: SAMEORIGIN`
+(browsers that know `frame-ancestors` follow it and ignore `X-Frame-Options`).
 
 ## 7. Running it
 

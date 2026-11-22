@@ -29,7 +29,8 @@ async def test_a_finished_run_sends_one_event(api):
     response = await api.client.get(f"/api/runs/{run['run_id']}/events")
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/event-stream")
-    assert response.headers["cache-control"] == "no-cache"
+    # no-cache for the proxies in between, no-store for the browser's disk cache (CRL-131)
+    assert response.headers["cache-control"] == "no-cache, no-store"
     assert response.headers["x-accel-buffering"] == "no"
     assert response.text.startswith("retry: 3000\n\n")
     assert [(e, d["state"]) for e, d in _events(response.text)] == [("progress", "completed")]
