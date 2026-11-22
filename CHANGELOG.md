@@ -5,6 +5,7 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+- The README now starts with what Corelata is, a screenshot, the requirements and a three-command quick start (`make demo`); the milestone notes moved to `docs/history.md`. `make demo` now works from a fresh clone: it copies the base standards pack into `deploy/config/packs/` when that directory is missing. Ticket: CRL-133
 - A request whose text holds an unpaired UTF-16 surrogate (as pasted from a broken export) now answers 422 naming the field instead of 500, and validation answers no longer echo the submitted input. Ticket: CRL-128
 - Pack loading, reference-document reads, the web app's file lookups and the doctor's config, prompt and pack checks run off the event loop, so a slow packs directory no longer stalls other requests. Ticket: CRL-113
 - An unreachable Coglossa and an unknown pack no longer reveal server addresses or paths to the client (the log keeps them); a Coglossa error answer is read only to 64 KB, and an import is held to the upload limit. Ticket: CRL-114
