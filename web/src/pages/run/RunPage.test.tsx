@@ -236,6 +236,21 @@ it("a run that does not exist says so, names the tab and offers a new report (CR
   await waitFor(() => expect(document.title).toBe("Report not found – Corelata"));
 });
 
+it("a truncated run link says the report was not found, not the validation error (CRL-130)", async () => {
+  const truncated = RUN_ID.slice(0, 20);
+  server.use(
+    http.get(`*/api/runs/${truncated}`, () =>
+      HttpResponse.json(
+        { detail: [{ loc: ["path", "run_id"], msg: "Input should be a valid UUID" }] },
+        { status: 422 },
+      ),
+    ),
+  );
+  renderApp(`/runs/${truncated}`);
+  expect(await screen.findByRole("heading", { name: "Report not found" })).toBeInTheDocument();
+  expect(screen.queryByRole("alert")).toBeNull();
+});
+
 it("keeps the error line when the run cannot be read for another reason (CRL-130)", async () => {
   server.use(
     http.get(`*/api/runs/${RUN_ID}`, () =>

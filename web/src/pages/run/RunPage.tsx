@@ -41,7 +41,7 @@ export function RunPage() {
   const projects = useProjects();
   const project = (projects.data ?? []).find((p) => p.id === progress?.project_id);
   const report = useReportJson(runId, progress?.state === "completed");
-  const missing = isNotFound(run.error); // CRL-130: unknown, or deleted since; NotFound names the tab
+  const missing = isNotFound(run.error, runId); // CRL-130: unknown, or deleted since; NotFound names the tab
   useDocumentTitle(
     missing ? null : tabTitle(progress, project?.name ?? "Corelata", report.data?.title),
   );

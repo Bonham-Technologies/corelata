@@ -65,7 +65,7 @@ export function ReviewPage() {
   const completed = run.data?.state === "completed";
   const html = useReportHtml(runId, completed);
   const json = useReportJson(runId, completed);
-  const missing = isNotFound(run.error); // CRL-130: NotFound names the tab
+  const missing = isNotFound(run.error, runId); // CRL-130: NotFound names the tab
   useDocumentTitle(json.data && !missing ? `${json.data.title} – Corelata` : null);
   const status = json.data?.metadata.status ?? run.data?.status;
   // R-M18-27: a clean report may still have minor issues; the banner names how many. The

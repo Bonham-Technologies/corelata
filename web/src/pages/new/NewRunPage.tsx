@@ -39,7 +39,7 @@ export function NewRunPage() {
   const sources = useSources(projectId);
   // CRL-130: the project's sources answer 404 when the project does not exist (or was deleted);
   // the page then says so in place of the form, and NotFound names the tab.
-  const missing = isNotFound(sources.error);
+  const missing = isNotFound(sources.error, projectId ?? undefined);
   useDocumentTitle(
     projectId === null
       ? "New report – Corelata"

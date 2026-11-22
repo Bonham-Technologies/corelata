@@ -5,6 +5,7 @@ import {
   errorText,
   eventsUrl,
   exportUrl,
+  isNotFound,
   NETWORK_ERROR,
   reportUrl,
   unwrap,
@@ -27,6 +28,24 @@ describe("errorText", () => {
   it("falls back to the status", () => {
     expect(errorText(502, null)).toBe("The server answered 502 without an explanation.");
     expect(errorText(500, { detail: "" })).toBe("The server answered 500 without an explanation.");
+  });
+});
+
+describe("isNotFound (CRL-130)", () => {
+  const id = "00000000-0000-0000-0000-000000000001";
+  it("is a 404, or a 422 for an id from the address that is not a UUID", () => {
+    expect(isNotFound(new ApiError(404, "run x not found"))).toBe(true);
+    expect(isNotFound(new ApiError(422, "run_id: Input should be a valid UUID"), "0000")).toBe(
+      true,
+    );
+  });
+  it("is nothing else: another status, a 422 for a well-formed id, or not an API error", () => {
+    expect(isNotFound(new ApiError(503, "the database is unavailable"), "0000")).toBe(false);
+    expect(isNotFound(new ApiError(422, "statement: too long"), id)).toBe(false);
+    expect(isNotFound(new ApiError(422, "statement: too long"))).toBe(false);
+    expect(isNotFound(new ApiError(0, NETWORK_ERROR), "0000")).toBe(false);
+    expect(isNotFound(new Error("not found"), "0000")).toBe(false);
+    expect(isNotFound(undefined)).toBe(false);
   });
 });
 

@@ -22,9 +22,14 @@ export class ApiError extends Error {
   }
 }
 
-/** The API answered 404: what was asked for does not exist (any other failure might pass). */
-export function isNotFound(error: unknown): boolean {
-  return error instanceof ApiError && error.status === 404;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** What was asked for does not exist (any other failure might pass): the API answered 404, or
+ * 422 for an `id` from the address that is not a UUID (a truncated or mangled link), which can
+ * name nothing (CRL-130). */
+export function isNotFound(error: unknown, id?: string): boolean {
+  if (!(error instanceof ApiError)) return false;
+  return error.status === 404 || (error.status === 422 && id !== undefined && !UUID.test(id));
 }
 
 type ValidationItem = { loc?: (string | number)[]; msg?: string };
