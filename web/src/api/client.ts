@@ -22,6 +22,11 @@ export class ApiError extends Error {
   }
 }
 
+/** The API answered 404: what was asked for does not exist (any other failure might pass). */
+export function isNotFound(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 404;
+}
+
 type ValidationItem = { loc?: (string | number)[]; msg?: string };
 const PLACES = new Set(["body", "query", "path"]);
 

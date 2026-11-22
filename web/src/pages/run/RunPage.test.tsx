@@ -215,9 +215,36 @@ it("ends on a deleted event with the not-found message (test_deleted_event_shows
   await findCurrentStep("Checking the value statement");
   deleted = true;
   FakeEventSource.last().emit("deleted", {});
-  expect(await screen.findByRole("alert")).toHaveTextContent("not found");
+  expect(await screen.findByRole("heading", { name: "Report not found" })).toBeInTheDocument();
+  await waitFor(() => expect(document.title).toBe("Report not found – Corelata"));
   expect(FakeEventSource.last().closed).toBe(true);
   expect(invalidate).toHaveBeenCalledWith({ queryKey: ["runs", RUN_ID], exact: true });
+});
+
+it("a run that does not exist says so, names the tab and offers a new report (CRL-130)", async () => {
+  server.use(
+    http.get(`*/api/runs/${RUN_ID}`, () =>
+      HttpResponse.json({ detail: `run ${RUN_ID} not found` }, { status: 404 }),
+    ),
+  );
+  renderApp(`/runs/${RUN_ID}`);
+  expect(await screen.findByRole("heading", { name: "Report not found" })).toBeInTheDocument();
+  expect(screen.getByText(/does not exist, or it was deleted/)).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Start a new report" })).toHaveAttribute("href", "/new");
+  expect(screen.queryByRole("alert")).toBeNull();
+  expect(screen.queryByText(new RegExp(RUN_ID))).toBeNull();
+  await waitFor(() => expect(document.title).toBe("Report not found – Corelata"));
+});
+
+it("keeps the error line when the run cannot be read for another reason (CRL-130)", async () => {
+  server.use(
+    http.get(`*/api/runs/${RUN_ID}`, () =>
+      HttpResponse.json({ detail: "the database is unavailable" }, { status: 503 }),
+    ),
+  );
+  renderApp(`/runs/${RUN_ID}`);
+  expect(await screen.findByRole("alert")).toHaveTextContent("the database is unavailable");
+  expect(screen.queryByRole("heading", { name: "Report not found" })).toBeNull();
 });
 
 it("polls when the stream gave up, and stops once the run is terminal", async () => {
