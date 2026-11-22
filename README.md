@@ -22,8 +22,8 @@ To try it from this repository:
 - Docker Engine 24 or newer with the Compose plugin 2.24 or newer (`docker compose version`);
 - `git` and `make`;
 - internet access for the first build, which downloads the base images and packages;
-- a few GB of free disk for the build: the finished images take about 2 GB, and the base images
-  and build layers Docker keeps add to that.
+- about 3 GB of free disk: the app and Postgres images take about 1 GB and Docker's build cache
+  about 1.5 GB.
 
 The image is built for linux/amd64. On an arm64 machine (Apple silicon, for example) Docker
 emulates it, which is slower but works where emulation is set up. The quick start needs no model
