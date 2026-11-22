@@ -340,6 +340,46 @@ it("New report without a project asks which project, and names the tab (M18 spec
   expectNoEngineWords(screen.getByRole("main"));
 });
 
+it("a project that does not exist says so instead of showing its form, and names the tab (CRL-130)", async () => {
+  serve();
+  const unknown = "99999999-9999-9999-9999-999999999999";
+  server.use(
+    http.get(`*/api/projects/${unknown}/sources`, () =>
+      HttpResponse.json({ detail: `project ${unknown} not found` }, { status: 404 }),
+    ),
+  );
+  renderApp(`/new?project=${unknown}`);
+  const main = screen.getByRole("main");
+  expect(
+    await within(main).findByRole("heading", { name: "Project not found" }),
+  ).toBeInTheDocument();
+  expect(within(main).getByText(/does not exist, or it was deleted/)).toBeInTheDocument();
+  expect(within(main).getByRole("link", { name: "Choose a project" })).toHaveAttribute(
+    "href",
+    "/new",
+  );
+  expect(within(main).queryByRole("button", { name: "Write the report" })).toBeNull();
+  expect(within(main).queryByRole("textbox", { name: "Value statement" })).toBeNull();
+  expect(within(main).queryByRole("region", { name: "Sources" })).toBeNull();
+  expect(within(main).queryByRole("alert")).toBeNull();
+  await waitFor(() => expect(document.title).toBe("Project not found – Corelata"));
+});
+
+it("keeps the project's form when its sources cannot be read for another reason (CRL-130)", async () => {
+  serve();
+  server.use(
+    http.get(`*/api/projects/${project.id}/sources`, () =>
+      HttpResponse.json({ detail: "the database is unavailable" }, { status: 503 }),
+    ),
+  );
+  renderApp(`/new?project=${project.id}`);
+  const main = screen.getByRole("main");
+  expect(await within(main).findByRole("alert")).toHaveTextContent("the database is unavailable");
+  expect(within(main).getByRole("heading", { name: project.name })).toBeInTheDocument();
+  expect(within(main).getByRole("button", { name: "Write the report" })).toBeInTheDocument();
+  expect(within(main).queryByRole("heading", { name: "Project not found" })).toBeNull();
+});
+
 it("the project page names the project, has no picker, folds the options and has one primary button", async () => {
   serve();
   renderApp(`/new?project=${project.id}`);
