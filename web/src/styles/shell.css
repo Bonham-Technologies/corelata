@@ -202,7 +202,9 @@ kbd {
    line. The bar wraps onto as many lines as it needs and scrolls away with the page, so it never
    holds a quarter of a 256 px-tall window; the sidebar overlay then opens at the top of the
    workspace, directly under the bar whatever its height, instead of a fixed bar height below the
-   window's top. From 440 px the bar fits and nothing here applies. */
+   window's top. From 440 px nothing here applies: the bar fits on one line there unless a long
+   signed-in name and Sign out are shown, which can still overflow it (a 28-character name does
+   up to about 610 px). */
 @media (max-width: 439px) {
   .topbar {
     position: static;
