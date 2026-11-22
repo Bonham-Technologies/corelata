@@ -226,15 +226,16 @@ it("says when a project has no sources yet", async () => {
 });
 
 it("shows a source-list failure inline", async () => {
+  // a 404 (no such project) replaces the whole page instead (CRL-130, NewRunPage.test)
   server.use(
     http.get("*/api/projects", () => HttpResponse.json([project])),
     http.get(`*/api/projects/${project.id}/sources`, () =>
-      HttpResponse.json({ detail: "no such project" }, { status: 404 }),
+      HttpResponse.json({ detail: "the database is unavailable" }, { status: 503 }),
     ),
     http.get("*/api/runs", () => HttpResponse.json(noRuns)),
   );
   renderApp(`/new?project=${project.id}`);
-  expect(await screen.findByRole("alert")).toHaveTextContent("no such project");
+  expect(await screen.findByRole("alert")).toHaveTextContent("the database is unavailable");
 });
 
 it("moves focus to the selected-sources status after an upload (M18 polish F1)", async () => {

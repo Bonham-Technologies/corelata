@@ -91,6 +91,31 @@ it("shows a report fetch failure inline", async () => {
   expect(await screen.findByRole("alert")).toHaveTextContent("database is unavailable");
 });
 
+it("a run that does not exist says the report was not found and offers a new one (CRL-130)", async () => {
+  server.use(
+    http.get(`*/api/runs/${RUN_ID}`, () =>
+      HttpResponse.json({ detail: `run ${RUN_ID} not found` }, { status: 404 }),
+    ),
+  );
+  renderApp(`/runs/${RUN_ID}/review`);
+  expect(await screen.findByRole("heading", { name: "Report not found" })).toBeInTheDocument();
+  expect(screen.getByText(/does not exist, or it was deleted/)).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Start a new report" })).toHaveAttribute("href", "/new");
+  expect(screen.queryByRole("alert")).toBeNull();
+  await waitFor(() => expect(document.title).toBe("Report not found – Corelata"));
+});
+
+it("keeps the error line when the run cannot be read for another reason (CRL-130)", async () => {
+  server.use(
+    http.get(`*/api/runs/${RUN_ID}`, () =>
+      HttpResponse.json({ detail: "the database is unavailable" }, { status: 503 }),
+    ),
+  );
+  renderApp(`/runs/${RUN_ID}/review`);
+  expect(await screen.findByRole("alert")).toHaveTextContent("the database is unavailable");
+  expect(screen.queryByRole("heading", { name: "Report not found" })).toBeNull();
+});
+
 it("selects a claim from the report, opens provenance, and pluralises open findings", async () => {
   server.use(
     http.get(`*/api/runs/${RUN_ID}`, () =>

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { createMemoryRouter, RouterProvider, type RouteObject } from "react-router";
 import { makeQueryClient, Providers } from "../Providers";
@@ -84,6 +84,8 @@ it("redirects the root to the new report screen and shows the not-found page els
   expect(router.state.location.pathname).toBe("/new");
   renderApp("/nope");
   expect(await screen.findByRole("heading", { name: "Page not found" })).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Start a new report" })).toHaveAttribute("href", "/new");
+  await waitFor(() => expect(document.title).toBe("Page not found – Corelata"));
 });
 
 it("shows the info error inline when the API is unreachable", async () => {
