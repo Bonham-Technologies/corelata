@@ -8,10 +8,11 @@ import { startRun } from "./support";
 
 const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"];
 
-/** Fails with each violated rule, its impact and the nodes it names. */
-async function expectAccessible(page: Page, screen: string) {
+/** Fails with each violated rule, its impact and the nodes it names. Below 900 px the sidebar, and
+ * the version line in it, shows only while open: pass `sidebarShut` to scan without it. */
+async function expectAccessible(page: Page, screen: string, { sidebarShut = false } = {}) {
   // the version line renders once the API answers; scan it, in a landmark, every time
-  await expect(page.getByRole("contentinfo", { name: "Version" })).toBeVisible();
+  if (!sidebarShut) await expect(page.getByRole("contentinfo", { name: "Version" })).toBeVisible();
   const { violations } = await new AxeBuilder({ page }).withTags(TAGS).analyze();
   const found = violations.map(
     (v) =>
@@ -247,3 +248,92 @@ for (const theme of ["light", "dark"] as const) {
     await expectAccessible(page, `the sidebar overlay at 600 px (${theme})`);
   });
 }
+
+type Box = { x: number; y: number; width: number; height: number };
+
+const overlaps = (a: Box, b: Box) =>
+  a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+
+const extent = (b: Box) =>
+  `x ${Math.round(b.x)}..${Math.round(b.x + b.width)}, y ${Math.round(b.y)}..${Math.round(b.y + b.height)}`;
+
+// CRL-129, WCAG 1.4.10 Reflow: 400% zoom of a 1280 x 1024 window is a 320 x 256 CSS px viewport.
+// Every control in the top bar sits inside the bar and clear of the others, nothing below the bar
+// runs under it, the sidebar button stays in view and usable with the overlay open, and the page
+// never scrolls sideways. A signed-in user with a long name and Sign out are the widest top bar.
+test("the top bar reflows at 320 px (400% zoom)", async ({ page, request }) => {
+  await page.route("**/api/system/info", async (route) => {
+    const info = await (await route.fetch()).json();
+    await route.fulfill({
+      json: { ...info, user: "analyst.longname@example.gov", logout_url: "/oauth2/sign_out" },
+    });
+  });
+  await page.setViewportSize({ width: 320, height: 256 });
+  const { runId } = await startRun(request, { label: "Reflow", maxIterations: 0 });
+  await page.goto(`/runs/${runId}`);
+  const bar = page.locator("header.topbar");
+  const toggle = page.getByRole("button", { name: "Your projects" });
+  const controls = {
+    "Your projects": toggle,
+    brand: bar.getByRole("link", { name: "Corelata" }),
+    theme: bar.getByRole("button", { name: /^Switch to the / }),
+    Help: bar.getByRole("button", { name: "Help", exact: true }),
+    Settings: bar.getByRole("link", { name: "Settings" }),
+    user: bar.getByText("analyst.longname@example.gov"),
+    "Sign out": bar.getByRole("button", { name: "Sign out" }),
+  };
+  await expect(controls["Sign out"]).toBeVisible();
+  const crumb = page.getByRole("navigation", { name: "Breadcrumb" });
+  await expect(crumb).toBeVisible();
+
+  const barBox = (await bar.boundingBox())!;
+  const boxes: [string, Box][] = [];
+  for (const [name, control] of Object.entries(controls)) {
+    const box = (await control.boundingBox())!;
+    const inside =
+      box.x >= barBox.x &&
+      box.y >= barBox.y &&
+      box.x + box.width <= barBox.x + barBox.width &&
+      box.y + box.height <= barBox.y + barBox.height;
+    expect(inside, `${name} (${extent(box)}) sits inside the bar (${extent(barBox)})`).toBe(true);
+    for (const [other, otherBox] of boxes) {
+      expect(overlaps(box, otherBox), `${name} (${extent(box)}) clear of ${other}`).toBe(false);
+    }
+    boxes.push([name, box]);
+  }
+  const barBottom = barBox.y + barBox.height;
+  for (const [name, below] of [
+    ["main", page.locator("main")],
+    ["the breadcrumb", crumb],
+  ] as const) {
+    const box = (await below.boundingBox())!;
+    expect(
+      box.y,
+      `${name} (${extent(box)}) starts below the bar (${extent(barBox)})`,
+    ).toBeGreaterThanOrEqual(barBottom);
+  }
+  const sideways = await page.evaluate(() => {
+    const root = document.documentElement;
+    return root.scrollWidth - root.clientWidth;
+  });
+  expect(sideways, "the page does not scroll sideways").toBe(0);
+  await expectAccessible(page, "the run page at 320 px", { sidebarShut: true });
+
+  await toggle.click();
+  await expect(page.getByRole("link", { name: "+ New report" })).toBeFocused();
+  await expect(toggle).toHaveAttribute("aria-expanded", "true");
+  const sidebar = (await page.locator(".sidebar").boundingBox())!;
+  expect(
+    sidebar.y,
+    `the open sidebar (${extent(sidebar)}) starts below the bar (${extent(barBox)})`,
+  ).toBeGreaterThanOrEqual(barBottom);
+  const onTop = await toggle.evaluate((button) => {
+    const r = button.getBoundingClientRect();
+    return button.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2));
+  });
+  expect(onTop, "nothing covers the sidebar button while the sidebar is open").toBe(true);
+  await expectAccessible(page, "the sidebar overlay at 320 px");
+  await toggle.click();
+  await expect(page.locator(".sidebar")).toBeHidden();
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+});

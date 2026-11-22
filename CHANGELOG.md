@@ -5,6 +5,7 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+- Below 440 CSS px wide (400% zoom, or a phone held upright) the top bar now wraps onto extra lines and scrolls away with the page instead of clipping "Your projects" and covering the page, and the projects sidebar opens just below it (WCAG 1.4.10 Reflow). Ticket: CRL-129
 - A link to a report or project that no longer exists, or a link cut short, now shows "Report not found" or "Project not found" with a way to start a report or choose a project, and the browser tab says so, instead of a bare error line or an empty project form; other errors still show as before. Ticket: CRL-130
 - A request whose text holds an unpaired UTF-16 surrogate (as pasted from a broken export) now answers 422 naming the field instead of 500, and validation answers no longer echo the submitted input. Ticket: CRL-128
 - Pack loading, reference-document reads, the web app's file lookups and the doctor's config, prompt and pack checks run off the event loop, so a slow packs directory no longer stalls other requests. Ticket: CRL-113
