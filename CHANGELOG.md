@@ -5,6 +5,7 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+- At 400% zoom (320 CSS px wide) the top bar now wraps onto extra lines and scrolls away with the page instead of clipping "Your projects" and covering the page, and the projects sidebar opens just below it (WCAG 1.4.10 Reflow). Ticket: CRL-129
 - A request whose text holds an unpaired UTF-16 surrogate (as pasted from a broken export) now answers 422 naming the field instead of 500, and validation answers no longer echo the submitted input. Ticket: CRL-128
 - Pack loading, reference-document reads, the web app's file lookups and the doctor's config, prompt and pack checks run off the event loop, so a slow packs directory no longer stalls other requests. Ticket: CRL-113
 - An unreachable Coglossa and an unknown pack no longer reveal server addresses or paths to the client (the log keeps them); a Coglossa error answer is read only to 64 KB, and an import is held to the upload limit. Ticket: CRL-114
