@@ -104,6 +104,10 @@ async def test_html_reports_and_exports_carry_a_sandbox_policy(api):
         response = await api.client.get(path, params=params)
         assert response.status_code == 200, (path, params)
         assert response.headers["content-security-policy"] == REPORT_CSP, (path, params)
+        # CRL-131: framed by nothing, as frame-ancestors 'none' says, for browsers without CSP
+        # too; the review screen shows the HTML in a srcdoc frame, never this address
+        assert response.headers.get_list("x-frame-options") == ["DENY"], (path, params)
+        assert response.headers["cache-control"] == "no-store", (path, params)
     # the policy the operator guide states, word for word
     assert REPORT_CSP == (
         "sandbox; default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'"
@@ -116,6 +120,8 @@ async def test_html_reports_and_exports_carry_a_sandbox_policy(api):
         response = await api.client.get(path, params=params)
         assert "content-security-policy" not in response.headers, (path, params)
         assert response.headers["x-content-type-options"] == "nosniff"
+        assert response.headers["x-frame-options"] == "SAMEORIGIN", (path, params)
+        assert response.headers["cache-control"] == "no-store", (path, params)
 
 
 async def test_claim_ids_re_render(api):
