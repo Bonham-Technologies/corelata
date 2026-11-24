@@ -8,7 +8,10 @@ A check run audits a finished report someone else wrote instead of writing one. 
 a run is: NOT NULL with the server default 'report', so every existing run reads as a report run;
 Postgres 11 and later add a column with a constant default without rewriting the table.
 `report_source_id` names the uploaded source a check run audits (NULL for a report run); a
-nullable column without a default rewrites nothing either. Add-only: nothing is backfilled.
+nullable column without a default rewrites nothing either. Its foreign key has no ON DELETE
+action (NO ACTION): deleting a check run's report source on its own is refused instead of
+silently deleting the run, while deleting the project, which cascades to both the run and the
+source in one statement, still succeeds. Add-only: nothing is backfilled.
 """
 
 from collections.abc import Sequence
@@ -31,7 +34,6 @@ def upgrade() -> None:
         "source",
         ["report_source_id"],
         ["id"],
-        ondelete="CASCADE",
     )
 
 

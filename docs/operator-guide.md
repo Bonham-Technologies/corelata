@@ -935,7 +935,14 @@ the checked report is always the uploaded one. A sentence no source supports kee
 evidence, and the engine fails `icd203.tc.8` (and `icd206.src.2` for a key judgment) on it
 whatever the auditor says. The auditor then runs once: there is no writer, no editing and no
 revision. Set `roles.structurer` to give the role its own model; unset, the writer's model does
-it.
+it. The report's own text is read like a source's: text its document hides from the reader is
+kept in the trace but reaches no model and is not checked, and a passage that reads as an
+instruction to an AI is flagged to the structurer, which copies it as a claim like any other
+sentence. A file given both as the report and among its sources is refused (exit 2): the report
+is never its own evidence.
+
+A source that a check run audits as its report cannot be deleted on its own while the run
+exists; deleting the project removes both.
 
 Through the API, upload the report as a project source like any other, then
 `POST /api/runs` with `{"project_id", "source_ids": [the sources], "kind": "check",

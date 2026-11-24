@@ -396,6 +396,12 @@ def _check(args: argparse.Namespace) -> int:
         ocr = cfg.ingest.ocr_settings()
         report = make_source(REPORT_ID, args.report, ocr=ocr)
         sources = load_sources(args.inputs, args.coglossa_export, ocr)
+        same = [s.name for s in sources if s.sha256 == report.sha256]
+        if same:  # R-CRL94-5: the report is never its own evidence
+            raise IngestError(
+                f"{same[0]} is the report to check; give the report only once, not among its "
+                "sources"
+            )
         pack = load_pack(
             args.pack or cfg.standards.default_pack,
             packs_dir=cfg.standards.packs_dir,

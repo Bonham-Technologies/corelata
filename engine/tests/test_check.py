@@ -288,6 +288,11 @@ def test_corelata_check_usage_errors(config_path, tmp_path, capsys):
     assert "at least one source" in capsys.readouterr().err
     assert main(["check", rep, src, "--config", str(config_path), "--pack", "nope"]) == 2
     assert main(["check", str(tmp_path / "missing.md"), src, "--config", str(config_path)]) == 2
+    # R-CRL94-5: the report among its own sources (a shell glob that caught it) is refused
+    copy = tmp_path / "copy.md"
+    copy.write_bytes((EXAMPLES / "varna-port-assessment.md").read_bytes())
+    assert main(["check", rep, src, str(copy), "--config", str(config_path)]) == 2
+    assert "copy.md is the report to check" in capsys.readouterr().err
     blocker = tmp_path / "file"
     blocker.write_text("x")
     assert main(["check", rep, src, "--config", str(config_path), "--out", str(blocker)]) == 2

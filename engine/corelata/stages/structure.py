@@ -19,8 +19,9 @@ from collections.abc import Callable
 from typing import Any
 
 from corelata.config import EvidenceQuotes
+from corelata.ingest.units import model_view
 from corelata.schema import BlockKind, ReportBody, Source
-from corelata.stages.context import StageContext, StageError
+from corelata.stages.context import StageContext, StageError, unit_flags
 from corelata.stages.report_schema import report_output_type
 from corelata.stages.write import quote_errors, quotes_mode, select_writer_units, shape_reply
 
@@ -188,13 +189,19 @@ def structure_schema(ctx: StageContext, sentences: list[str]) -> dict[str, Any]:
 
 
 def report_payload(report: Source) -> dict[str, Any]:
+    """The report as the structurer reads it, each block with the flags a source unit carries
+    (`ocr`, and `suspect` for text that reads as an instruction to an AI system, CRL-137)."""
     return {
         "name": report.name,
-        "blocks": [{"kind": u.kind.value, "text": u.text} for u in report.units],
+        "blocks": [{"kind": u.kind.value, "text": u.text} | unit_flags(u) for u in report.units],
     }
 
 
 async def run_structurer(ctx: StageContext, report: Source) -> ReportBody:
+    """Map `report` onto the report JSON. The text its document hides from the reader (CRL-137)
+    reaches no model and is not checked: the structurer reads, and the claims are, what a reader
+    of the report sees; the run's record keeps every unit."""
+    [report] = model_view([report])
     sentences = report_sentences(report, ctx.pack.lexicon.handling_markings)
     if not sentences:
         raise StageError("structuring", f"{report.name} has no sentences to check")

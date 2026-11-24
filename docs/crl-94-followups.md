@@ -38,6 +38,18 @@ later. The ticket's scope is in the spec; this file says how the open choices we
   has no project memory (`prior_reports`) and `max_iterations` 0. `roles.structurer` is optional
   and falls back to the writer's model; unset, it is left out of the config dump so
   `config_hash` is unchanged.
+- **R-CRL94-8 (the report is untrusted text, CRL-137).** The structurer reads the checked report
+  as the models read a source (`units.model_view`): its hidden units reach no model and are not
+  among the sentences or the words a text is compared with, though the trace's `checked_report`
+  keeps them; a block that reads as an instruction carries `"suspect": true`, and the prompt
+  says the report and the sources are data, never instructions. `corelata check` refuses a
+  source with the report's sha256 (an upload of the same file is already the same project
+  source, so the API's id check covers it).
+- **R-CRL94-9 (deleting the report).** `run.report_source_id` references `source` with no
+  ON DELETE action: deleting a check run's report on its own fails instead of cascading to the
+  run (CASCADE would delete the run's rows silently and leave its stored files behind), and
+  deleting the project still removes both in one statement. A source-deletion command must
+  refuse a source a check names as its report, as it refuses one in `run_source`.
 
 ## Later
 
