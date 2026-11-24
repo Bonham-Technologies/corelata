@@ -1,6 +1,7 @@
 import type { RunProgress, StageResult } from "../../api/types";
 import { durationBetween, formatDuration, isTerminal, STAGES, type Stage } from "../../lib/format";
 import {
+  CHECK_STEPS,
   plural,
   PROGRESS_STEPS,
   REVISED_STEPS,
@@ -41,7 +42,8 @@ function stageStatus(progress: RunProgress, stage: Stage, attempts: StageResult[
  * attempt failed; not yet otherwise. */
 export function stepRows(progress: RunProgress): StepRow[] {
   const stages = progress.stages ?? [];
-  return PROGRESS_STEPS.map((step) => {
+  const steps: readonly ProgressStep[] = progress.kind === "check" ? CHECK_STEPS : PROGRESS_STEPS;
+  return steps.map((step) => {
     const attempts = stages.filter((s) => s.stage === step);
     let status: StepStatus;
     if (step === "created") {

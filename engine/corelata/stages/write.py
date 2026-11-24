@@ -234,7 +234,7 @@ async def run_writer(
             "findings": [f.model_dump() for f in findings],
             "extra_guidance": ctx.extra_guidance,
             "iteration": iteration,
-            **_quotes_mode(ctx),
+            **quotes_mode(ctx),
         },
         output_type=ReportBody,
         schema=report_schema(ctx),
@@ -251,7 +251,7 @@ def prior_reports_payload(ctx: StageContext) -> dict[str, Any]:
     return {"prior_reports": [prior_report_entry(r) for r in ctx.prior_reports]}
 
 
-def _quotes_mode(ctx: StageContext) -> dict[str, str]:
+def quotes_mode(ctx: StageContext) -> dict[str, str]:
     """The payload's `evidence_quotes` key, absent with `off` so that payload is unchanged."""
     if ctx.evidence_quotes is EvidenceQuotes.OFF:
         return {}

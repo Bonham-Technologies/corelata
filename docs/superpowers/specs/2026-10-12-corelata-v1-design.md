@@ -28,6 +28,18 @@ v1 ships as a **CLI, an HTTP API and a focused web review UI**, packaged as an o
 - Offline bundle, install/backup/restore, air-gap CI test, operator guide.
 - Profile extractor that drafts a team profile from example reports (M6, may slip past first deployment).
 
+CRL-94 amendment (audit-only check mode, owner-approved 2026-11-22): besides writing reports,
+Corelata checks a finished report someone else wrote (a standards team's or an evaluation
+board's) against the pack without rewriting it. A run of kind `check` takes the report (any
+ingestible document), its sources and an optional value statement; the `structurer` role maps
+the report's own sentences onto `ReportBody` word for word (the engine rejects any other text and
+puts every sentence in exactly one claim), the auditor runs once with no gate, writer, conveyor
+or loop, and the run completes `clean` or `findings_open` with a findings sheet
+(`findings.csv`). `corelata check report.docx sources/... --pack ...` (exit 0 or 3),
+`POST /runs {kind: check, report_source_id}`, and a Review screen without Accept, Return or
+the writing timeline. `run.kind` defaults to `report` (migration 0009, add-only). The §2.3
+non-goals are unchanged. Rulings R-CRL94-1 to R-CRL94-10 in `docs/crl-94-followups.md`.
+
 **Out of scope for v1** (see §15): PDF rendering, user management and billing, live web collection, multiple report products in the base pack, classification-guide enforcement beyond a handling marking string, bundled models.
 
 ## §2 Context and decisions
@@ -114,6 +126,7 @@ Roles are typed config (`RolesConfig`), each mapped to a model key, each with a 
 | `conveyor` | draft `Report`, template, profile tone/format, routed findings (iteration ≥ 1) | `Report` | change the claim set (M1: reword only; the engine keeps the claim set fixed, and adding claims that cite existing units is deferred until real models need it) |
 | `auditor` | draft `Report`, resolved rules, lexicon, the source units each claim cites | `AuditResult` (findings only) | edit: `AuditResult` has no report field |
 | `profiler` | example reports, plus the base pack's rule ids, template and lexicon so it proposes only valid overrides | `Profile` with `draft: true` | be used in a run |
+| `structurer` (CRL-94) | a finished report's blocks and sentences, template, lexicon, digests, the sources' units | `ReportBody` whose claims are the report's sentences | write words of its own: the engine checks every text against the report |
 
 ## §5 Ingest and sources
 

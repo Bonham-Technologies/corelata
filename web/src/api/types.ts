@@ -50,7 +50,13 @@ export type ErrorBody = S["ErrorBody"];
 
 export type ReportFormat = "json" | "md" | "html" | "docx";
 export type ExportName =
-  "trace.json" | "gate.json" | "report.json" | "report.md" | "report.html" | "report.docx";
+  | "trace.json"
+  | "gate.json"
+  | "report.json"
+  | "report.md"
+  | "report.html"
+  | "report.docx"
+  | "findings.csv";
 
 /** The delivered report as `report.json` serves it (the engine's `Report`; not in the OpenAPI
  * document because the route returns bytes). Only the fields the review screen reads. */

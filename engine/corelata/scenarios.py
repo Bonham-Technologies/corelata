@@ -16,12 +16,14 @@ from corelata.config import CorelataConfig, PipelineConfig
 from corelata.ingest.units import source_from_html, source_from_paragraphs
 from corelata.llm.agent import CallLog
 from corelata.llm.types import Backend
-from corelata.pipeline import AUDIT_INCOMPLETE, RunOptions, run_report, utcnow
+from corelata.pipeline import AUDIT_INCOMPLETE, RunOptions, run_check, run_report, utcnow
 from corelata.prompts.library import PromptLibrary
 from corelata.schema import (
+    BlockKind,
     Finding,
     Report,
     ReportStatus,
+    RunKind,
     RunRecord,
     RunState,
     Source,
@@ -29,6 +31,7 @@ from corelata.schema import (
     Verdict,
 )
 from corelata.stages.audit import ENGINE_CHECK
+from corelata.stages.structure import REPORT_ID
 
 
 class ScenarioError(ValueError):
@@ -131,14 +134,29 @@ class ScenarioExpect(_Strict):
 
 
 class Scenario(_Strict):
+    """A run, or with `kind: check` (CRL-94) a check of `report`, a finished report given as
+    paragraphs (a paragraph starting `# ` is a heading), whose statement is optional."""
+
     name: str = Field(pattern=r"^[a-z0-9][a-z0-9\-]*$")
     description: str = ""
-    statement: str = Field(min_length=1)
+    kind: RunKind = RunKind.REPORT
+    statement: str = ""
+    report: ScenarioSource | None = None
     sources: list[ScenarioSource] = Field(min_length=1)
     max_iterations: int | None = Field(None, ge=0, le=10)
     profile: str | None = None
     pipeline: dict[str, Any] = Field(default_factory=dict)
     expect: ScenarioExpect
+
+    @model_validator(mode="after")
+    def _kind_needs(self) -> "Scenario":
+        if self.kind is RunKind.CHECK and self.report is None:
+            raise ValueError("a check scenario needs a report")
+        if self.kind is RunKind.REPORT and self.report is not None:
+            raise ValueError("only a check scenario has a report")
+        if self.kind is RunKind.REPORT and not self.statement.strip():
+            raise ValueError("statement: a run scenario needs a statement")
+        return self
 
 
 def load_scenario(path: Path) -> Scenario:
@@ -182,6 +200,19 @@ def scenario_sources(scenario: Scenario) -> list[Source]:
     ]
 
 
+def scenario_report(report: ScenarioSource) -> Source:
+    """A check scenario's report (CRL-94): one unit per paragraph, a `# ` paragraph a heading,
+    under the source id `report`."""
+    source = source_from_paragraphs(REPORT_ID, report.paragraphs, name=report.name)
+    units = [
+        u.model_copy(update={"text": u.text[2:], "kind": BlockKind.HEADING})
+        if u.text.startswith("# ")
+        else u
+        for u in source.units
+    ]
+    return source.model_copy(update={"units": units})
+
+
 async def run_scenario(
     scenario: Scenario,
     cfg: CorelataConfig,
@@ -194,6 +225,21 @@ async def run_scenario(
     if scenario.pipeline:
         pipeline = PipelineConfig.model_validate({**cfg.pipeline.model_dump(), **scenario.pipeline})
         cfg = cfg.model_copy(update={"pipeline": pipeline})
+    if scenario.report is not None:
+        return await run_check(
+            cfg,
+            scenario_sources(scenario),
+            scenario_report(scenario.report),
+            RunOptions(
+                value_statement=scenario.statement,
+                profile=scenario.profile,
+                run_id=scenario.name,
+            ),
+            backends=backends,
+            prompts=prompts,
+            log=log,
+            now=now,
+        )
     return await run_report(
         cfg,
         scenario_sources(scenario),

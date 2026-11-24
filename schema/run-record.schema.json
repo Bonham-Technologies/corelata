@@ -843,11 +843,21 @@
       "title": "ReportStatus",
       "type": "string"
     },
+    "RunKind": {
+      "description": "What a run does (CRL-94): `report` writes a report from the sources; `check` audits a\nfinished report someone else wrote against the pack, without rewriting it.",
+      "enum": [
+        "report",
+        "check"
+      ],
+      "title": "RunKind",
+      "type": "string"
+    },
     "RunState": {
       "enum": [
         "created",
         "ingesting",
         "gating",
+        "structuring",
         "drafting",
         "conveying",
         "auditing",
@@ -1160,6 +1170,17 @@
     }
   },
   "properties": {
+    "checked_report": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Source"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
     "config_hash": {
       "title": "Config Hash",
       "type": "string"
@@ -1226,6 +1247,10 @@
       "default": 0,
       "title": "Iterations",
       "type": "integer"
+    },
+    "kind": {
+      "$ref": "#/$defs/RunKind",
+      "default": "report"
     },
     "llm_calls": {
       "items": {

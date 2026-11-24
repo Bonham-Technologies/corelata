@@ -71,6 +71,7 @@ it("reads, starts, cancels and reviews a run", async () => {
     source_ids: ["s"],
     value_statement: "v",
     extra_guidance: "",
+    kind: "report",
   });
   await waitFor(() => expect(start.result.current.data?.state).toBe("created"));
   const cancel = renderHook(() => useCancelRun(RUN_ID), { wrapper });
@@ -85,6 +86,7 @@ it("reads, starts, cancels and reviews a run", async () => {
       source_ids: ["s"],
       value_statement: "v",
       extra_guidance: "",
+      kind: "report",
     }),
     JSON.stringify({ action: "accept", note: "" }),
   ]);
@@ -204,6 +206,7 @@ describe("the sidebar's project list is read again", () => {
       source_ids: ["s"],
       value_statement: "v",
       extra_guidance: "",
+      kind: "report",
     });
     await waitFor(() => expect(start.result.current.isSuccess).toBe(true));
     expect(invalidate).toHaveBeenCalledWith(PROJECTS);

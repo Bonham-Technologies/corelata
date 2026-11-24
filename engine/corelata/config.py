@@ -131,6 +131,9 @@ class RolesConfig(_Strict):
     conveyor: RoleConfig
     auditor: RoleConfig
     profiler: RoleConfig | None = None
+    # CRL-94: maps a finished report onto the report schema for a check run; unset, the
+    # writer's model does it. Left out of the dump when unset, so `config_hash` is unchanged.
+    structurer: RoleConfig | None = Field(None, exclude_if=lambda v: v is None)
 
     def all_roles(self) -> list[tuple[str, str]]:
         roles = [
@@ -141,9 +144,13 @@ class RolesConfig(_Strict):
         ]
         if self.profiler is not None:
             roles.append(("profiler", self.profiler.model))
+        if self.structurer is not None:
+            roles.append(("structurer", self.structurer.model))
         return roles
 
     def model_for(self, role: str) -> str:
+        if role == "structurer" and self.structurer is None:
+            return self.writer.model
         return dict(self.all_roles())[role]
 
 

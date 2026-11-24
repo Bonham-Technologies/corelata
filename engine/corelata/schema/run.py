@@ -18,10 +18,27 @@ def _empty(items: list) -> bool:
     return not items
 
 
+def _is_report(kind: "RunKind") -> bool:
+    return kind == RunKind.REPORT
+
+
+def _no_source(source: Source | None) -> bool:
+    return source is None
+
+
+class RunKind(StrEnum):
+    """What a run does (CRL-94): `report` writes a report from the sources; `check` audits a
+    finished report someone else wrote against the pack, without rewriting it."""
+
+    REPORT = "report"
+    CHECK = "check"
+
+
 class RunState(StrEnum):
     CREATED = "created"
     INGESTING = "ingesting"
     GATING = "gating"
+    STRUCTURING = "structuring"  # a check run maps the report it checks (CRL-94)
     DRAFTING = "drafting"
     CONVEYING = "conveying"
     AUDITING = "auditing"
@@ -57,6 +74,8 @@ class RunRecord(BaseModel):
     schema_version: Literal["1"] = "1"
     corelata_version: str
     run_id: str
+    # CRL-94: left out of the dump for a report run, so its trace reads as it did before
+    kind: RunKind = Field(RunKind.REPORT, exclude_if=_is_report)
     created_at: datetime
     state: RunState = RunState.CREATED
     status: ReportStatus | None = None
@@ -70,6 +89,9 @@ class RunRecord(BaseModel):
     config_hash: str
     prompt_versions: dict[str, int]
     sources: list[Source] = Field(default_factory=list)
+    # CRL-94: the finished report a check run audits, as ingested (source id `report`); never
+    # one of `sources`, so no claim can cite it. Left out of the dump when there is none.
+    checked_report: Source | None = Field(None, exclude_if=_no_source)
     digests: list[Digest] = Field(default_factory=list)
     # CRL-97: the project's earlier accepted reports the run was given, newest first, those the
     # budget left out marked `cut`; left out of the dump when there are none.
