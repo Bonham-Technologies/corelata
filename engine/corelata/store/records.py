@@ -49,13 +49,18 @@ async def load_sources(
 
 
 async def unit_counts(s: AsyncSession, run_id: uuid.UUID) -> dict[str, UnitCount]:
-    """Each of the run's sources' unit count and Coglossa reliability tier, counted in the
-    database without reading a unit's text (CRL-124): what the trace summary shows of them."""
+    """Each of the run's sources' unit count, Coglossa reliability tier and hidden and suspect
+    units (CRL-137), counted in the database without reading a unit's text (CRL-124): what the
+    trace summary shows of them."""
     tiers = func.array_agg(func.distinct(SourceUnitRow.meta["reliability"].astext)).filter(
         SourceRow.kind == SourceKind.COGLOSSA_EXPORT.value
     )
+    hidden = func.count(SourceUnitRow.ordinal).filter(SourceUnitRow.meta["hidden"].astext == "true")
+    suspect = func.count(SourceUnitRow.ordinal).filter(
+        SourceUnitRow.meta["suspect"].astext == "true"
+    )
     rows = await s.execute(
-        select(func.count(SourceUnitRow.ordinal), tiers)
+        select(func.count(SourceUnitRow.ordinal), tiers, hidden, suspect)
         .select_from(RunSource)
         .join(SourceRow, SourceRow.id == RunSource.source_id)
         .outerjoin(SourceUnitRow, SourceUnitRow.source_id == RunSource.source_id)
@@ -64,8 +69,13 @@ async def unit_counts(s: AsyncSession, run_id: uuid.UUID) -> dict[str, UnitCount
         .order_by(RunSource.ordinal)
     )
     return {
-        f"src{i}": UnitCount(units=count, reliability_tier=lowest_tier(found or ()))
-        for i, (count, found) in enumerate(rows, start=1)
+        f"src{i}": UnitCount(
+            units=count,
+            reliability_tier=lowest_tier(found or ()),
+            hidden=n_hidden,
+            suspect=n_suspect,
+        )
+        for i, (count, found, n_hidden, n_suspect) in enumerate(rows, start=1)
     }
 
 

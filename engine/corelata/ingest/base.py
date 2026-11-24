@@ -2,6 +2,7 @@
 
 import hashlib
 import re
+from collections.abc import Collection
 from pathlib import Path
 from typing import Protocol
 
@@ -61,13 +62,21 @@ def split_paragraphs(text: str) -> list[str]:
     return [p.strip() for p in _BLANK_LINES_RE.split(normalized) if p.strip()]
 
 
-def make_blocks(source_path: str, items: list[tuple[BlockKind, str, str | None]]) -> list[Block]:
+def make_blocks(
+    source_path: str,
+    items: list[tuple[BlockKind, str, str | None]],
+    hidden: Collection[int] = (),
+) -> list[Block]:
+    """`hidden`: the indexes of the items whose text the document hides from its reader
+    (CRL-137)."""
     return [
         Block(
             id=f"b{i + 1}",
             kind=kind,
             text=text,
-            provenance=Provenance(source_path=source_path, index=i, locator=locator),
+            provenance=Provenance(
+                source_path=source_path, index=i, locator=locator, hidden=i in hidden
+            ),
         )
         for i, (kind, text, locator) in enumerate(items)
     ]

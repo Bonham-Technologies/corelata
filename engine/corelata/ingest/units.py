@@ -5,6 +5,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from corelata.ingest.html import html_document
+from corelata.ingest.injection import suspect_meta
 from corelata.ingest.ocr import OcrSettings
 from corelata.ingest.registry import ingest_file
 from corelata.schema import (
@@ -28,21 +30,44 @@ def _locator(page: int | None, locator: str | None, index: int) -> str:
 
 
 def units_from_document(doc: SourceDocument) -> list[SourceUnit]:
+    """One unit per block but breaks. `meta` carries `ocr` and `ocr_confidence` for text OCR read
+    (CRL-95), `hidden` for text the document hides from its reader and `suspect` for text that
+    reads as an instruction to an AI system (CRL-137); it is empty for any other unit."""
     units: list[SourceUnit] = []
     for block in doc.blocks:
         if block.kind is BlockKind.BREAK:
             continue
         p = block.provenance
+        meta: dict[str, Any] = {"ocr": True, "ocr_confidence": p.ocr_confidence} if p.ocr else {}
+        if p.hidden:
+            meta["hidden"] = True
         units.append(
             SourceUnit(
                 id=f"u{len(units) + 1}",
                 text=block.text,
                 locator=_locator(p.page, p.locator, p.index),
                 kind=block.kind,
-                meta={"ocr": True, "ocr_confidence": p.ocr_confidence} if p.ocr else {},
+                meta=meta | suspect_meta(block.text),
             )
         )
     return units
+
+
+def is_hidden(unit: SourceUnit) -> bool:
+    """The document hides the unit's text from its reader (CRL-137): no model reads it."""
+    return bool(unit.meta.get("hidden"))
+
+
+def model_view(sources: list[Source]) -> list[Source]:
+    """The sources as every model role reads them (CRL-137): without the units their documents
+    hide from the reader. A source with no hidden unit is the same object, so its payloads are
+    the ones sent before; the run's record keeps every unit."""
+    return [
+        s.model_copy(update={"units": [u for u in s.units if not is_hidden(u)]})
+        if any(is_hidden(u) for u in s.units)
+        else s
+        for s in sources
+    ]
 
 
 def ocr_provenance(doc: SourceDocument, ocr: OcrSettings | None) -> dict[str, Any]:
@@ -96,9 +121,33 @@ def source_from_paragraphs(
         format="txt",
         sha256=hashlib.sha256(text.encode("utf-8")).hexdigest(),
         units=[
-            SourceUnit(id=f"u{i}", text=p, locator=f"para {i}", kind=BlockKind.PARAGRAPH)
+            SourceUnit(
+                id=f"u{i}",
+                text=p,
+                locator=f"para {i}",
+                kind=BlockKind.PARAGRAPH,
+                meta=suspect_meta(p),
+            )
             for i, p in enumerate(paragraphs, start=1)
         ],
+    )
+
+
+def source_from_html(source_id: str, html: str, *, name: str | None = None) -> Source:
+    """An HTML source built from a string, as ingest reads an HTML file: hidden text marked
+    (CRL-137). The bench's scenarios use it."""
+    data = html.encode("utf-8")
+    sha256 = hashlib.sha256(data).hexdigest()
+    filename = name or f"{source_id}.html"
+    doc = html_document(data, filename, sha256)
+    return Source(
+        id=source_id,
+        kind=SourceKind.FILE,
+        name=filename,
+        format=doc.format,
+        sha256=sha256,
+        provenance=dict(doc.meta),
+        units=units_from_document(doc),
     )
 
 
