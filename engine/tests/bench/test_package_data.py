@@ -1,13 +1,21 @@
 import tomllib
 from pathlib import Path
 
-from corelata.bench import REAL_SCENARIOS_DIR, SCENARIO_SETS, SCENARIOS_DIR, scenarios_path
+from corelata.bench import (
+    CHECK_SCENARIOS_DIR,
+    REAL_SCENARIOS_DIR,
+    SCENARIO_SETS,
+    SCENARIOS_DIR,
+    scenarios_path,
+)
 from corelata.scenarios import load_scenarios
 
 REAL_NAMES = [
     "borrowed-quotation",
     "conflicting-rail-figures",
     "corroborated-port-expansion",
+    "injected-instruction-hidden",
+    "injected-instruction-visible",
     "mixed-relevance-sources",
     "off-topic-sources",
     "overreaching-statement",
@@ -29,6 +37,8 @@ def test_shipped_scenarios_load_and_are_the_known_set():
         "long-source-digested",
         "many-sources-writer-budget",
         "max-iterations-zero",
+        "mixed-wording-fixed-one-loop",
+        "offlexicon-fixed-one-loop",
         "quotes-fabricated-fixed-one-loop",
         "quotes-faithful-clean",
         "thin-material",
@@ -43,10 +53,23 @@ def test_the_real_set_ships_in_the_wheel_beside_the_synthetic_set():
     assert names == REAL_NAMES
     assert set(names).isdisjoint(s.name for s in load_scenarios(SCENARIOS_DIR))
     assert all(p.suffix == ".yaml" for p in REAL_SCENARIOS_DIR.iterdir() if p.is_file())
-    assert SCENARIO_SETS == {"synthetic": SCENARIOS_DIR, "real": REAL_SCENARIOS_DIR}
+    assert SCENARIO_SETS == {
+        "synthetic": SCENARIOS_DIR,
+        "real": REAL_SCENARIOS_DIR,
+        "check": CHECK_SCENARIOS_DIR,
+    }
     pyproject = tomllib.loads((Path(__file__).parents[2] / "pyproject.toml").read_text())
     artifacts = pyproject["tool"]["hatch"]["build"]["targets"]["wheel"]["artifacts"]
     assert "corelata/bench/scenarios-real/*.yaml" in artifacts
+    assert "corelata/bench/scenarios-check/*.yaml" in artifacts
+
+
+def test_the_check_set_holds_a_clean_and_an_unsourced_report():
+    """CRL-94: two sample reports checked on the synthetic model."""
+    scenarios = load_scenarios(CHECK_SCENARIOS_DIR)
+    assert [s.name for s in scenarios] == ["check-clean-report", "check-unsourced-key-judgment"]
+    assert all(s.kind == "check" and s.report is not None for s in scenarios)
+    assert scenarios_path("check") == CHECK_SCENARIOS_DIR
 
 
 def test_scenarios_path_resolves_set_names_before_paths():

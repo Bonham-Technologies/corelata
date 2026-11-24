@@ -6,6 +6,7 @@ from typing import Any
 
 from corelata.config import CorelataConfig, EvidenceQuotes
 from corelata.ingest.base import HINT_KEYS
+from corelata.ingest.injection import suspect_flag
 from corelata.ingest.units import UnitIndex
 from corelata.llm.agent import AgentRunner
 from corelata.quotes import QuoteCheck
@@ -25,6 +26,12 @@ def ocr_flag(unit: SourceUnit) -> dict[str, Any]:
     if not unit.meta.get("ocr"):
         return {}
     return {"ocr": True, "ocr_confidence": unit.meta.get("ocr_confidence")}
+
+
+def unit_flags(unit: SourceUnit) -> dict[str, Any]:
+    """What a model's input says about a unit beyond its text: the OCR flag (CRL-95) and
+    `"suspect": true` for text that reads as an instruction to an AI system (CRL-137)."""
+    return ocr_flag(unit) | suspect_flag(unit.meta)
 
 
 def estimate_tokens(text: str, bytes_per_token: float) -> int:
@@ -70,7 +77,7 @@ class StageContext:
             source, unit = self.index.get(ref)
             out.append(
                 {"ref": ref, "text": unit.text, "locator": unit.locator, "source": source.name}
-                | ocr_flag(unit)
+                | unit_flags(unit)
             )
         return out
 

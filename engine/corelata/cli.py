@@ -1,7 +1,7 @@
 """Command-line interface (spec §10.2).
 
-Exit codes: 0 completed clean, 3 completed with findings open (run), disagreement (bench) or
-difference (pack diff),
+Exit codes: 0 completed clean, 3 completed with findings open (run, check), disagreement
+(bench) or difference (pack diff),
 4 gate rejected, 1 failed, 2 usage or config error, 130 interrupted."""
 
 import argparse
@@ -34,7 +34,14 @@ from corelata.ingest.ocr import OcrSettings
 from corelata.ingest.units import make_source
 from corelata.llm.agent import AGENT_FAILURES, CallLog
 from corelata.llm.registry import build_backends
-from corelata.pipeline import RunOptions, discover, load_run_pack, run_report, utcnow
+from corelata.pipeline import (
+    RunOptions,
+    discover,
+    load_run_pack,
+    run_check,
+    run_report,
+    utcnow,
+)
 from corelata.profiler import extract_profile, profile_yaml, read_examples
 from corelata.prompts.check import validate_prompts
 from corelata.prompts.library import PromptLibrary
@@ -42,6 +49,7 @@ from corelata.render.docx import RenderError
 from corelata.scenarios import ScenarioError, load_scenarios
 from corelata.schema import ReportStatus, RunRecord, RunState, Source
 from corelata.service import InvalidRequestError, check_run_text
+from corelata.stages.structure import REPORT_ID
 from corelata.standards.diff import diff_packs, format_diff
 from corelata.standards.loader import PackError, chain_profiles, load_pack, validate_pack
 from corelata.standards.schema import ResolvedPack
@@ -101,6 +109,30 @@ def build_parser() -> argparse.ArgumentParser:
         help="an already ingested source to include (with --project; repeatable)",
     )
     run.add_argument("--parent-run", help="the run this one reruns (with --project)")
+
+    chk = sub.add_parser(
+        "check", help="audit a finished report against the standards pack without rewriting it"
+    )
+    chk.add_argument("report", type=Path, help="the report to check: DOCX, MD, HTML, PDF or TXT")
+    chk.add_argument(
+        "inputs", nargs="*", type=Path, help="its sources: TXT, MD, DOCX, HTML, PDF, JSON or CSV"
+    )
+    chk.add_argument(
+        "--coglossa-export",
+        action="append",
+        default=[],
+        type=Path,
+        help="a Coglossa run export (JSON) among its sources; repeatable",
+    )
+    chk.add_argument("--config", type=Path, default=default_config_path())
+    chk.add_argument("--pack", help="standards pack (default: standards.default_pack)")
+    chk.add_argument("--profile", help="standards pack profile (team overlay)")
+    chk.add_argument("--statement", help="what the report set out to establish (optional)")
+    chk.add_argument("--statement-file", type=Path, help="file holding that statement")
+    chk.add_argument("--out", type=Path, help="output directory (default corelata-out/<run_id>)")
+    chk.add_argument(
+        "--claim-ids", action="store_true", help="show claim ids in report.md and report.html"
+    )
 
     disc = sub.add_parser("discover", help="propose value statements for the sources")
     inputs(disc)
@@ -217,6 +249,8 @@ def main(argv: list[str] | None = None) -> int:
             return _run(args)
         if args.command == "discover":
             return _discover(args)
+        if args.command == "check":
+            return _check(args)
         if args.command == "pack":
             return _pack(args)
         if args.command == "profile":
@@ -341,6 +375,78 @@ def _run(args: argparse.Namespace) -> int:
     assert record.report is not None  # a completed run always has one
     for note in record.report.metadata.degradations:
         print(f"run {record.run_id}: {note}", file=sys.stderr)
+    return EXIT_FINDINGS_OPEN if record.status is ReportStatus.FINDINGS_OPEN else EXIT_OK
+
+
+def _check(args: argparse.Namespace) -> int:
+    """`corelata check` (CRL-94): audit a finished report against the pack, in-process. Exit 0
+    when every rule passes, 3 with findings open, 1 failed, 2 usage."""
+    try:
+        statement = ""
+        if args.statement or args.statement_file:
+            statement = _statement(args)
+        check_run_text(statement, "")
+        cfg, issues = load_config(args.config)
+        for issue in issues:
+            print(f"{issue.level}: {issue.message}", file=sys.stderr)
+        prompts = PromptLibrary(cfg.prompts_dir)
+        validate_prompts(cfg, prompts)
+        if not args.inputs and not args.coglossa_export:
+            raise IngestError("give the report and at least one source file or --coglossa-export")
+        ocr = cfg.ingest.ocr_settings()
+        report = make_source(REPORT_ID, args.report, ocr=ocr)
+        sources = load_sources(args.inputs, args.coglossa_export, ocr)
+        same = [s.name for s in sources if s.sha256 == report.sha256]
+        if same:  # R-CRL94-5: the report is never its own evidence
+            raise IngestError(
+                f"{same[0]} is the report to check; give the report only once, not among its "
+                "sources"
+            )
+        pack = load_pack(
+            args.pack or cfg.standards.default_pack,
+            packs_dir=cfg.standards.packs_dir,
+            profile=args.profile or cfg.standards.default_profile,
+        )
+    except (ConfigError, InvalidRequestError, IngestError, PackError, OSError) as e:
+        return _usage(str(e))
+    run_id = secrets.token_hex(6)
+    out_dir = args.out or Path("corelata-out") / run_id
+    try:
+        if out_dir.exists() and not out_dir.is_dir():
+            raise NotADirectoryError("not a directory")
+        out_dir.mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        return _usage(f"cannot write to {out_dir}: {e.strerror or e}")
+    backends = build_backends(cfg)
+    log = CallLog(store_io=cfg.audit.store_llm_io)
+    options = RunOptions(run_id=run_id, value_statement=statement, profile=args.profile)
+    llm = {"backends": backends, "prompts": prompts, "log": log}
+
+    async def go() -> RunRecord:
+        try:
+            return await run_check(cfg, sources, report, options, pack=pack, **llm)
+        finally:
+            for b in backends.values():
+                await b.aclose()
+
+    record = asyncio.run(go())
+    try:
+        write_outputs(out_dir, record, pack, args.claim_ids)
+    except DocxExportError as e:
+        print(f"check {record.run_id}: the DOCX export failed: {e} -> {out_dir}", file=sys.stderr)
+        return EXIT_FAILED
+    if record.state is not RunState.COMPLETED:
+        print(f"check {record.run_id}: {record.state.value}: {record.error} -> {out_dir}")
+        return EXIT_FAILED
+    assert record.report is not None
+    failed = len(record.report.metadata.open_findings)
+    print(
+        f"check {record.run_id}: checked {record.status.value}, {failed} finding"
+        f"{'' if failed == 1 else 's'} open, {len(record.report.claims)} claims, "
+        f"{len(record.report.unsourced_claims())} unsourced -> {out_dir}"
+    )
+    for note in record.report.metadata.degradations:
+        print(f"check {record.run_id}: {note}", file=sys.stderr)
     return EXIT_FINDINGS_OPEN if record.status is ReportStatus.FINDINGS_OPEN else EXIT_OK
 
 

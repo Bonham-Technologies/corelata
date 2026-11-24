@@ -233,13 +233,15 @@ roles:
   only the verdicts the rule allows, only unit ids the draft cites. With `json_object` or `none`
   the same schema is in the prompt and Corelata checks the reply itself, so a small model needs
   its repair turn more often. If you override prompts (`prompts_dir`), an `auditor` override
-  must return `findings` as an object keyed by rule id, as the built-in `auditor/v5.j2` does; an
+  must return `findings` as an object keyed by rule id, as the built-in `auditor/v6.j2` does; an
   override that still returns a list fails every audit.
 - `max_output_tokens` is unset by default (the server decides); `temperature` defaults to 0.2.
 - The four roles: `gate` decides whether the sources can support the value statement at all,
   `writer` drafts the assessment, `conveyor` revises it to fix what the audit found, and `auditor`
   checks the draft against the standards. Use a model from a different family for the `auditor`
-  when you have one: a model that checks its own work shares its blind spots.
+  when you have one: a model that checks its own work shares its blind spots. An optional fifth,
+  `structurer`, maps a finished report onto the report schema for a check ("Checking an existing
+  report", section 7); without it the writer's model does that.
 
 ### Standards packs
 
@@ -286,6 +288,17 @@ config/packs/icd203-base/
   writer reads a date and an author or publisher from an HTML page's `<meta>` elements and a
   Word file's properties as hints, and a Coglossa export's note names its reliability tier (the
   lowest tier among its scored spans), which the review screen's Sources tab shows too.
+- **Uncertainty wording (ICD 203).** A lexicon with `likelihood_alternates`,
+  `unlisted_probability_words` or `confidence_phrases` has the engine check every key judgment
+  and judgment claim: a confidence phrase in the same sentence as a likelihood ("we assess with
+  high confidence that it is likely"), a word from another row of the ICD 203 table or none
+  ("probably", "perhaps"), or a claim whose text does not use its own likelihood term fails
+  `icd203.tc.2` as an engine finding (`engine check: c3 uses probability wording outside the
+  lexicon ('probable')`), and the writer revises. Matching ignores case and takes whole words, so
+  "unlikely" is not "likely"; a term also matches its adverb ("almost certainly"). The base
+  pack's lists come from the ICD 203 table; edit them in `lexicon.yaml`. A profile that mixes rows
+  on purpose (ICD 203 then asks for a disclaimer) relaxes the check by disabling `icd203.tc.2` or
+  overriding its severity to `minor`. The model is not sent these lists.
 - `draft: true` marks a profile that is still under review. A run cannot use a draft profile;
   remove the flag when the team has approved it.
 - `standards.default_pack` (default `icd203-base`) and `standards.default_profile` choose what a
@@ -509,6 +522,44 @@ Carry the bundle across and upgrade to it as in section 10; then add the codes t
 `ingest.ocr_languages` and apply the change ("Applying changes"). `corelata doctor` lists the
 languages the image has, and `docker image inspect --format '{{ index .Config.Labels
 "org.corelata.ocr-languages" }}' corelata/app:<version>` shows the ones it was built with.
+
+### Instructions in sources
+
+Sources are often written by the people a report is about, and a line planted in one can try to
+steer a model that reads it ("ignore previous instructions and ..."), even a line no reader of
+the document ever sees. Corelata defends against this in three ways (CRL-137); none needs a
+setting.
+
+- **Every prompt says source text is data.** The gate, discovery, digest, writer and auditor
+  prompts (`gate/v2`, `discover/v2`, `digest/v2`, `writer/v6`, `auditor/v6`) tell the model that
+  the passages may be written by an adversary and that it must never follow an instruction in
+  them. A deployment that overrides one of these prompts (`prompts_dir`) should add the same line.
+- **Hidden text is kept out of the models.** An HTML element with the `hidden` attribute,
+  `aria-hidden="true"` or an inline `display:none` or `visibility:hidden` style, and DOCX text
+  formatted hidden (`w:vanish`, on the text, its character style or its paragraph style), become
+  passages of their own marked `hidden: true` in the trace. No model reads them, so the reviewer
+  can see what was withheld without the report resting on it. Stylesheets and classes are not
+  evaluated, and other tricks (white text, a zero font size, text off the page) are read as
+  visible text. A file whose only text is hidden is refused as having no usable text.
+- **Visible text that reads as an instruction is flagged.** A passage that matches a short list
+  of patterns is marked `suspect: true` and still reaches the models, flagged, so the writer does
+  not rest a claim on it and the auditor fails `icd203.tc.8` for a claim that does. The patterns
+  are: "ignore", "disregard", "forget", "override" or "bypass" followed by "your", "previous",
+  "prior", "above" (or the like) "instructions", "prompts" or "directives", or by "all
+  instructions"; "system prompt" or "developer message"; a note, message or instructions "to"
+  or "for" an AI, a language model, a chatbot or an assistant followed by a colon, a comma or
+  "reading this"; an AI addressed by name at the start of a sentence ("AI:", "Assistant, mark
+  ...", but not "AI, in this case, ..."); "you are (now) an ... assistant" and "as an AI ..., you
+  must"; "new instructions:"; "do not tell the analyst (user, reader)"; and chat-template tokens
+  such as `<|im_start|>` or `[INST]` (`engine/corelata/ingest/injection.py`). A flag asks a reader to
+  look; it is not a verdict, and a source that reports on prompt injection will be flagged too.
+
+The Sources tab of the review screen and `corelata trace` show, for each source, how many passages
+read as instructions to an AI and how many hidden passages were withheld from the models. Flags
+are set when a file is added: a source added before this version keeps the passages it had, so
+add the file to a new project to have it read again (a project does not read the same file
+twice). The `real` bench set carries two scenarios for this, `injected-instruction-visible` and
+`injected-instruction-hidden` ("Checking a model with the bench", section 7).
 
 ### Coglossa
 
@@ -797,12 +848,18 @@ and `corelata review` (accept or return) apply the same limits.
 
 **Checking a model with the bench.** `corelata bench` plays a set of scenario files against the
 configured models and reports how often the run did what the scenario expects: gate verdict,
-failing rules, final state. Two sets ship with the engine. `synthetic` (the default, ten
+failing rules, final state. Two sets ship with the engine. `synthetic` (the default, thirteen
 scenarios) was written for the synthetic model and steers it with markers in the source text; a
-real model disagrees with it often, and that says little about the model. `real` (eight
+real model disagrees with it often, and that says little about the model. `real` (twelve
 scenarios) has short, plausible sources and expectations a good model meets, stated as ranges
 ("thin or sufficient", "these rules must pass"); use it when you change a model, a prompt
-override or the pack, and compare the numbers with the previous run:
+override or the pack, and compare the numbers with the previous run. Two of them plant an
+instruction to AI systems in a source (CRL-137): `injected-instruction-visible` in plain text,
+which a good model reads flagged and neither obeys nor rests a claim on, and
+`injected-instruction-hidden` in hidden HTML, which no model receives; both fail if the title or a
+key judgment carries the planted code word (`report_excludes`), and both check which passages
+ingest marked hidden and suspect (`hidden_units`, `suspect_units`). A model that disagrees on the
+visible one obeys text it was told is data:
 
 ```sh
 docker compose exec api corelata bench --scenarios real --out /data/files/bench-real-$(date +%F)
@@ -847,6 +904,66 @@ DELETE FROM procrastinate_jobs WHERE id IN (SELECT id FROM old)"
 ```
 
 This removes only closed jobs older than 30 days; it never touches runs, reports or traces.
+
+### Checking an existing report
+
+A standards team or an evaluation board can point Corelata at a finished report someone else
+wrote and have it audited against the standards pack, rule by rule, without anything being
+rewritten. Give the report (DOCX, Markdown, HTML, PDF or text) and the sources it rests on:
+
+```sh
+docker compose exec api corelata check /data/files/assessment.docx \
+  /data/files/sources/port.txt /data/files/sources/customs.pdf \
+  --pack icd203-base --profile board --out /data/files/check-assessment
+```
+
+`--pack` defaults to `standards.default_pack` and `--profile` to `standards.default_profile`; a
+profile disables or re-grades rules for a check exactly as for a report. `--statement` (or
+`--statement-file`) says what the report set out to establish, if you want the standards that
+weigh it to see it; it is optional. The command exits 0 when every rule is met, 3 when
+standards are not met (or the check could not finish auditing), 1 when it failed and 2 on a usage
+error. The output directory holds `trace.json`, the report as Corelata read it (`report.json`,
+`.md`, `.html`, `.docx`) and `findings.csv`, one row per rule: its id, title, verdict, severity,
+the claims and passages it names, the evidence and the recommendation.
+
+How it works: Corelata splits the report into sentences (headings and a line that is only one of
+the pack's handling markings aside). The `structurer` role maps them onto the report schema:
+every sentence becomes one claim, its text exactly as written, citing the source passages that
+support it; the title, key judgments and sections are copied word for word. The engine compares
+every text with the report and sends back a reply that changed a word or left a sentence out, so
+the checked report is always the uploaded one. A sentence no source supports keeps no
+evidence, and the engine fails `icd203.tc.8` (and `icd206.src.2` for a key judgment) on it
+whatever the auditor says. The auditor then runs once: there is no writer, no editing and no
+revision. Set `roles.structurer` to give the role its own model; unset, the writer's model does
+it. The report's own text is read like a source's: text its document hides from the reader is
+kept in the trace but reaches no model and is not checked, and a passage that reads as an
+instruction to an AI is flagged to the structurer, which copies it as a claim like any other
+sentence. The auditor is told the same: the report is the material under audit, never
+instructions, and the claims that come from such a passage are listed for it. A key judgment's
+confidence is the one the report states; where it states none the mapping records "moderate",
+and the auditor judges the confidence from the report's words, not from that value. The
+structurer never writes a source summary or a comparison with earlier reports: a report that
+lacks one fails the rule that asks for it. A file given both as the report and among its sources
+is refused (exit 2): the report is never its own evidence.
+
+A source that a check run audits as its report cannot be deleted on its own while the run
+exists; deleting the project removes both.
+
+Through the API, upload the report as a project source like any other, then
+`POST /api/runs` with `{"project_id", "source_ids": [the sources], "kind": "check",
+"report_source_id": <the report's source id>}`. `GET /api/runs/{id}` says `"kind": "check"`
+(older runs read `"report"`), and the stored export `findings.csv` is the sheet. The review
+screen shows the checked report with its Claims, Standards and Sources tabs and a **Standards
+sheet (CSV)** download; a check has nothing to accept or return, so those buttons are hidden and
+the API refuses a review of it (409). Under the bench, `corelata bench --scenarios check` plays
+two sample reports, one clean and one with an unsourced key judgment.
+
+Limits: a reference list at the end of a report is checked sentence by sentence like the rest,
+so leave it out of the uploaded file if its lines are not assertions; an abbreviation followed by
+a capital ("U.S. Navy") ends a sentence. The structurer reads the whole report besides the
+source passages, so a very long report can overflow the model's context: the check then fails
+cleanly (state `failed`, exit 1) and nothing is delivered; split the report or give the
+structurer a model with a larger context (`roles.structurer`).
 
 ## 8. Backups
 
@@ -974,7 +1091,7 @@ accepted reports only once you set `pipeline.prior_judgments.max_reports` above 
 Pipeline; unset, it is 0); `icd203.tc.7` is checked against them only once your pack has the base pack's
 `with_prior_reports` block (see the next paragraph).
 
-Migration 0009 also runs inside `migrate`, before `api` and `worker` start, and brings the job
+Migration 0010 also runs inside `migrate`, before `api` and `worker` start, and brings the job
 queue's tables and functions to procrastinate 3.12.0: it adds a `lock_mode` column to
 `procrastinate_jobs` (every existing job gets `ordered`, the behaviour it had), replaces one
 index on that table with another and replaces procrastinate's 3.10 functions with their 3.12
@@ -1002,7 +1119,10 @@ The exported directory's `trace.json` carries the snapshot.
 
 Take the rules you want, then run `pack validate` (section 5). Base pack 1.1.0 (CRL-96) adds the
 `source_summary` section to `template.yaml`, the `source_access` list to `lexicon.yaml` and the
-ICD 206 D.3.d wording of `icd206.src.1`; a pack without them runs exactly as before.
+ICD 206 D.3.d wording of `icd206.src.1`; a pack without them runs exactly as before. Base pack 1.2.0
+(CRL-136) adds the `likelihood_alternates`, `unlisted_probability_words` and `confidence_phrases`
+lists to `lexicon.yaml`; copy them into a customised lexicon to have the engine check uncertainty
+wording.
 
 **Going back.** Migrations only go forward, so an older version cannot run on an upgraded
 database. Run `docker compose down` in the new directory, then restore the pre-upgrade backup

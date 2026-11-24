@@ -31,7 +31,7 @@ OUR_TABLES = {
     "discovery_source",
     "discovery_candidate",
 }
-HEAD = "0009"
+HEAD = "0010"
 
 
 def _tables(url):
@@ -125,7 +125,7 @@ def installed_procrastinate_catalog(pg_admin):
 def test_vendored_procrastinate_schema_matches_the_installed_package(
     pg_url, installed_procrastinate_catalog
 ):
-    """Revision 0001 installs procrastinate 3.10.0's schema; later revisions (0009) apply the
+    """Revision 0001 installs procrastinate 3.10.0's schema; later revisions (0010) apply the
     package's migrations since. Together they must build what the installed procrastinate
     expects, so a procrastinate upgrade that brings a new migration fails here until a
     revision applies it."""
@@ -142,18 +142,18 @@ def _function_names(catalog) -> set[str]:
     return {signature.split("(")[0] for signature, _ in catalog["functions"]}
 
 
-def test_0009_round_trips_procrastinate_3_12(pg_admin, installed_procrastinate_catalog):
-    """0009 applies procrastinate 3.11's and 3.12's migrations, and its downgrade puts back
+def test_0010_round_trips_procrastinate_3_12(pg_admin, installed_procrastinate_catalog):
+    """0010 applies procrastinate 3.11's and 3.12's migrations, and its downgrade puts back
     procrastinate 3.10.0's objects exactly as revision 0001 installed them. A job deferred
     under 3.12 keeps its row across the downgrade."""
     url = create_test_database(pg_admin)
     try:
-        upgrade(url, "0008")
-        procrastinate_3_10 = _procrastinate_catalog(url)
         upgrade(url, "0009")
+        procrastinate_3_10 = _procrastinate_catalog(url)
+        upgrade(url, "0010")
         procrastinate_3_12 = _procrastinate_catalog(url)
         _assert_same_catalog(
-            procrastinate_3_12, installed_procrastinate_catalog, "0009 does not build 3.12"
+            procrastinate_3_12, installed_procrastinate_catalog, "0010 does not build 3.12"
         )
         assert _function_names(procrastinate_3_10) - _function_names(procrastinate_3_12) == {
             "procrastinate_defer_jobs_v1",
@@ -168,9 +168,9 @@ def test_0009_round_trips_procrastinate_3_12(pg_admin, installed_procrastinate_c
                 "SELECT procrastinate_defer_jobs_v2(ARRAY[ROW('q', 't', 0, 'l', 'l', '{}', "
                 "NULL, 'mutex')]::procrastinate_job_to_defer_v2[])"
             )
-        downgrade(url, "0008")
+        downgrade(url, "0009")
         _assert_same_catalog(
-            _procrastinate_catalog(url), procrastinate_3_10, "0009's downgrade left a change"
+            _procrastinate_catalog(url), procrastinate_3_10, "0010's downgrade left a change"
         )
         with psycopg.connect(to_libpq_url(url)) as conn:
             assert conn.execute("SELECT task_name, lock FROM procrastinate_jobs").fetchall() == [
@@ -688,6 +688,38 @@ def test_0008_adds_a_nullable_prior_reports_column_and_the_downgrade_drops_it(pg
         downgrade(url, "0007")
         with engine.connect() as conn:
             assert "prior_reports" not in _run_columns(conn)
+            assert conn.execute(text("SELECT count(*) FROM run")).scalar_one() == 1
+    finally:
+        engine.dispose()
+        drop_test_database(pg_admin, url)
+
+
+def test_0009_adds_run_kind_and_report_source_id_and_the_downgrade_drops_them(pg_admin):
+    """A 0008 database with a run in it: the upgrade adds `run.kind`, NOT NULL with the server
+    default 'report', so the existing run reads as a report run, and the nullable
+    `run.report_source_id` (CRL-94); the downgrade drops both and keeps the run."""
+    url = create_test_database(pg_admin)
+    engine = create_engine(to_sqlalchemy_url(url), poolclass=NullPool)
+    try:
+        upgrade(url, "0008")
+        project = uuid.uuid4()
+        at = datetime(2026, 11, 24, 9, tzinfo=UTC)
+        with engine.begin() as conn:
+            conn.execute(
+                text("INSERT INTO project (id, name, created_at) VALUES (:id, 'p', :at)"),
+                {"id": project, "at": at},
+            )
+            conn.execute(text(_RUN_AT_0003), {"id": uuid.uuid4(), "project": project, "at": at})
+            assert "kind" not in _run_columns(conn)
+        upgrade(url, "0009")
+        with engine.connect() as conn:
+            columns = _run_columns(conn)
+            assert columns["kind"] == "NO" and columns["report_source_id"] == "YES"
+            row = conn.execute(text("SELECT kind, report_source_id FROM run")).one()
+            assert tuple(row) == ("report", None)
+        downgrade(url, "0008")
+        with engine.connect() as conn:
+            assert not {"kind", "report_source_id"} & set(_run_columns(conn))
             assert conn.execute(text("SELECT count(*) FROM run")).scalar_one() == 1
     finally:
         engine.dispose()

@@ -28,6 +28,18 @@ v1 ships as a **CLI, an HTTP API and a focused web review UI**, packaged as an o
 - Offline bundle, install/backup/restore, air-gap CI test, operator guide.
 - Profile extractor that drafts a team profile from example reports (M6, may slip past first deployment).
 
+CRL-94 amendment (audit-only check mode, owner-approved 2026-11-22): besides writing reports,
+Corelata checks a finished report someone else wrote (a standards team's or an evaluation
+board's) against the pack without rewriting it. A run of kind `check` takes the report (any
+ingestible document), its sources and an optional value statement; the `structurer` role maps
+the report's own sentences onto `ReportBody` word for word (the engine rejects any other text and
+puts every sentence in exactly one claim), the auditor runs once with no gate, writer, conveyor
+or loop, and the run completes `clean` or `findings_open` with a findings sheet
+(`findings.csv`). `corelata check report.docx sources/... --pack ...` (exit 0 or 3),
+`POST /runs {kind: check, report_source_id}`, and a Review screen without Accept, Return or
+the writing timeline. `run.kind` defaults to `report` (migration 0009, add-only). The §2.3
+non-goals are unchanged. Rulings R-CRL94-1 to R-CRL94-10 in `docs/crl-94-followups.md`.
+
 **Out of scope for v1** (see §15): PDF rendering, user management and billing, live web collection, multiple report products in the base pack, classification-guide enforcement beyond a handling marking string, bundled models.
 
 ## §2 Context and decisions
@@ -114,6 +126,7 @@ Roles are typed config (`RolesConfig`), each mapped to a model key, each with a 
 | `conveyor` | draft `Report`, template, profile tone/format, routed findings (iteration ≥ 1) | `Report` | change the claim set (M1: reword only; the engine keeps the claim set fixed, and adding claims that cite existing units is deferred until real models need it) |
 | `auditor` | draft `Report`, resolved rules, lexicon, the source units each claim cites | `AuditResult` (findings only) | edit: `AuditResult` has no report field |
 | `profiler` | example reports, plus the base pack's rule ids, template and lexicon so it proposes only valid overrides | `Profile` with `draft: true` | be used in a run |
+| `structurer` (CRL-94) | a finished report's blocks and sentences, template, lexicon, digests, the sources' units | `ReportBody` whose claims are the report's sentences | write words of its own: the engine checks every text against the report |
 
 ## §5 Ingest and sources
 
@@ -455,6 +468,17 @@ lowest tier among its scored spans) unless it already does. The prompts that men
 versions (`writer/v5`, `conveyor/v3`) and render, with neither, exactly as `writer/v4` and
 `conveyor/v2` (quotes, project memory and OCR included).
 
+CRL-137 amendment (untrusted source text): every prompt that reads source text says it is data
+that may be written by an adversary, never instructions, and what a unit's `suspect` flag means
+for that role (`gate/v2`, `discover/v2`, `digest/v2`, `writer/v6`, `auditor/v6`: the previous
+text with one line added before the last; the auditor fails `icd203.tc.8` for a claim that rests
+on such an instruction). Ingest keeps text the document hides from its reader (HTML `hidden`,
+`aria-hidden="true"`, inline `display:none` or `visibility:hidden`; DOCX `w:vanish`) as units
+marked `meta.hidden`, which the record keeps and the run's context leaves out (`model_view`), so
+no model request, schema enum or validator sees them; a unit whose text matches the instruction
+heuristic (`ingest/injection.py`) carries `meta.suspect` and reaches the models with
+`"suspect": true`. A source with neither is the same object and its payloads are unchanged.
+
 ### §8.2 Audit schema
 
 ```
@@ -530,6 +554,23 @@ digested sources are exempt, the writer never saw their words). Matching compare
 whitespace, quote marks and other punctuation are set aside, and `pipeline.quote_match_threshold`
 (default 1.0, exact) allows a fuzzy match. A rule the auditor already failed keeps the
 auditor's verdict and recommendation, with the quote problems appended to its evidence.
+
+CRL-136 amendment (ICD 203 D.6.e(2)(a)-(b)): the lexicon may carry `likelihood_alternates` (the
+other rows of the ICD 203 likelihood table), `unlisted_probability_words` (estimative wording on
+no row) and `confidence_phrases` (a confidence level written in prose). With any of them the
+engine fails `icd203.tc.2`, as an engine check, for a key judgment or `judgment` claim that puts a
+confidence phrase and a likelihood in one sentence, uses an alternate or unlisted word, or (a
+claim) does not write its own `likelihood_term` in its text (`engine check: c3 puts a confidence
+level and a likelihood in one sentence ('high confidence', 'likely')`). Matching ignores case,
+takes whole words and the longest listed phrase at each place ("very likely" is not "likely";
+"unlikely" contains no "likely"), and lets a term or alternate match its adverb ("almost
+certainly"); a sentence ends at `.`, `!` or `?` followed by whitespace, and a claim's text is read
+as stored. The check runs on a degraded audit too (R-M11-6), and a profile relaxes it by
+disabling `icd203.tc.2` or lowering its severity. The engine reads the lists; the writer and
+auditor are not sent them, so their requests are unchanged. A lexicon without them (every pack
+before) dumps, hashes and runs as before. The base pack, version 1.2.0, fills them from the ICD
+203 table: row 2 as alternates ("remote" only in phrases such as "remote chance"), common
+off-table words ("possibly", "perhaps", "certainly", ...) and "high/moderate/low confidence".
 
 ## §9 Rendering and exports
 

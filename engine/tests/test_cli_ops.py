@@ -9,7 +9,7 @@ import yaml
 from docx import Document
 
 from corelata.cli import main
-from corelata.exports import OUTPUT_FILES
+from corelata.exports import FINDINGS_SHEET, OUTPUT_FILES
 from corelata.testing.fake_openai import FakeOpenAIServer
 from corelata.testing.postgres import create_test_database, drop_test_database
 from tests.conftest import BASE_CONFIG
@@ -53,7 +53,7 @@ def _cli(capsys, *argv) -> tuple[int, str, str]:
 def test_migrate_is_idempotent_and_redacts_the_url(setup, capsys):
     config, _ = setup
     code, out, _ = _cli(capsys, "migrate", "--config", str(config))
-    assert code == 0 and "at revision 0009" in out and "corelata:corelata@" not in out
+    assert code == 0 and "at revision 0010" in out and "corelata:corelata@" not in out
 
 
 def test_migrate_unreachable_database(setup, capsys, monkeypatch):
@@ -136,7 +136,8 @@ def test_queued_run_lifecycle(setup, capsys, tmp_path):
     out_dir = tmp_path / "export"
     code, out, _ = _cli(capsys, "export", run_id, "--out", str(out_dir), *args)
     assert code == 0 and str(out_dir) in out
-    assert {p.name for p in out_dir.iterdir()} == set(OUTPUT_FILES)
+    # a report run writes every output but the check run's findings sheet (CRL-94)
+    assert {p.name for p in out_dir.iterdir()} == set(OUTPUT_FILES) - {FINDINGS_SHEET}
     code, out, _ = _cli(capsys, "report", str(out_dir), "--format", "md")
     assert code == 0 and out.startswith("UNCLASSIFIED\n")
     assert _cli(capsys, "trace", str(out_dir))[0] == 0

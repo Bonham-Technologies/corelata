@@ -67,6 +67,13 @@ def test_read_examples_in_name_order_within_budget(examples_dir):
     assert all(1 <= len(r.units) < 6 for r in small)  # at least one unit per report, always
 
 
+def test_read_examples_leave_out_hidden_text(tmp_path):
+    """CRL-137: text an example hides from its reader reaches no model, the profiler included."""
+    (tmp_path / "a.html").write_text("<p>Shown.</p><p hidden>Withheld.</p><p>Also shown.</p>")
+    [report] = read_examples(tmp_path, budget_tokens=100_000, bytes_per_token=2.5)
+    assert report.units == ["Shown.", "Also shown."] and not report.truncated
+
+
 def test_read_examples_errors(tmp_path):
     empty = tmp_path / "empty"
     empty.mkdir()

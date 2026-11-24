@@ -67,6 +67,7 @@ from corelata.schema.report import (
 from corelata.schema.run import (
     TERMINAL_STATES,
     DraftRecord,
+    RunKind,
     RunRecord,
     RunState,
     StageResult,
@@ -124,6 +125,7 @@ __all__ = [
     "FindingOut",
     "AuditOutput",
     "Finding",
+    "RunKind",
     "RunState",
     "TERMINAL_STATES",
     "StageResult",

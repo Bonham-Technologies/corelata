@@ -62,12 +62,21 @@ _CHECKS: list[tuple[str, dict[str, object]]] = [
     ("auditor", {}),
     ("auditor", {"evidence_quotes": "required"}),
     ("auditor", {"evidence_quotes": "off", "prior_reports": True}),
+    ("auditor", {"evidence_quotes": "required", "checked_report": True}),
     ("profiler", {}),
+    ("structurer", {"section_order": ["title"], "evidence_quotes": "off"}),
+    ("structurer", {"section_order": ["title"], "evidence_quotes": "required"}),
+    ("structurer", {"section_order": ["title"], "evidence_quotes": "optional"}),
 ]
 
 
 def run_prompt_ids() -> list[str]:
     return ["gate", "discover", "digest", "writer", "conveyor", "auditor"]
+
+
+def check_prompt_ids() -> list[str]:
+    """The prompts a check run uses (CRL-94), as its trace's `prompt_versions` lists them."""
+    return ["digest", "structurer", "auditor"]
 
 
 def validate_prompts(cfg: CorelataConfig, prompts: PromptLibrary) -> None:

@@ -1,7 +1,7 @@
 """procrastinate 3.12.0's job queue schema: procrastinate's 3.11 and 3.12 migrations
 
-Revision ID: 0009
-Revises: 0008
+Revision ID: 0010
+Revises: 0009
 Create Date: 2026-11-24 12:00:00.000000
 
 procrastinate 3.12 defers jobs through procrastinate_defer_jobs_v2, which only its 3.12
@@ -26,7 +26,7 @@ would leave an invalid index and a half-applied revision behind. The vendored fi
 procrastinate ships them; `_in_transaction` drops the one CONCURRENTLY from each.
 
 The downgrade puts back procrastinate 3.10.0's objects exactly as revision 0001 installed them
-(0009_procrastinate_3_10_0_restore.sql) and drops every job's lock_mode, which 3.10 lacks.
+(0010_procrastinate_3_10_0_restore.sql) and drops every job's lock_mode, which 3.10 lacks.
 """
 
 from collections.abc import Sequence
@@ -34,8 +34,8 @@ from pathlib import Path
 
 from alembic import op
 
-revision: str = "0009"
-down_revision: str | Sequence[str] | None = "0008"
+revision: str = "0010"
+down_revision: str | Sequence[str] | None = "0009"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
@@ -50,11 +50,11 @@ _PROCRASTINATE_MIGRATIONS = (
     "03.12.00_50_post_add_lock_mode",
     "03.12.00_51_post_drop_id_lock_index",
 )
-_DOWNGRADE = _HERE / "0009_procrastinate_3_10_0_restore.sql"
+_DOWNGRADE = _HERE / "0010_procrastinate_3_10_0_restore.sql"
 
 
 def _vendored(name: str) -> str:
-    return (_HERE / f"0009_procrastinate_{name}.sql").read_text(encoding="utf-8")
+    return (_HERE / f"0010_procrastinate_{name}.sql").read_text(encoding="utf-8")
 
 
 def _in_transaction(sql: str) -> str:
