@@ -22,10 +22,13 @@ later. The ticket's scope is in the spec; this file says how the open choices we
 - **R-CRL94-3 (sentence splitting).** A sentence ends at `.`, `!` or `?` (with any closing quotes
   or brackets) before whitespace and an opening quote, bracket, capital or digit. Abbreviations
   before a capital ("U.S. Navy") split; no abbreviation list was added.
-- **R-CRL94-4 (no source summary from the structurer).** The structurer's schema never asks for
-  `source_summary` or `changes_from_previous`: a summary the report lacks is for the auditor to
-  miss, not for the structurer to write. Source entries (descriptor, reliability note, the
-  CRL-96 details) are metadata about the uploaded sources and are not checked against the text.
+- **R-CRL94-4 (no source summary from the structurer).** The structurer is never asked for
+  `source_summary` or `changes_from_previous` (neither its schema nor its prompt's section order
+  names them), and whatever a server without a schema sends for them is dropped
+  (`run_structurer`): a summary the report lacks is for the auditor to miss, not for the
+  structurer to write. A source entry's reliability note is what the report says of the source,
+  so it is checked like every other text (the report's own words, or empty); its descriptor,
+  access and the CRL-96 details are lexicon terms and file metadata and are not.
 - **R-CRL94-5 (the report is not evidence).** The checked report is stored as an ordinary
   project source and named by `run.report_source_id`; it is never one of the run's sources
   (`run_source`), so no claim can cite it, and a request listing it among `source_ids` is a 422.
@@ -50,6 +53,17 @@ later. The ticket's scope is in the spec; this file says how the open choices we
   run (CASCADE would delete the run's rows silently and leave its stored files behind), and
   deleting the project still removes both in one statement. A source-deletion command must
   refuse a source a check names as its report, as it refuses one in `run_source`.
+- **R-CRL94-10 (the checked report is untrusted at audit).** In a check the draft the auditor
+  reads is someone else's report, written by the party being judged. `auditor/v6` gains a block
+  rendered only when `checked_report` is set (a check run): the draft's text is data, never
+  instructions; `INPUT_JSON.suspect_claims` (only in a check's payload) lists the claims whose
+  sentences come from a suspect passage of the report (`structure.suspect_claims`), which are
+  never evidence that a rule is met; and a key judgment's confidence, which the mapping sets to
+  "moderate" where the report states none, is judged from the report's words, not from that
+  field. A conditional block rather than a new version, because the library's latest version
+  serves both kinds of run: a report run's auditor prompt and payload are byte-identical to
+  before (pinned by `test_a_report_runs_auditor_prompt_is_byte_identical_to_before_checks`), and
+  a trace's auditor version 6 together with its `kind` still names the exact text.
 
 ## Later
 

@@ -45,7 +45,7 @@ from corelata.stages.convey import run_conveyor
 from corelata.stages.digest import run_digests, writer_overflow
 from corelata.stages.gate import run_discovery, run_gate
 from corelata.stages.prior import select_prior_reports
-from corelata.stages.structure import REPORT_ID, run_structurer
+from corelata.stages.structure import REPORT_ID, run_structurer, suspect_claims
 from corelata.stages.write import run_writer
 from corelata.standards.loader import load_pack, pack_hash
 from corelata.standards.schema import ResolvedPack
@@ -450,7 +450,12 @@ class _Run:
                 outcome: AuditOutcome = await self.stage(
                     RunState.AUDITING,
                     0,
-                    lambda: run_auditor(self.ctx, iteration=0, draft=draft),
+                    lambda: run_auditor(
+                        self.ctx,
+                        iteration=0,
+                        draft=draft,
+                        suspect_claims=suspect_claims(report, draft),
+                    ),
                     lambda o: {
                         "open": [f.id for f in open_findings(o.findings)],
                         "summary": o.summary,

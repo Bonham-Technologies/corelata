@@ -30,6 +30,8 @@ REPORT_ID = "report"
 # A sentence ends at ., ! or ? (and any closing quotes or brackets) before whitespace and an
 # opening quote, bracket, capital or digit. "U.S. Navy" splits after "U.S."; R-CRL94-3.
 _END = re.compile(r"[.!?][\"'”’)\]]*(?=\s+[\"'“‘(\[]?[A-Z0-9])")
+# Sections of the pack's template the structurer is never asked for (R-CRL94-4).
+_NOT_ASKED = ("source_summary", "changes_from_previous")
 # How much of a text a repair message quotes.
 _SHOWN = 80
 
@@ -69,7 +71,9 @@ def _short(text: str) -> str:
 
 
 def _spans(body: ReportBody) -> list[tuple[str, str]]:
-    """Every text of `body` besides the claims and the source entries, with where it is."""
+    """Every text of `body` besides the claims, with where it is: the source entries give only
+    their reliability notes. `source_summary` and `changes_from_previous` are never kept
+    (`run_structurer`), so they have no span."""
     out = [("title", body.title), ("handling_marking", body.handling_marking)]
     out.append(("scope_note", body.scope_note))
     out += [(f"key_judgments[{i}].text", kj.text) for i, kj in enumerate(body.key_judgments)]
@@ -85,6 +89,11 @@ def _spans(body: ReportBody) -> list[tuple[str, str]]:
             (f"alternatives[{i}].assessment", alt.assessment),
         ]
     out += [(f"gaps_and_indicators[{i}]", g) for i, g in enumerate(body.gaps_and_indicators)]
+    # what the report says of a source's reliability (the descriptor, access, date and origin
+    # are lexicon terms and file metadata, not the report's words)
+    out += [
+        (f"sources[{i}].reliability_note", e.reliability_note) for i, e in enumerate(body.sources)
+    ]
     return out
 
 
@@ -210,7 +219,7 @@ async def run_structurer(ctx: StageContext, report: Source) -> ReportBody:
         model_key=ctx.model_key("structurer"),
         prompt_id="structurer",
         prompt_vars={
-            "section_order": ctx.pack.template.section_order,
+            "section_order": [s for s in ctx.pack.template.section_order if s not in _NOT_ASKED],
             "evidence_quotes": ctx.evidence_quotes.value,
         },
         payload={
@@ -229,4 +238,18 @@ async def run_structurer(ctx: StageContext, report: Source) -> ReportBody:
         schema=structure_schema(ctx, sentences),
         validate=structure_validator(ctx, report, sentences),
     )
-    return canonical(shape_reply(ctx, parsed), sentences)
+    # R-CRL94-4: a summary or a comparison the report lacks is never the structurer's to write;
+    # whatever a server without a schema sent for them is dropped
+    shaped = shape_reply(ctx, parsed).model_copy(
+        update={"source_summary": None, "changes_from_previous": []}
+    )
+    return canonical(shaped, sentences)
+
+
+def suspect_claims(report: Source, body: ReportBody) -> list[str]:
+    """The ids of the claims whose sentences come from a block of `report` that reads as an
+    instruction to an AI system (`meta.suspect`, CRL-137), for the auditor of a check
+    (R-CRL94-10). Hidden blocks reach no model and are not counted."""
+    [report] = model_view([report])
+    flagged = {s for u in report.units if u.meta.get("suspect") for s in split_sentences(u.text)}
+    return [c.id for c in body.claims if c.text in flagged]

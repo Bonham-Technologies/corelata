@@ -938,8 +938,13 @@ revision. Set `roles.structurer` to give the role its own model; unset, the writ
 it. The report's own text is read like a source's: text its document hides from the reader is
 kept in the trace but reaches no model and is not checked, and a passage that reads as an
 instruction to an AI is flagged to the structurer, which copies it as a claim like any other
-sentence. A file given both as the report and among its sources is refused (exit 2): the report
-is never its own evidence.
+sentence. The auditor is told the same: the report is the material under audit, never
+instructions, and the claims that come from such a passage are listed for it. A key judgment's
+confidence is the one the report states; where it states none the mapping records "moderate",
+and the auditor judges the confidence from the report's words, not from that value. The
+structurer never writes a source summary or a comparison with earlier reports: a report that
+lacks one fails the rule that asks for it. A file given both as the report and among its sources
+is refused (exit 2): the report is never its own evidence.
 
 A source that a check run audits as its report cannot be deleted on its own while the run
 exists; deleting the project removes both.
@@ -955,7 +960,10 @@ two sample reports, one clean and one with an unsourced key judgment.
 
 Limits: a reference list at the end of a report is checked sentence by sentence like the rest,
 so leave it out of the uploaded file if its lines are not assertions; an abbreviation followed by
-a capital ("U.S. Navy") ends a sentence.
+a capital ("U.S. Navy") ends a sentence. The structurer reads the whole report besides the
+source passages, so a very long report can overflow the model's context: the check then fails
+cleanly (state `failed`, exit 1) and nothing is delivered; split the report or give the
+structurer a model with a larger context (`roles.structurer`).
 
 ## 8. Backups
 

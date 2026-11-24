@@ -38,7 +38,7 @@ or loop, and the run completes `clean` or `findings_open` with a findings sheet
 (`findings.csv`). `corelata check report.docx sources/... --pack ...` (exit 0 or 3),
 `POST /runs {kind: check, report_source_id}`, and a Review screen without Accept, Return or
 the writing timeline. `run.kind` defaults to `report` (migration 0009, add-only). The §2.3
-non-goals are unchanged. Rulings R-CRL94-1 to R-CRL94-7 in `docs/crl-94-followups.md`.
+non-goals are unchanged. Rulings R-CRL94-1 to R-CRL94-10 in `docs/crl-94-followups.md`.
 
 **Out of scope for v1** (see §15): PDF rendering, user management and billing, live web collection, multiple report products in the base pack, classification-guide enforcement beyond a handling marking string, bundled models.
 

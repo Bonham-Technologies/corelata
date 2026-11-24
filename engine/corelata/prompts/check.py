@@ -62,6 +62,7 @@ _CHECKS: list[tuple[str, dict[str, object]]] = [
     ("auditor", {}),
     ("auditor", {"evidence_quotes": "required"}),
     ("auditor", {"evidence_quotes": "off", "prior_reports": True}),
+    ("auditor", {"evidence_quotes": "required", "checked_report": True}),
     ("profiler", {}),
     ("structurer", {"section_order": ["title"], "evidence_quotes": "off"}),
     ("structurer", {"section_order": ["title"], "evidence_quotes": "required"}),

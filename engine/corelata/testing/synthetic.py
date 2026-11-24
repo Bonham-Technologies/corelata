@@ -279,7 +279,8 @@ def _structurer(p: Payload) -> Payload:
             for cid in judgments
         ],
         "scope_note": "",
-        "sources": [_source_entry(s, lexicon) for s in p["sources"]],
+        # what the report says of each source's reliability: nothing, in a synthetic report
+        "sources": [_source_entry(s, lexicon) | {"reliability_note": ""} for s in p["sources"]],
         "analysis": [s for s in sections if s["paragraphs"]],
         "alternatives": [],
         "gaps_and_indicators": [],
