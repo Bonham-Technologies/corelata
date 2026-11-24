@@ -285,7 +285,18 @@ def cited_unit_payload(ctx: StageContext, draft: ReportBody) -> list[dict[str, A
     return units
 
 
-async def run_auditor(ctx: StageContext, *, iteration: int, draft: ReportBody) -> AuditOutcome:
+async def run_auditor(
+    ctx: StageContext,
+    *,
+    iteration: int,
+    draft: ReportBody,
+    suspect_claims: list[str] | None = None,
+) -> AuditOutcome:
+    """`suspect_claims` marks a check run (CRL-94, R-CRL94-10): the ids of the claims whose
+    sentences come from a passage of the checked report that reads as an instruction. Given, the
+    prompt says the draft is untrusted text from the party being judged and the payload lists
+    them; None (a report run) leaves the request exactly as before."""
+    check = {} if suspect_claims is None else {"checked_report": True}
     units = cited_unit_payload(ctx, draft)
     cited = [u["ref"] for u in units]
     output_type = audit_output_type(ctx.pack, cited, [c.id for c in draft.claims])
@@ -297,10 +308,12 @@ async def run_auditor(ctx: StageContext, *, iteration: int, draft: ReportBody) -
         prompt_vars={
             "evidence_quotes": ctx.evidence_quotes.value,
             "prior_reports": bool(ctx.prior_reports),
+            **check,
         },
         payload=auditor_payload(
             ctx.pack, draft, units, ctx.value_statement, prior_reports_payload(ctx)
-        ),
+        )
+        | ({} if suspect_claims is None else {"suspect_claims": suspect_claims}),
         output_type=output_type,
         validate=lambda o: backstop(to_audit_output(o, ctx.pack)),
     )

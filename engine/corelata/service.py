@@ -22,7 +22,7 @@ from corelata.ingest.ocr import OcrSettings
 from corelata.ingest.registry import check_extension
 from corelata.ingest.units import make_source
 from corelata.pipeline import load_run_pack
-from corelata.prompts.check import run_prompt_ids
+from corelata.prompts.check import check_prompt_ids, run_prompt_ids
 from corelata.prompts.library import PromptLibrary
 from corelata.schema import (
     TERMINAL_STATES,
@@ -33,6 +33,7 @@ from corelata.schema import (
     ReviewAction,
     ReviewDecision,
     ReviewState,
+    RunKind,
     RunProgress,
     RunRecord,
     RunState,
@@ -206,6 +207,10 @@ class RunRequest:
     max_iterations: int | None = None
     extra_guidance: str = ""
     parent_run_id: uuid.UUID | None = None
+    # CRL-94: `check` audits the project source `report_source_id`, a finished report, with
+    # `source_ids` as its evidence; its value statement may be empty.
+    kind: RunKind = RunKind.REPORT
+    report_source_id: uuid.UUID | None = None
 
 
 # ---------------------------------------------------------------- projects and sources
@@ -448,7 +453,11 @@ async def _create_run(
             value_statement=req.value_statement.strip(),
             profile=profile,
             max_iterations=(
-                cfg.pipeline.max_iterations if req.max_iterations is None else req.max_iterations
+                0  # a check has no revision loop (R-CRL94-7), as its trace says
+                if req.kind is RunKind.CHECK
+                else cfg.pipeline.max_iterations
+                if req.max_iterations is None
+                else req.max_iterations
             ),
             extra_guidance=req.extra_guidance,
             config_hash=config_hash(cfg),
@@ -456,12 +465,16 @@ async def _create_run(
             pack_name=pack_name,
             pack_hash=pack_hash_,
             pack_snapshot=pack_snapshot,
-            prompt_versions=prompts.versions(run_prompt_ids()),
+            prompt_versions=prompts.versions(
+                check_prompt_ids() if req.kind is RunKind.CHECK else run_prompt_ids()
+            ),
             corelata_version=__version__,
             docx_reference_key=key,
             parent_run_id=req.parent_run_id,
             source_ids=req.source_ids,
             run_id=run_id,
+            kind=req.kind.value,
+            report_source_id=req.report_source_id,
         )
 
     try:
@@ -481,7 +494,16 @@ async def _create_run(
 
 
 def _validate(req: RunRequest) -> None:
-    if not req.value_statement.strip():
+    if req.kind is RunKind.CHECK:
+        if req.report_source_id is None:
+            raise InvalidRequestError("a check needs report_source_id, the report to check")
+        if req.report_source_id in req.source_ids:
+            raise InvalidRequestError("the report to check cannot also be one of its sources")
+        if req.parent_run_id is not None:
+            raise InvalidRequestError("a check has no parent run")
+    elif req.report_source_id is not None:
+        raise InvalidRequestError("report_source_id is for a check (kind: check)")
+    elif not req.value_statement.strip():
         raise InvalidRequestError("a run needs a value statement")
     check_run_text(req.value_statement, req.extra_guidance)
     if not req.source_ids:
@@ -652,6 +674,12 @@ async def review_run(
                 raise InvalidRunStateError(
                     f"run {run_id} is {run.state}; only a completed run can be reviewed"
                 )
+            if run.kind == RunKind.CHECK.value:
+                # R-CRL94-6: a check reports on someone else's report; there is no writer to
+                # return it to and nothing of Corelata's to accept.
+                raise InvalidRunStateError(
+                    f"run {run_id} is a check; a check is not accepted or returned"
+                )
             if action is ReviewAction.ACCEPT:
                 await runs.add_review_event(s, run_id, action.value, note, actor, None)
                 await _store_review_state(s, run_id)
@@ -748,6 +776,8 @@ def _progress(
         run_id=str(run.id),
         project_id=str(run.project_id),
         parent_run_id=str(run.parent_run_id) if run.parent_run_id else None,
+        kind=RunKind(run.kind),
+        report_source_id=str(run.report_source_id) if run.report_source_id else None,
         state=RunState(run.state),
         status=run.status,
         value_statement=run.value_statement,
@@ -791,6 +821,7 @@ def _summary(run: Run) -> RunSummary:
         run_id=str(run.id),
         project_id=str(run.project_id),
         parent_run_id=str(run.parent_run_id) if run.parent_run_id else None,
+        kind=RunKind(run.kind),
         state=RunState(run.state),
         status=run.status,
         value_statement=run.value_statement,

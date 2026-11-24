@@ -68,7 +68,13 @@ export function RunPage() {
       <nav aria-label="Breadcrumb" className="breadcrumb">
         <Link to={`/new?project=${progress.project_id}`}>{project?.name ?? "Project"}</Link>
       </nav>
-      <h1>{done ? outcomeHeading(progress) : "Writing the report"}</h1>
+      <h1>
+        {done
+          ? outcomeHeading(progress)
+          : progress.kind === "check"
+            ? "Checking the report"
+            : "Writing the report"}
+      </h1>
       {progress.parent_run_id ? (
         <RevisionOf runId={runId} parentRunId={progress.parent_run_id} />
       ) : null}

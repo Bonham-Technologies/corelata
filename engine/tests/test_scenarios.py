@@ -1,7 +1,7 @@
 import pytest
 import yaml
 
-from corelata.bench import REAL_SCENARIOS_DIR, SCENARIOS_DIR
+from corelata.bench import CHECK_SCENARIOS_DIR, REAL_SCENARIOS_DIR, SCENARIOS_DIR
 from corelata.llm.agent import CallLog
 from corelata.llm.payload import parse_input
 from corelata.llm.types import ChatResponse
@@ -47,7 +47,10 @@ def test_fixture_directory_has_the_expected_set():
     assert all(s.description for s in SCENARIOS)
 
 
-@pytest.mark.parametrize("scenario", SCENARIOS, ids=[s.name for s in SCENARIOS])
+CHECKS = load_scenarios(CHECK_SCENARIOS_DIR)
+
+
+@pytest.mark.parametrize("scenario", SCENARIOS + CHECKS, ids=[s.name for s in SCENARIOS + CHECKS])
 async def test_scenario_passes_against_the_fake_model(scenario, make_config):
     record = await run_scenario(
         scenario,
@@ -553,4 +556,46 @@ def test_a_scenario_source_has_paragraphs_or_html(tmp_path, sources):
     path = tmp_path / "bad.yaml"
     path.write_text(f"name: x\nstatement: s\nsources: {sources}\nexpect: {{state: completed}}\n")
     with pytest.raises(ScenarioError, match="set paragraphs or html, not both"):
+        load_scenario(path)
+
+
+async def test_a_check_scenario_checks_its_report_sentence_by_sentence(make_config):
+    """CRL-94: the check set's unsourced report keeps its unsourced key judgment as a claim."""
+    scenario = next(s for s in CHECKS if s.name == "check-unsourced-key-judgment")
+    record = await run_scenario(
+        scenario,
+        make_config(),
+        backends={"fake": FakeBackend(name="fake")},
+        prompts=PromptLibrary(),
+        log=CallLog(),
+    )
+    assert record.kind == "check" and record.checked_report is not None
+    assert [s.stage for s in record.stages] == ["ingesting", "structuring", "auditing", "rendering"]
+    assert record.report is not None
+    assert [c.text for c in record.report.unsourced_claims()] == [
+        "Shipping lines will very likely move their Black Sea hubs to Varna by 2027."
+    ]
+
+
+@pytest.mark.parametrize(
+    ("data", "message"),
+    [
+        ({"kind": "check"}, "a check scenario needs a report"),
+        (
+            {"statement": "x", "report": {"id": "report", "paragraphs": ["A."]}},
+            "only a check scenario has a report",
+        ),
+        ({}, "a run scenario needs a statement"),
+    ],
+)
+def test_a_scenario_names_what_its_kind_needs(tmp_path, data, message):
+    path = tmp_path / "s.yaml"
+    body = {
+        "name": "s",
+        "sources": [{"id": "src1", "paragraphs": ["A."]}],
+        "expect": {"state": "completed"},
+        **data,
+    }
+    path.write_text(yaml.safe_dump(body), encoding="utf-8")
+    with pytest.raises(ScenarioError, match=message):
         load_scenario(path)

@@ -9,12 +9,16 @@ import { ErrorMessage } from "../../components/ErrorMessage";
 import { Menu } from "../../components/Menu";
 import { NOTE_MAX_LENGTH } from "../../lib/limits";
 
-/** The Download menu's items (M18 spec §5.4): today's four URLs, with plain names. */
-export function downloads(runId: string): [string, string][] {
+/** The Download menu's items (M18 spec §5.4): today's four URLs, with plain names, and for a
+ * checked report its standards sheet (CRL-94). */
+export function downloads(runId: string, checked = false): [string, string][] {
   return [
     ["Word document (DOCX)", reportUrl(runId, "docx", { download: true })],
     ["Markdown", reportUrl(runId, "md", { download: true })],
     ["Web page (HTML)", reportUrl(runId, "html", { download: true })],
+    ...(checked
+      ? [["Standards sheet (CSV)", exportUrl(runId, "findings.csv")] as [string, string]]
+      : []),
     ["Trace (JSON)", exportUrl(runId, "trace.json")],
   ];
 }
@@ -26,9 +30,13 @@ export function ReviewActions({
   runId,
   review,
   onAccepted,
+  checked = false,
 }: {
   runId: string;
   review: ReviewState | null;
+  /** A finished report written elsewhere and checked as it is (CRL-94): nothing to accept or
+   * return, so only Download shows. */
+  checked?: boolean;
   /** Called once the server has taken an Accept, so the page can move focus to its banner. */
   onAccepted?: () => void;
 }) {
@@ -62,23 +70,27 @@ export function ReviewActions({
 
   return (
     <div className="row review-actions">
-      <button type="button" className="primary" onClick={accept} disabled={busy || decided}>
-        {accepting ? "Accepting…" : "Accept"}
-      </button>
-      <button
-        type="button"
-        onClick={() => {
-          send.reset();
-          if (freed && !note) setNote(review?.note ?? "");
-          setOpen(true);
-        }}
-        disabled={busy || decided}
-      >
-        Return with note…
-      </button>
+      {checked ? null : (
+        <>
+          <button type="button" className="primary" onClick={accept} disabled={busy || decided}>
+            {accepting ? "Accepting…" : "Accept"}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              send.reset();
+              if (freed && !note) setNote(review?.note ?? "");
+              setOpen(true);
+            }}
+            disabled={busy || decided}
+          >
+            Return with note…
+          </button>
+        </>
+      )}
       <Menu label="Download" button="Download ▾">
         {(close) =>
-          downloads(runId).map(([name, href]) => (
+          downloads(runId, checked).map(([name, href]) => (
             <a key={href} role="menuitem" href={href} onClick={close}>
               {name}
             </a>

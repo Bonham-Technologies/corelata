@@ -13,6 +13,7 @@ models disagree (`make schema` regenerates it).
 | `gate.json` | the gate ran | `GateVerdict` |
 | `report.json` | a report was delivered | `Report` (body + `metadata`) |
 | `report.md`, `report.html`, `report.docx` | a report was delivered | renders of `report.json`, with numbered source references (CRL-96); the appendix "Cited passages" lists the claims' quotes (when any claim quotes), "Stages incomplete at delivery" lists `metadata.degradations` and "Audit findings open at delivery" lists `delivered_open_findings` (the findings `metadata.open_findings` names) |
+| `findings.csv` | a check run delivered its report (CRL-94) | the findings sheet: one row per rule of the audit, in pack order (`rule_id`, `title`, `verdict`, `severity`, `claim_ids`, `cited_units`, `evidence`, `recommendation`; ids space-separated; a cell starting `=`, `+`, `-` or `@` gets a leading `'`) |
 | `reference.docx` | the run's profile named one (queued runs only) | the profile's DOCX reference as stored when the run was queued; `corelata report DIR --format docx` uses it |
 
 `corelata report RUN_DIR --format …` re-renders any of the three from `trace.json` alone; the
@@ -27,6 +28,11 @@ DOCX uses the neutral template unless `--docx-reference` names the profile's ref
   `parent_run_id` (the run this one reruns after a review "return" or a gate rejection; null
   for a first run), `extra_guidance` (additional writer guidance the analyst or a reviewer
   supplied; empty when none).
+- Kind (CRL-94): `kind` is `"check"` for a check run, which audits `checked_report` (the
+  finished report as ingested, source id `report`, never one of `sources`) without rewriting it:
+  its stages are `ingesting`, `structuring`, `auditing`, `rendering`, its one draft has the role
+  `structurer` and claims that are the report's sentences, and it has no `gate`. A report run's
+  trace has neither key (read as `"report"`).
 - Outcome: `state` (spec §7.2 state machine; terminal states `completed`, `gate_rejected`,
   `failed`, `cancelled` — a `cancelled` run keeps the stages and model calls made before the
   analyst's cancel took effect and has no `report`), `status` (`clean` | `findings_open`, completed runs only), `error`.

@@ -239,7 +239,9 @@ roles:
 - The four roles: `gate` decides whether the sources can support the value statement at all,
   `writer` drafts the assessment, `conveyor` revises it to fix what the audit found, and `auditor`
   checks the draft against the standards. Use a model from a different family for the `auditor`
-  when you have one: a model that checks its own work shares its blind spots.
+  when you have one: a model that checks its own work shares its blind spots. An optional fifth,
+  `structurer`, maps a finished report onto the report schema for a check ("Checking an existing
+  report", section 7); without it the writer's model does that.
 
 ### Standards packs
 
@@ -974,6 +976,66 @@ N sources, N runs, N discoveries` (or `deleted project '<name>' (<id>): …`) an
 log line on stderr (logger `corelata.removal`) that lists every removed id and storage prefix.
 `docker compose exec` shows it on your terminal, not in `docker compose logs`: keep it with your
 change records if you need an audit trail.
+
+### Checking an existing report
+
+A standards team or an evaluation board can point Corelata at a finished report someone else
+wrote and have it audited against the standards pack, rule by rule, without anything being
+rewritten. Give the report (DOCX, Markdown, HTML, PDF or text) and the sources it rests on:
+
+```sh
+docker compose exec api corelata check /data/files/assessment.docx \
+  /data/files/sources/port.txt /data/files/sources/customs.pdf \
+  --pack icd203-base --profile board --out /data/files/check-assessment
+```
+
+`--pack` defaults to `standards.default_pack` and `--profile` to `standards.default_profile`; a
+profile disables or re-grades rules for a check exactly as for a report. `--statement` (or
+`--statement-file`) says what the report set out to establish, if you want the standards that
+weigh it to see it; it is optional. The command exits 0 when every rule is met, 3 when
+standards are not met (or the check could not finish auditing), 1 when it failed and 2 on a usage
+error. The output directory holds `trace.json`, the report as Corelata read it (`report.json`,
+`.md`, `.html`, `.docx`) and `findings.csv`, one row per rule: its id, title, verdict, severity,
+the claims and passages it names, the evidence and the recommendation.
+
+How it works: Corelata splits the report into sentences (headings and a line that is only one of
+the pack's handling markings aside). The `structurer` role maps them onto the report schema:
+every sentence becomes one claim, its text exactly as written, citing the source passages that
+support it; the title, key judgments and sections are copied word for word. The engine compares
+every text with the report and sends back a reply that changed a word or left a sentence out, so
+the checked report is always the uploaded one. A sentence no source supports keeps no
+evidence, and the engine fails `icd203.tc.8` (and `icd206.src.2` for a key judgment) on it
+whatever the auditor says. The auditor then runs once: there is no writer, no editing and no
+revision. Set `roles.structurer` to give the role its own model; unset, the writer's model does
+it. The report's own text is read like a source's: text its document hides from the reader is
+kept in the trace but reaches no model and is not checked, and a passage that reads as an
+instruction to an AI is flagged to the structurer, which copies it as a claim like any other
+sentence. The auditor is told the same: the report is the material under audit, never
+instructions, and the claims that come from such a passage are listed for it. A key judgment's
+confidence is the one the report states; where it states none the mapping records "moderate",
+and the auditor judges the confidence from the report's words, not from that value. The
+structurer never writes a source summary or a comparison with earlier reports: a report that
+lacks one fails the rule that asks for it. A file given both as the report and among its sources
+is refused (exit 2): the report is never its own evidence.
+
+A source that a check run audits as its report cannot be deleted on its own while the run
+exists; deleting the project removes both.
+
+Through the API, upload the report as a project source like any other, then
+`POST /api/runs` with `{"project_id", "source_ids": [the sources], "kind": "check",
+"report_source_id": <the report's source id>}`. `GET /api/runs/{id}` says `"kind": "check"`
+(older runs read `"report"`), and the stored export `findings.csv` is the sheet. The review
+screen shows the checked report with its Claims, Standards and Sources tabs and a **Standards
+sheet (CSV)** download; a check has nothing to accept or return, so those buttons are hidden and
+the API refuses a review of it (409). Under the bench, `corelata bench --scenarios check` plays
+two sample reports, one clean and one with an unsourced key judgment.
+
+Limits: a reference list at the end of a report is checked sentence by sentence like the rest,
+so leave it out of the uploaded file if its lines are not assertions; an abbreviation followed by
+a capital ("U.S. Navy") ends a sentence. The structurer reads the whole report besides the
+source passages, so a very long report can overflow the model's context: the check then fails
+cleanly (state `failed`, exit 1) and nothing is delivered; split the report or give the
+structurer a model with a larger context (`roles.structurer`).
 
 ## 8. Backups
 
