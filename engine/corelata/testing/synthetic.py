@@ -3,6 +3,9 @@ Markers in source text steer it so tests and demos have something to find:
 - UNSOURCED: the writer emits a claim with no evidence; it removes it when findings are routed
   back, unless the text also says UNFIXABLE.
 - BADTERM: the writer puts the word BADTERM in a key judgment; the auditor fails icd203.tc.2.
+- MIXEDWORDING: the writer's judgment c0 gives a confidence level and its likelihood in one
+  sentence, and OFFLEXICON: c0 adds "probably", a word off the lexicon's row, until findings are
+  routed back (CRL-136: the engine fails icd203.tc.2; the auditor does not).
 - BLUF: the profiler adds "open with a bottom line up front" to the tone.
 - CHART: the profiler proposes a severity override for icd203.tc.9.
 - NOALT: the profiler proposes disabling icd203.tc.4.
@@ -33,6 +36,7 @@ Payload = dict[str, Any]
 UNSOURCED, UNFIXABLE, BADTERM = "UNSOURCED", "UNFIXABLE", "BADTERM"
 BLUF, CHART, NOALT, BADRULE = "BLUF", "CHART", "NOALT", "BADRULE"
 CONFLICT = "CONFLICT"
+MIXEDWORDING, OFFLEXICON = "MIXEDWORDING", "OFFLEXICON"
 NOCHANGES = "NOCHANGES"
 _MARKING = re.compile(r"^[A-Z]+(//[A-Z][A-Z /,-]*)+$")
 _NUMBERED = re.compile(r"^\d+\.\s")
@@ -111,10 +115,16 @@ def _writer(p: Payload) -> Payload:
     fixing = bool(p.get("findings"))
     gate_evidence = set(p.get("gate_evidence", []))
     cited = [u for u in units if u["ref"] in gate_evidence] or units[:5]
+    texts = " ".join(u["text"] for u in units)
+    judgment = f"It is likely that {statement}"
+    if MIXEDWORDING in texts and not fixing:
+        judgment = f"We assess with moderate confidence that it is likely that {statement}"
+    if OFFLEXICON in texts and not fixing:
+        judgment = f"{judgment}, probably within the year"
     claims: list[dict[str, Any]] = [
         {
             "id": "c0",
-            "text": f"It is likely that {statement}",
+            "text": judgment,
             "kind": "judgment",
             "evidence": [cited[0]["ref"]] if cited else [],
             "likelihood_term": "likely",
@@ -132,7 +142,6 @@ def _writer(p: Payload) -> Payload:
         )
     if p.get("evidence_quotes"):
         _quote(claims, {u["ref"]: u["text"] for u in units}, statement, fixing)
-    texts = " ".join(u["text"] for u in units)
     if UNSOURCED in texts and (not fixing or UNFIXABLE in texts):
         claims.append(
             {

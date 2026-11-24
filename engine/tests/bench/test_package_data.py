@@ -35,6 +35,8 @@ def test_shipped_scenarios_load_and_are_the_known_set():
         "long-source-digested",
         "many-sources-writer-budget",
         "max-iterations-zero",
+        "mixed-wording-fixed-one-loop",
+        "offlexicon-fixed-one-loop",
         "quotes-fabricated-fixed-one-loop",
         "quotes-faithful-clean",
         "thin-material",

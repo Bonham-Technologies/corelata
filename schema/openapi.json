@@ -931,6 +931,13 @@
             "title": "Confidence Definitions",
             "type": "object"
           },
+          "confidence_phrases": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Confidence Phrases",
+            "type": "array"
+          },
           "handling_markings": {
             "items": {
               "type": "string"
@@ -946,6 +953,13 @@
             "title": "Likelihood",
             "type": "array"
           },
+          "likelihood_alternates": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Likelihood Alternates",
+            "type": "array"
+          },
           "source_access": {
             "items": {
               "type": "string"
@@ -958,6 +972,13 @@
               "type": "string"
             },
             "title": "Source Descriptors",
+            "type": "array"
+          },
+          "unlisted_probability_words": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Unlisted Probability Words",
             "type": "array"
           }
         },

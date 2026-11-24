@@ -87,6 +87,21 @@ its verdict and recommendation stand; quote problems are appended to its evidenc
 with the same `engine check: ` prefix (unsourced claims alone add nothing, as before quotes). The renders list every quote in the appendix
 "Cited passages" (claim id, source name and locator, the quoted words).
 
+When the run's pack lexicon has `likelihood_alternates`, `unlisted_probability_words` or
+`confidence_phrases` (CRL-136), the engine also checks each key judgment's and `judgment` claim's
+uncertainty wording and fails `icd203.tc.2` the same way, routed to the writer, with evidence
+starting `engine check: ` and problems joined with `; `:
+
+| Text | Meaning |
+|---|---|
+| `c3 puts a confidence level and a likelihood in one sentence ('high confidence', 'likely')` | one sentence of c3 holds both |
+| `key judgment 1 uses probability wording outside the lexicon ('probable', 'perhaps')` | the text uses an alternate-row or unlisted word (named as listed; "probably" is reported as `probable`) |
+| `c3 does not use its likelihood term 'likely' in its text` | the claim's `likelihood_term` is not in its text ("very likely" is a different term) |
+
+`claim_ids` lists the claims named (key judgments have no id and are named in the text). When the
+auditor already failed `icd203.tc.2`, its verdict and recommendation stand and these problems are
+appended to its evidence after `; `.
+
 ## Sources section and source summary
 
 A report's `sources[]` entry is `{source_id, descriptor, reliability_note, date_of_information,
