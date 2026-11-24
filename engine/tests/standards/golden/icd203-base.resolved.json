@@ -15,8 +15,7 @@
       "medium confidence",
       "low confidence",
       "highly confident",
-      "moderately confident",
-      "with confidence"
+      "moderately confident"
     ],
     "handling_markings": [
       "UNCLASSIFIED"
@@ -90,7 +89,6 @@
     "unlisted_probability_words": [
       "possibly",
       "possible that",
-      "it is possible",
       "perhaps",
       "maybe",
       "conceivably",

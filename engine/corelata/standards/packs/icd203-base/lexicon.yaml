@@ -51,8 +51,7 @@ likelihood_alternates:  # row 2 of the ICD 203 table, which a product must not m
   - nearly certain
 unlisted_probability_words:  # estimative wording on no row of the table
   - possibly
-  - possible that
-  - it is possible
+  - possible that  # not "it is possible": that also reads as capability ("it is possible to berth")
   - perhaps
   - maybe
   - conceivably
@@ -81,5 +80,4 @@ confidence_phrases:
   - medium confidence
   - low confidence
   - highly confident
-  - moderately confident
-  - with confidence
+  - moderately confident  # graded only: "act with confidence" is not a confidence level

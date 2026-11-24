@@ -86,6 +86,8 @@ def test_the_base_pack_fills_the_three_lists_from_icd_203():
         ("Remote sensing shows likelihood rising.", []),
         ("The unlikelyhood and likelyish ideas.", []),
         ("Dotless lıkely and dotted İmprobable are not the listed words.", []),
+        ("It is possible to berth larger ships at Varna.", []),
+        ("It is likely that Varna will act with confidence abroad.", ["likely"]),
     ],
 )
 def test_matching_takes_whole_words_and_the_longest_phrase(text, found):
@@ -100,6 +102,10 @@ def test_a_confidence_phrase_and_a_likelihood_in_one_sentence_is_a_problem():
     two = "It is likely to grow. We have moderate confidence in this judgment."
     assert CHECK.problems(two, "likely") == []
     assert CHECK.problems("Low confidence.  It is likely! High confidence?", "likely") == []
+    capability = "It is likely that it is possible to berth larger ships at Varna."
+    assert CHECK.problems(capability, "likely") == []
+    manner = "It is likely that Varna will act with confidence abroad."
+    assert CHECK.problems(manner, "likely") == []
 
 
 def test_wording_off_the_lexicon_row_and_a_missing_term_are_problems():
