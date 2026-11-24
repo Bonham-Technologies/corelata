@@ -13,6 +13,7 @@ models disagree (`make schema` regenerates it).
 | `gate.json` | the gate ran | `GateVerdict` |
 | `report.json` | a report was delivered | `Report` (body + `metadata`) |
 | `report.md`, `report.html`, `report.docx` | a report was delivered | renders of `report.json`, with numbered source references (CRL-96); the appendix "Cited passages" lists the claims' quotes (when any claim quotes), "Stages incomplete at delivery" lists `metadata.degradations` and "Audit findings open at delivery" lists `delivered_open_findings` (the findings `metadata.open_findings` names) |
+| `findings.csv` | a check run delivered its report (CRL-94) | the findings sheet: one row per rule of the audit, in pack order (`rule_id`, `title`, `verdict`, `severity`, `claim_ids`, `cited_units`, `evidence`, `recommendation`; ids space-separated; a cell starting `=`, `+`, `-` or `@` gets a leading `'`) |
 | `reference.docx` | the run's profile named one (queued runs only) | the profile's DOCX reference as stored when the run was queued; `corelata report DIR --format docx` uses it |
 
 `corelata report RUN_DIR --format …` re-renders any of the three from `trace.json` alone; the
@@ -27,6 +28,11 @@ DOCX uses the neutral template unless `--docx-reference` names the profile's ref
   `parent_run_id` (the run this one reruns after a review "return" or a gate rejection; null
   for a first run), `extra_guidance` (additional writer guidance the analyst or a reviewer
   supplied; empty when none).
+- Kind (CRL-94): `kind` is `"check"` for a check run, which audits `checked_report` (the
+  finished report as ingested, source id `report`, never one of `sources`) without rewriting it:
+  its stages are `ingesting`, `structuring`, `auditing`, `rendering`, its one draft has the role
+  `structurer` and claims that are the report's sentences, and it has no `gate`. A report run's
+  trace has neither key (read as `"report"`).
 - Outcome: `state` (spec §7.2 state machine; terminal states `completed`, `gate_rejected`,
   `failed`, `cancelled` — a `cancelled` run keeps the stages and model calls made before the
   analyst's cancel took effect and has no `report`), `status` (`clean` | `findings_open`, completed runs only), `error`.
@@ -34,8 +40,12 @@ DOCX uses the neutral template unless `--docx-reference` names the profile's ref
   `locator`, `kind`, `meta`), `digests[]` for sources over the digest threshold,
   `prior_reports[]` (CRL-97, below). A unit OCR read from a scanned PDF page has `meta`
   `{"ocr": true, "ocr_confidence": <0-100>}` (Tesseract's mean word confidence), and its source's
-  `provenance` names `ocr_pages` and `ocr_languages` (`ingest.ocr: auto`, CRL-95); other units
-  have empty `meta`.
+  `provenance` names `ocr_pages` and `ocr_languages` (`ingest.ocr: auto`, CRL-95). A unit whose
+  text the document hides from its reader (HTML `hidden`, `aria-hidden="true"`, inline
+  `display:none` or `visibility:hidden`; DOCX `w:vanish`) has `"hidden": true`: it is kept here
+  and no model request contains it. A unit whose text reads as an instruction to an AI system has
+  `"suspect": true` and reaches the models flagged the same way (CRL-137, operator guide
+  "Instructions in sources"). Other units have empty `meta`.
 - Process: `stages[]` — one entry per attempt of every stage, with `iteration`, `ok`,
   `started_at`, `finished_at`, `output` (small, stage-specific) or `error`; `drafts[]` — every
   writer and conveyor output with its `role` and `iteration`; `findings[]` — one `Finding` per
@@ -81,6 +91,21 @@ its verdict and recommendation stand; quote problems are appended to its evidenc
 with the same `engine check: ` prefix (unsourced claims alone add nothing, as before quotes). The renders list every quote in the appendix
 "Cited passages" (claim id, source name and locator, the quoted words).
 
+When the run's pack lexicon has `likelihood_alternates`, `unlisted_probability_words` or
+`confidence_phrases` (CRL-136), the engine also checks each key judgment's and `judgment` claim's
+uncertainty wording and fails `icd203.tc.2` the same way, routed to the writer, with evidence
+starting `engine check: ` and problems joined with `; `:
+
+| Text | Meaning |
+|---|---|
+| `c3 puts a confidence level and a likelihood in one sentence ('high confidence', 'likely')` | one sentence of c3 holds both |
+| `key judgment 1 uses probability wording outside the lexicon ('probable', 'perhaps')` | the text uses an alternate-row or unlisted word (named as listed; "probably" is reported as `probable`) |
+| `c3 does not use its likelihood term 'likely' in its text` | the claim's `likelihood_term` is not in its text ("very likely" is a different term) |
+
+`claim_ids` lists the claims named (key judgments have no id and are named in the text). When the
+auditor already failed `icd203.tc.2`, its verdict and recommendation stand and these problems are
+appended to its evidence after `; `.
+
 ## Sources section and source summary
 
 A report's `sources[]` entry is `{source_id, descriptor, reliability_note, date_of_information,
@@ -125,8 +150,9 @@ or change`, whatever the auditor answered.
 ## Derived views
 
 `corelata trace RUN_DIR` prints a `TraceSummary` (`schema/trace-summary.schema.json`):
-sources with unit counts, digest flags, the number of pages OCR read (`ocr_pages`) and a Coglossa
-export's `reliability_tier` (CRL-96), the gate verdict, a stage timeline with durations, failed and
+sources with unit counts, digest flags, the number of pages OCR read (`ocr_pages`), a Coglossa
+export's `reliability_tier` (CRL-96) and the units marked hidden and suspect (`hidden_units`,
+`suspect_units`, CRL-137), the gate verdict, a stage timeline with durations, failed and
 open rule ids per iteration, findings open at delivery, usage by role, and the earlier accepted
 reports the run was given (`prior_reports`, absent when none; the review screen's Process tab
 lists them).

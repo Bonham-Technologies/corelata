@@ -9,9 +9,10 @@ from corelata.config import EvidenceQuotes
 from corelata.quotes import QuoteCheck, quote_problems
 from corelata.schema import AuditOutput, Finding, ReportBody, Verdict
 from corelata.stages.audit_schema import audit_output_type, to_audit_output
-from corelata.stages.context import StageContext, ocr_flag
+from corelata.stages.context import StageContext, unit_flags
 from corelata.stages.write import prior_reports_payload
 from corelata.standards.schema import Checkability, ResolvedPack, Severity
+from corelata.wording import wording_problems
 
 # How an engine-owned finding's evidence starts (R-M11-6); the bench reads it to recognise an
 # iteration whose only findings are the engine's, a degraded audit (R-M12-5).
@@ -69,6 +70,11 @@ QUOTE_FIX = (
     "Copy each quote word for word from the unit it cites, quoting every unit the claim cites, "
     "or cite the unit that says it."
 )
+WORDING_FIX = (
+    "Use only the lexicon's likelihood terms, write each judgment's likelihood term in its text, "
+    "and state confidence in a sentence of its own, apart from the likelihood."
+)
+WORDING_RULE = "icd203.tc.2"
 BOTH_FIX = (
     "Cite a source unit for each claim and copy each quote word for word from the unit it "
     "cites, or remove the claim."
@@ -94,7 +100,9 @@ def apply_engine_checks(
     unsourced claim fails icd203.tc.8, and one cited by a key judgment fails icd206.src.2. With
     `quotes` (CRL-93, `pipeline.evidence_quotes` not `off`) a quote missing from the unit it
     cites, or with `required` a cited unit the claim does not quote, fails them the same way.
-    A rule the auditor already failed keeps the auditor's finding, with any quote problems
+    With the lexicon's wording lists (CRL-136, `corelata.wording`) a key judgment or judgment
+    claim whose uncertainty wording breaks ICD 203 D.6.e(2) fails icd203.tc.2. A rule the
+    auditor already failed keeps the auditor's finding, with any quote or wording problems
     added to its evidence."""
     unsourced = [c.id for c in draft.unsourced_claims()]
     quoted = quote_problems(draft, quotes) if quotes is not None else {}
@@ -108,8 +116,12 @@ def apply_engine_checks(
         ),
     }
     known = set(pack.rule_ids())
+    wording = wording_problems(draft, pack.lexicon)
     out: list[Finding] = []
     for f in findings:
+        if f.rule_id == WORDING_RULE and wording.problems:
+            out.append(_wording_finding(f, wording.problems, wording.claim_ids, order))
+            continue
         bad_unsourced, bad_quotes = overrides.get(f.rule_id, ([], {}))
         if (bad_unsourced or bad_quotes) and f.rule_id in known and f.verdict is not Verdict.FAIL:
             evidence, fix = _engine_evidence(bad_unsourced, bad_quotes)
@@ -139,12 +151,32 @@ def apply_engine_checks(
     return out
 
 
+def _wording_finding(f: Finding, problems: list[str], ids: list[str], order: list[str]) -> Finding:
+    """icd203.tc.2 with the engine's wording problems (CRL-136): failed with them as its
+    evidence, or, when the auditor already failed it, its finding with them appended."""
+    found = "; ".join(problems)
+    if f.verdict is not Verdict.FAIL:
+        return f.model_copy(
+            update={
+                "verdict": Verdict.FAIL,
+                "evidence": f"{ENGINE_CHECK}{found}",
+                "claim_ids": [cid for cid in order if cid in ids],
+                "recommendation": WORDING_FIX,
+            }
+        )
+    named = set(f.claim_ids) | set(ids)
+    evidence = f"{f.evidence}; {ENGINE_CHECK}{found}" if f.evidence else f"{ENGINE_CHECK}{found}"
+    return f.model_copy(
+        update={"evidence": evidence, "claim_ids": [cid for cid in order if cid in named]}
+    )
+
+
 def engine_only_findings(
     draft: ReportBody, pack: ResolvedPack, iteration: int, quotes: QuoteCheck | None = None
 ) -> list[Finding]:
     """Spec §8.4 invariant 1 without an auditor (R-M11-6): the engine fails icd203.tc.8 on every
-    unsourced or misquoted claim and icd206.src.2 on one a key judgment cites; it asserts
-    nothing else."""
+    unsourced or misquoted claim and icd206.src.2 on one a key judgment cites, and (CRL-136)
+    icd203.tc.2 on a judgment's uncertainty wording; it asserts nothing else."""
     rules = {r.id: r for r in pack.rules}
     seeds = [
         Finding(
@@ -155,7 +187,7 @@ def engine_only_findings(
             route_to=rules[rid].route_to.value,
             iteration=iteration,
         )
-        for rid in ("icd203.tc.8", "icd206.src.2")
+        for rid in ("icd203.tc.8", "icd206.src.2", WORDING_RULE)
         if rid in rules
     ]
     return [f for f in apply_engine_checks(draft, seeds, pack, quotes) if f.verdict is Verdict.FAIL]
@@ -166,7 +198,7 @@ def merge_engine_findings(previous: list[Finding], engine: list[Finding]) -> lis
     last completed audit's findings, with the engine's rules replaced by the engine's results on
     the delivered draft. An earlier iteration's engine-check failure the engine no longer
     reproduces is dropped: the revision fixed the claim. The auditor's own findings stay, on the
-    engine's two rules as well; they are the best information available about the draft."""
+    engine's rules as well; they are the best information available about the draft."""
     replaced = {f.rule_id for f in engine}
     kept = [
         f for f in previous if f.rule_id not in replaced and not f.evidence.startswith(ENGINE_CHECK)
@@ -199,7 +231,7 @@ def auditor_payload(
             }
             for r in pack.rules
         ],
-        "lexicon": pack.lexicon.model_dump(),
+        "lexicon": pack.lexicon.model_view(),
         "cited_units": cited_units,
         "value_statement": value_statement,
         **(prior or {}),
@@ -234,12 +266,12 @@ def apply_initial_coverage(findings: list[Finding], rule_ids: list[str]) -> list
 
 def cited_unit_payload(ctx: StageContext, draft: ReportBody) -> list[dict[str, Any]]:
     """The units the draft cites, `{"ref", "text"}` each, and `ocr`, `ocr_confidence` for text
-    OCR read (CRL-95). With `evidence_quotes` on (CRL-93) each also carries `quotes`: what the
-    draft's claims quote from it, `{"claim_id", "text"}`, so the auditor reads a quote next to
-    its unit."""
+    OCR read (CRL-95) and `suspect` for text that reads as an instruction (CRL-137). With
+    `evidence_quotes` on (CRL-93) each also carries `quotes`: what the draft's claims quote from
+    it, `{"claim_id", "text"}`, so the auditor reads a quote next to its unit."""
     cited = sorted({r for c in draft.claims for r in c.evidence if ctx.index.has(r)})
     units: list[dict[str, Any]] = [
-        {"ref": r, "text": ctx.index.text(r)} | ocr_flag(ctx.index.get(r)[1]) for r in cited
+        {"ref": r, "text": ctx.index.text(r)} | unit_flags(ctx.index.get(r)[1]) for r in cited
     ]
     if ctx.evidence_quotes is EvidenceQuotes.OFF:
         return units
@@ -253,7 +285,18 @@ def cited_unit_payload(ctx: StageContext, draft: ReportBody) -> list[dict[str, A
     return units
 
 
-async def run_auditor(ctx: StageContext, *, iteration: int, draft: ReportBody) -> AuditOutcome:
+async def run_auditor(
+    ctx: StageContext,
+    *,
+    iteration: int,
+    draft: ReportBody,
+    suspect_claims: list[str] | None = None,
+) -> AuditOutcome:
+    """`suspect_claims` marks a check run (CRL-94, R-CRL94-10): the ids of the claims whose
+    sentences come from a passage of the checked report that reads as an instruction. Given, the
+    prompt says the draft is untrusted text from the party being judged and the payload lists
+    them; None (a report run) leaves the request exactly as before."""
+    check = {} if suspect_claims is None else {"checked_report": True}
     units = cited_unit_payload(ctx, draft)
     cited = [u["ref"] for u in units]
     output_type = audit_output_type(ctx.pack, cited, [c.id for c in draft.claims])
@@ -265,10 +308,12 @@ async def run_auditor(ctx: StageContext, *, iteration: int, draft: ReportBody) -
         prompt_vars={
             "evidence_quotes": ctx.evidence_quotes.value,
             "prior_reports": bool(ctx.prior_reports),
+            **check,
         },
         payload=auditor_payload(
             ctx.pack, draft, units, ctx.value_statement, prior_reports_payload(ctx)
-        ),
+        )
+        | ({} if suspect_claims is None else {"suspect_claims": suspect_claims}),
         output_type=output_type,
         validate=lambda o: backstop(to_audit_output(o, ctx.pack)),
     )

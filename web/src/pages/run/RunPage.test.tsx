@@ -570,3 +570,14 @@ describe("a revised report (CRL-102)", () => {
     expect(original).not.toHaveTextContent(RETURN_NOTE);
   });
 });
+
+it("calls a check of a finished report Checking the report (CRL-94)", async () => {
+  server.use(
+    http.get(`*/api/runs/${RUN_ID}`, () =>
+      HttpResponse.json(runProgress({ state: "structuring", kind: "check", usage })),
+    ),
+  );
+  renderApp(`/runs/${RUN_ID}`);
+  expect(await screen.findByRole("heading", { name: "Checking the report" })).toBeInTheDocument();
+  expect(currentStep("Reading the report")).toBeInTheDocument();
+});

@@ -202,6 +202,7 @@ export function NewRunPage() {
         profile,
         max_iterations: sentIterations,
         extra_guidance: "",
+        kind: "report",
       },
       {
         onSuccess: (run) => {

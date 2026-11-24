@@ -158,10 +158,15 @@ _LATEST_RUN = (
 
 
 def _to_review() -> Any:
-    """A completed run nobody decided on, or whose return's revision ended without a report."""
+    """A completed run nobody decided on, or whose return's revision ended without a report. A
+    check run (CRL-94) is never to review: it takes no decision (R-CRL94-6)."""
     decision = _review_field("decision")
     freed = and_(decision == "returned", _review_field("child_state").in_(_FREED))
-    return and_(Run.state == RunState.COMPLETED.value, or_(decision.is_(None), freed))
+    return and_(
+        Run.state == RunState.COMPLETED.value,
+        Run.kind == "report",
+        or_(decision.is_(None), freed),
+    )
 
 
 async def project_summaries(
@@ -406,15 +411,20 @@ async def create_run(
     source_ids: list[uuid.UUID],
     run_id: uuid.UUID | None = None,
     created_at: datetime | None = None,
+    kind: str = "report",
+    report_source_id: uuid.UUID | None = None,
 ) -> Run:
-    """A run row plus its ordered sources; every source must belong to the project."""
+    """A run row plus its ordered sources; every source, and a check run's report (CRL-94),
+    must belong to the project."""
     rows = {r.id: r for r in await list_sources(s, project_id)}
-    for sid in source_ids:
+    for sid in [*source_ids, *([report_source_id] if report_source_id else [])]:
         if sid not in rows:
             raise NotFoundError(f"source {sid} not in project {project_id}")
     run = Run(
         id=run_id or uuid.uuid4(),
         project_id=project_id,
+        kind=kind,
+        report_source_id=report_source_id,
         parent_run_id=parent_run_id,
         value_statement=value_statement,
         extra_guidance=extra_guidance,

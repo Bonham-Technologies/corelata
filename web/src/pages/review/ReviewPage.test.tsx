@@ -257,6 +257,63 @@ it("leads back to the project, names the tab, and has Accept as its one primary 
   await waitFor(() => expect(document.title).toBe(`${reportJson.title} – Corelata`));
 });
 
+describe("a checked report (CRL-94)", () => {
+  function serveCheck() {
+    serveReview();
+    server.use(
+      http.get(`*/api/runs/${RUN_ID}`, () =>
+        HttpResponse.json(
+          runProgress({
+            state: "completed",
+            status: "clean",
+            kind: "check",
+            report_source_id: "s-report",
+            value_statement: "",
+            max_iterations: 0,
+          }),
+        ),
+      ),
+    );
+  }
+
+  it("hides Accept, Return and the writing timeline, and offers the standards sheet", async () => {
+    serveCheck();
+    const { user } = renderApp(`/runs/${RUN_ID}/review?tab=process`);
+    const main = screen.getByRole("main");
+    await within(main).findByRole("heading", { name: reportJson.title });
+    expect(within(main).queryByRole("button", { name: "Accept" })).toBeNull();
+    expect(within(main).queryByRole("button", { name: "Return with note…" })).toBeNull();
+    expect(
+      within(main)
+        .getAllByRole("tab")
+        .map((tab) => tab.textContent),
+    ).toEqual(["Claims", "Standards", "Sources"]);
+    // a Process link falls back to Claims
+    expect(screen.getByRole("tab", { name: "Claims" })).toHaveAttribute("aria-selected", "true");
+    expect(
+      within(main).getByText(/written outside Corelata, checked against the standards/),
+    ).toBeInTheDocument();
+    await user.click(within(main).getByRole("button", { name: "Download" }));
+    expect(screen.getByRole("menuitem", { name: "Standards sheet (CSV)" })).toHaveAttribute(
+      "href",
+      `/api/runs/${RUN_ID}/exports/findings.csv`,
+    );
+  });
+
+  it("keeps the Claims, Standards and Sources tabs working, in plain words", async () => {
+    serveCheck();
+    const { user } = renderApp(`/runs/${RUN_ID}/review?claim=c3`);
+    const main = screen.getByRole("main");
+    await within(main).findByRole("list", { name: "Evidence for claim c3" });
+    expectNoEngineWords(main);
+    await user.click(screen.getByRole("tab", { name: "Standards" }));
+    await within(main).findByRole("list", { name: "Met and not applicable" });
+    expectNoEngineWords(main);
+    await user.click(screen.getByRole("tab", { name: "Sources" }));
+    expect(screen.getByRole("tab", { name: "Sources" })).toHaveAttribute("aria-selected", "true");
+  }, 15_000);
+});
+
 it("opens the standards not met from the banner", async () => {
   serveReview({
     ...reportJson,

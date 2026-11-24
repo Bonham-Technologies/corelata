@@ -51,6 +51,20 @@ def test_all_roles_lists_configured_roles(make_config):
     ]
 
 
+def test_the_structurer_falls_back_to_the_writers_model_and_leaves_the_hash(make_config):
+    """CRL-94: `roles.structurer` is optional; unset it is the writer's model and is left out of
+    the dump, so `config_hash` is the one a configuration without it had."""
+    from corelata.config import config_hash
+
+    plain = make_config()
+    assert plain.roles.model_for("structurer") == "model-a"
+    assert "structurer" not in plain.model_dump()["roles"]
+    own = make_config(roles={**BASE_CONFIG["roles"], "structurer": {"model": "model-b"}})
+    assert own.roles.model_for("structurer") == "model-b"
+    assert own.roles.all_roles()[-1] == ("structurer", "model-b")
+    assert config_hash(own) != config_hash(plain)
+
+
 def test_render_cache_mb_defaults_to_64_and_may_be_zero():
     from corelata.config import ApiConfig
 

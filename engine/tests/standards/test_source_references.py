@@ -25,7 +25,7 @@ OLD_SRC_1 = {
 
 def test_the_base_pack_asks_for_source_details_and_a_summary():
     pack = load_pack("icd203-base")
-    assert pack.version == "1.1.0"
+    assert pack.version == "1.2.0"
     assert pack.lexicon.source_access == ACCESS and pack.source_details
     order = pack.template.section_order
     assert pack.source_summary and order.index("source_summary") == order.index("sources") + 1
@@ -89,7 +89,8 @@ def test_a_profile_turns_the_summary_and_the_details_off(tmp_path):
 
 
 def _old_base_pack(root):
-    """The 1.0.0 base pack, rebuilt from the current one by undoing CRL-96."""
+    """The 1.0.0 base pack, rebuilt from the current one by undoing CRL-96. CRL-136's lexicon
+    lists (1.2.0) are kept, so a diff shows CRL-96's changes alone."""
     old = root / "icd203-base"
     shutil.copytree(BUILTIN_PACKS_DIR / "icd203-base", old)
     meta = yaml.safe_load((old / "pack.yaml").read_text())
@@ -111,7 +112,7 @@ def test_pack_diff_lists_exactly_the_rule_text_template_section_and_lexicon_list
     assert main(["pack", "diff", str(old), "icd203-base", "--json"]) == 3
     diff = json.loads(capsys.readouterr().out)
     new_rule = load_pack("icd203-base").rule("icd206.src.1")
-    assert diff["identity"] == [{"field": "version", "before": "1.0.0", "after": "1.1.0"}]
+    assert diff["identity"] == [{"field": "version", "before": "1.0.0", "after": "1.2.0"}]
     assert diff["rules_added"] == [] and diff["rules_removed"] == []
     [changed] = diff["rules_changed"]
     assert changed["id"] == "icd206.src.1"
