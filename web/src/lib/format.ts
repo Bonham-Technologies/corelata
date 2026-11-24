@@ -5,6 +5,7 @@ import type { RunState } from "../api/types";
 export const STAGES = [
   "ingesting",
   "gating",
+  "structuring",
   "drafting",
   "conveying",
   "auditing",

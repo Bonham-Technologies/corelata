@@ -1,0 +1,28 @@
+name: check-clean-report
+description: A finished report whose every sentence its source supports is checked clean.
+kind: check
+report:
+  id: report
+  name: varna-assessment.md
+  paragraphs:
+    - "# Varna port capacity assessment"
+    - UNCLASSIFIED
+    - "# Key judgments"
+    - It is likely that the Varna port capacity expansion matters to shippers.
+    - "# Analysis"
+    - The port of Varna expanded its container capacity in 2025. A state bank financed the capacity expansion.
+    - Container traffic through Varna rose 40 percent.
+sources:
+  - id: src1
+    name: port.txt
+    paragraphs:
+      - The port of Varna expanded its container capacity in 2025.
+      - Capacity expansion was financed by a state bank.
+      - Container traffic through Varna rose 40 percent.
+expect:
+  state: completed
+  status: clean
+  iterations: 0
+  failing_rules:
+    0: []
+  open_findings: []

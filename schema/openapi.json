@@ -323,6 +323,11 @@
             "title": "Extra Guidance",
             "type": "string"
           },
+          "kind": {
+            "$ref": "#/components/schemas/RunKind",
+            "default": "report",
+            "description": "`report` writes a report from the sources; `check` audits the finished report `report_source_id` against the standards pack, the sources as its evidence."
+          },
           "max_iterations": {
             "anyOf": [
               {
@@ -364,6 +369,19 @@
             "title": "Project Id",
             "type": "string"
           },
+          "report_source_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "With `kind: check`: the project source holding the report to check.",
+            "title": "Report Source Id"
+          },
           "source_ids": {
             "items": {
               "format": "uuid",
@@ -374,16 +392,15 @@
             "type": "array"
           },
           "value_statement": {
+            "default": "",
             "maxLength": 4000,
-            "minLength": 1,
             "title": "Value Statement",
             "type": "string"
           }
         },
         "required": [
           "project_id",
-          "source_ids",
-          "value_statement"
+          "source_ids"
         ],
         "title": "CreateRun",
         "type": "object"
@@ -1537,6 +1554,15 @@
         "title": "Rule",
         "type": "object"
       },
+      "RunKind": {
+        "description": "What a run does (CRL-94): `report` writes a report from the sources; `check` audits a\nfinished report someone else wrote against the pack, without rewriting it.",
+        "enum": [
+          "report",
+          "check"
+        ],
+        "title": "RunKind",
+        "type": "string"
+      },
       "RunPage": {
         "description": "One page of a project's runs, newest first (keyset paging on created_at and id).",
         "properties": {
@@ -1622,6 +1648,11 @@
             "title": "Iteration",
             "type": "integer"
           },
+          "kind": {
+            "$ref": "#/components/schemas/RunKind",
+            "default": "report",
+            "description": "What the run does: `report` writes a report from the sources; `check` audits a finished report against the standards pack without rewriting it (CRL-94)."
+          },
           "max_iterations": {
             "title": "Max Iterations",
             "type": "integer"
@@ -1652,6 +1683,18 @@
           "project_id": {
             "title": "Project Id",
             "type": "string"
+          },
+          "report_source_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The project source a check run audits; null for a report run (CRL-94).",
+            "title": "Report Source Id"
           },
           "review": {
             "anyOf": [
@@ -1747,6 +1790,7 @@
           "created",
           "ingesting",
           "gating",
+          "structuring",
           "drafting",
           "conveying",
           "auditing",
@@ -1782,6 +1826,11 @@
           "iteration": {
             "title": "Iteration",
             "type": "integer"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/RunKind",
+            "default": "report",
+            "description": "`report` or `check` (`RunProgress.kind`, CRL-94)."
           },
           "max_iterations": {
             "title": "Max Iterations",
@@ -3600,7 +3649,7 @@
         ]
       },
       "post": {
-        "description": "Snapshot the pack, store the run and queue it; the worker does the rest unattended.",
+        "description": "Snapshot the pack, store the run and queue it; the worker does the rest unattended. A\ncheck (`kind: check`) audits an uploaded report without rewriting it.",
         "operationId": "create_run_api_runs_post",
         "requestBody": {
           "content": {
@@ -4060,7 +4109,8 @@
                 "report.json",
                 "report.md",
                 "report.html",
-                "report.docx"
+                "report.docx",
+                "findings.csv"
               ],
               "title": "Name",
               "type": "string"
@@ -4072,6 +4122,7 @@
             "content": {
               "application/json": {},
               "application/vnd.openxmlformats-officedocument.wordprocessingml.document": {},
+              "text/csv; charset=utf-8": {},
               "text/html; charset=utf-8": {},
               "text/markdown; charset=utf-8": {}
             },

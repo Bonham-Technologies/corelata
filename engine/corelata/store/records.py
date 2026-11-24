@@ -15,12 +15,14 @@ from corelata.schema import (
     PriorReport,
     Report,
     ReportStatus,
+    RunKind,
     RunRecord,
     RunState,
     Source,
     SourceKind,
 )
 from corelata.schema.source import lowest_tier
+from corelata.stages.structure import REPORT_ID
 from corelata.store import runs
 from corelata.store.models import Run, RunSource, SourceRow, SourceUnitRow
 from corelata.trace import UnitCount
@@ -46,6 +48,17 @@ async def load_sources(
         )
         for i, sid in enumerate(ids, start=1)
     ]
+
+
+async def load_checked_report(
+    s: AsyncSession, run: Run, *, with_units: bool = True
+) -> Source | None:
+    """A check run's report as the pipeline reads it (source id `report`, CRL-94); None for a
+    report run."""
+    if run.report_source_id is None:
+        return None
+    row = await runs.get_source(s, run.report_source_id)
+    return await runs.load_source(s, row, as_id=REPORT_ID, unit_ids=None if with_units else ())
 
 
 async def unit_counts(s: AsyncSession, run_id: uuid.UUID) -> dict[str, UnitCount]:
@@ -88,6 +101,7 @@ async def load_record(
     return RunRecord(
         corelata_version=run.corelata_version,
         run_id=str(run.id),
+        kind=RunKind(run.kind),
         created_at=run.created_at,
         state=RunState(run.state),
         status=ReportStatus(run.status) if run.status else None,
@@ -101,6 +115,7 @@ async def load_record(
         config_hash=run.config_hash,
         prompt_versions=run.prompt_versions,
         sources=await load_sources(s, run_id, refs=None if with_units else ()),
+        checked_report=await load_checked_report(s, run, with_units=with_units),
         digests=[Digest.model_validate(d) for d in run.digests],
         prior_reports=[PriorReport.model_validate(p) for p in run.prior_reports or []],
         gate=GateVerdict.model_validate(run.gate) if run.gate else None,

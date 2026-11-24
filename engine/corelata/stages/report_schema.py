@@ -67,6 +67,7 @@ def report_output_type(
     access_terms: Sequence[str] = (),
     summary: bool = False,
     prior_run_ids: Sequence[str] = (),
+    claim_texts: Sequence[str] = (),
 ) -> type[ReportBodyCore]:
     """`unit_refs` are the refs `StageContext.check_refs` accepts: `ctx.index.refs()`, every
     unit of every source, digested or not. `source_ids` are the ids `report_validator` accepts:
@@ -79,10 +80,15 @@ def report_output_type(
     the same `SourceId` enum as `source_id`. Without either the schema is the one sent before
     CRL-96. `prior_run_ids` (the earlier accepted reports the writer reads, CRL-97) adds
     `changes_from_previous`, on `ReportBodyWithChanges`; without them the body is built on
-    `ReportBodyCore`, so the schema is the one a run sent before project memory existed."""
+    `ReportBodyCore`, so the schema is the one a run sent before project memory existed.
+    `claim_texts` (the structurer of a check run, CRL-94: the sentences of the report it checks)
+    makes `Claim.text` one of them (`ReportSentence`; a plain string above ENUM_LIMIT)."""
     evidence = enum_list(
         "UnitRef", unit_refs, description=Claim.model_fields["evidence"].description
     )
+    text: dict[str, Any] = {}
+    if claim_texts:
+        text["text"] = (enum_item("ReportSentence", list(dict.fromkeys(claim_texts))), ...)
     if quotes:
         claim = create_model(
             "Claim",
@@ -90,9 +96,12 @@ def report_output_type(
             __doc__=Claim.__doc__,
             evidence=evidence,
             quotes=_quotes_field(unit_refs),
+            **text,
         )
     else:
-        claim = create_model("Claim", __base__=ClaimCore, __doc__=Claim.__doc__, evidence=evidence)
+        claim = create_model(
+            "Claim", __base__=ClaimCore, __doc__=Claim.__doc__, evidence=evidence, **text
+        )
     # A run always has at least one source, so `source_ids` is never empty and needs no
     # `maxItems: 0` rule; `enum_item` gives a plain string above ENUM_LIMIT ids. One enum serves
     # every field that names a source, so the schema lists the ids once.

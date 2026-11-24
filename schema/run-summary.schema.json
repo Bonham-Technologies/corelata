@@ -16,11 +16,21 @@
       "title": "ReviewDecision",
       "type": "string"
     },
+    "RunKind": {
+      "description": "What a run does (CRL-94): `report` writes a report from the sources; `check` audits a\nfinished report someone else wrote against the pack, without rewriting it.",
+      "enum": [
+        "report",
+        "check"
+      ],
+      "title": "RunKind",
+      "type": "string"
+    },
     "RunState": {
       "enum": [
         "created",
         "ingesting",
         "gating",
+        "structuring",
         "drafting",
         "conveying",
         "auditing",
@@ -57,6 +67,11 @@
     "iteration": {
       "title": "Iteration",
       "type": "integer"
+    },
+    "kind": {
+      "$ref": "#/$defs/RunKind",
+      "default": "report",
+      "description": "`report` or `check` (`RunProgress.kind`, CRL-94)."
     },
     "max_iterations": {
       "title": "Max Iterations",

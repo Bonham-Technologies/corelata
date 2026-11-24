@@ -132,6 +132,12 @@ class Run(Base):
     parent_run_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("run.id", ondelete="SET NULL")
     )
+    # RunKind (CRL-94, migration 0009): every run made before it reads as a report run
+    kind: Mapped[str] = mapped_column(default="report", server_default="report")
+    # the source a check run audits (CRL-94); NULL for a report run
+    report_source_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("source.id", ondelete="CASCADE")
+    )
     state: Mapped[str] = mapped_column(default="created", index=True)  # RunState
     status: Mapped[str | None]  # ReportStatus, completed runs only
     value_statement: Mapped[str]

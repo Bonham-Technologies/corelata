@@ -21,7 +21,7 @@ from corelata.config import CorelataConfig, config_hash
 from corelata.exports import render_outputs
 from corelata.llm.agent import AGENT_FAILURES, CallLog
 from corelata.llm.types import Backend
-from corelata.pipeline import RunOptions, discover, load_run_pack, run_report
+from corelata.pipeline import RunOptions, discover, load_run_pack, run_check, run_report
 from corelata.prompts.library import PromptLibrary
 from corelata.schema import (
     TERMINAL_STATES,
@@ -154,6 +154,7 @@ class _Inputs:
     restarted: bool
     attempt: int
     prior_reports: list[PriorReport] | None
+    checked_report: Source | None  # a check run's report (CRL-94)
 
 
 async def _begin(svc: WorkerServices, run_id: uuid.UUID) -> _Inputs | None:
@@ -209,7 +210,10 @@ async def _begin(svc: WorkerServices, run_id: uuid.UUID) -> _Inputs | None:
             created_at=run.created_at,
             restarted=restarted,
             attempt=run.attempts,
-            prior_reports=await _accepted_reports(svc.cfg, s, run),
+            prior_reports=(
+                await _accepted_reports(svc.cfg, s, run) if run.report_source_id is None else None
+            ),
+            checked_report=await records.load_checked_report(s, run),
         )
 
 
@@ -343,25 +347,31 @@ async def execute_run(svc: WorkerServices, run_id: uuid.UUID) -> None:
         pack = ResolvedPack.model_validate(inputs.pack_snapshot)
         async with _reference(svc.storage, inputs.docx_reference_key) as reference:
             pack.docx_reference_path = reference
-            record = await run_report(
-                svc.cfg,
-                inputs.sources,
-                RunOptions(
-                    value_statement=inputs.value_statement,
-                    profile=inputs.profile,
-                    max_iterations=inputs.max_iterations,
-                    extra_guidance=inputs.extra_guidance,
-                    run_id=str(run_id),
-                    parent_run_id=inputs.parent_run_id,
-                    created_at=inputs.created_at,
-                    prior_reports=inputs.prior_reports,
-                ),
-                backends=svc.backends,
-                prompts=svc.prompts,
-                log=observer.calls,
-                pack=pack,
-                observer=observer,
+            options = RunOptions(
+                value_statement=inputs.value_statement,
+                profile=inputs.profile,
+                max_iterations=inputs.max_iterations,
+                extra_guidance=inputs.extra_guidance,
+                run_id=str(run_id),
+                parent_run_id=inputs.parent_run_id,
+                created_at=inputs.created_at,
+                prior_reports=inputs.prior_reports,
             )
+            llm = {"backends": svc.backends, "prompts": svc.prompts, "log": observer.calls}
+            if inputs.checked_report is not None:
+                record = await run_check(
+                    svc.cfg,
+                    inputs.sources,
+                    inputs.checked_report,
+                    options,
+                    pack=pack,
+                    observer=observer,
+                    **llm,
+                )
+            else:
+                record = await run_report(
+                    svc.cfg, inputs.sources, options, pack=pack, observer=observer, **llm
+                )
             phase = "failed while saving"
             async with svc.db.session() as s, s.begin():
                 run = await observer.locked(s)

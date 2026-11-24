@@ -30,10 +30,17 @@ MEDIA = {
     "md": "text/markdown; charset=utf-8",
     "html": "text/html; charset=utf-8",
     "docx": DOCX,
+    "csv": "text/csv; charset=utf-8",  # a check run's findings sheet (CRL-94)
 }
 Format = Literal["json", "md", "html", "docx"]
 ExportName = Literal[
-    "trace.json", "gate.json", "report.json", "report.md", "report.html", "report.docx"
+    "trace.json",
+    "gate.json",
+    "report.json",
+    "report.md",
+    "report.html",
+    "report.docx",
+    "findings.csv",
 ]
 
 
@@ -97,7 +104,7 @@ async def _claim_ids_render(ctx: ApiContext, run_id: uuid.UUID, fmt: str) -> byt
 @router.get(
     "/runs/{run_id}/report",
     response_class=Response,
-    responses={200: {"content": {media: {} for media in MEDIA.values()}}},
+    responses={200: {"content": {MEDIA[f]: {} for f in ("json", "md", "html", "docx")}}},
 )
 async def get_report(
     run_id: uuid.UUID,

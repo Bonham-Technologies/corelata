@@ -150,3 +150,22 @@ it("shows no error line for a failed step that recorded none", () => {
   );
   expect(document.querySelector(".step-error")).toBeNull();
 });
+
+it("lists a check's own steps: reading the report, then the standards (CRL-94)", () => {
+  const progress = runProgress({
+    kind: "check",
+    state: "auditing",
+    max_iterations: 0,
+    stages: [stage("ingesting", 0), stage("structuring", 0)],
+  });
+  expect(stepRows(progress).map((r) => [r.label, r.status])).toEqual([
+    ["Waiting to start", "done"],
+    ["Reading the sources", "done"],
+    ["Reading the report", "done"],
+    ["Checking against the standards", "now"],
+    ["Preparing the documents", "pending"],
+    ["Ready to review", "pending"],
+  ]);
+  render(<StageDetails progress={progress} />);
+  expect(screen.getByText(/^Reading the report: /)).toBeInTheDocument();
+});
