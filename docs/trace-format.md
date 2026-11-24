@@ -40,8 +40,12 @@ DOCX uses the neutral template unless `--docx-reference` names the profile's ref
   `locator`, `kind`, `meta`), `digests[]` for sources over the digest threshold,
   `prior_reports[]` (CRL-97, below). A unit OCR read from a scanned PDF page has `meta`
   `{"ocr": true, "ocr_confidence": <0-100>}` (Tesseract's mean word confidence), and its source's
-  `provenance` names `ocr_pages` and `ocr_languages` (`ingest.ocr: auto`, CRL-95); other units
-  have empty `meta`.
+  `provenance` names `ocr_pages` and `ocr_languages` (`ingest.ocr: auto`, CRL-95). A unit whose
+  text the document hides from its reader (HTML `hidden`, `aria-hidden="true"`, inline
+  `display:none` or `visibility:hidden`; DOCX `w:vanish`) has `"hidden": true`: it is kept here
+  and no model request contains it. A unit whose text reads as an instruction to an AI system has
+  `"suspect": true` and reaches the models flagged the same way (CRL-137, operator guide
+  "Instructions in sources"). Other units have empty `meta`.
 - Process: `stages[]` — one entry per attempt of every stage, with `iteration`, `ok`,
   `started_at`, `finished_at`, `output` (small, stage-specific) or `error`; `drafts[]` — every
   writer and conveyor output with its `role` and `iteration`; `findings[]` — one `Finding` per
@@ -146,8 +150,9 @@ or change`, whatever the auditor answered.
 ## Derived views
 
 `corelata trace RUN_DIR` prints a `TraceSummary` (`schema/trace-summary.schema.json`):
-sources with unit counts, digest flags, the number of pages OCR read (`ocr_pages`) and a Coglossa
-export's `reliability_tier` (CRL-96), the gate verdict, a stage timeline with durations, failed and
+sources with unit counts, digest flags, the number of pages OCR read (`ocr_pages`), a Coglossa
+export's `reliability_tier` (CRL-96) and the units marked hidden and suspect (`hidden_units`,
+`suspect_units`, CRL-137), the gate verdict, a stage timeline with durations, failed and
 open rule ids per iteration, findings open at delivery, usage by role, and the earlier accepted
 reports the run was given (`prior_reports`, absent when none; the review screen's Process tab
 lists them).

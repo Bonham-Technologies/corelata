@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from corelata.config import ConfigError, CorelataConfig
 from corelata.ingest.base import IngestError
 from corelata.ingest.registry import check_supported
-from corelata.ingest.units import make_source
+from corelata.ingest.units import make_source, model_view
 from corelata.llm.agent import AgentRunner, CallLog
 from corelata.llm.types import Backend
 from corelata.prompts.library import PromptLibrary
@@ -70,7 +70,8 @@ def read_examples(
             check_supported(path)
         except IngestError as e:  # the registry's message names the extension, not the file
             raise IngestError(f"{path.name}: {e}") from e
-    sources = [make_source(f"ex{i}", path) for i, path in enumerate(files, 1)]
+    # CRL-137: text an example hides from its reader is no model's to read
+    sources = model_view([make_source(f"ex{i}", path) for i, path in enumerate(files, 1)])
     costs = [
         [estimate_tokens(unit.text, bytes_per_token) for unit in source.units] for source in sources
     ]

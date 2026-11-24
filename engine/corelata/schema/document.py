@@ -21,6 +21,9 @@ class Provenance(BaseModel):
     locator: str | None = None  # format-specific, e.g. "table 2 row 1 col 3"
     ocr: bool = False  # the text was recovered by OCR from a scanned page (CRL-95)
     ocr_confidence: float | None = None  # mean Tesseract word confidence, 0 to 100
+    # CRL-137: text the document hides from its reader (HTML `hidden`, `display:none`,
+    # `visibility:hidden`, `aria-hidden`; DOCX `w:vanish`): kept in the trace, never sent to a model
+    hidden: bool = False
 
 
 class Block(BaseModel):

@@ -77,3 +77,39 @@ it("says when a source's text was recovered by OCR, alongside the summary note",
   expect(rows[1]).toHaveTextContent("summarised before drafting; text recovered by OCR (3 pages)");
   expectNoEngineWords(table);
 });
+
+it("flags passages that read as instructions to an AI and hidden passages (CRL-137)", async () => {
+  const [plain, coglossa] = runTrace.summary.sources;
+  const trace = {
+    ...runTrace,
+    summary: {
+      ...runTrace.summary,
+      sources: [
+        { ...plain!, name: "page.html", format: "html", suspect_units: 1, hidden_units: 2 },
+        { ...coglossa!, suspect_units: 3, hidden_units: 1 },
+      ],
+    },
+  };
+  server.use(http.get(`*/api/runs/${RUN_ID}/trace`, () => HttpResponse.json(trace)));
+  renderWithClient(<SourcesTab runId={RUN_ID} />);
+  const table = await screen.findByRole("table", { name: "Sources" });
+  const rows = within(table).getAllByRole("row").slice(1);
+  expect(within(rows[0]!).getByText("1 passage read as instructions to an AI")).toHaveClass(
+    "badge",
+  );
+  expect(within(rows[0]!).getByText("2 hidden passages withheld from the models")).toHaveClass(
+    "badge",
+  );
+  expect(rows[1]).toHaveTextContent(
+    "Coglossa reliability tier B; summarised before drafting" +
+      "3 passages read as instructions to an AI" +
+      "1 hidden passage withheld from the models",
+  );
+});
+
+it("shows no flag for a source with nothing hidden or suspect", async () => {
+  server.use(http.get(`*/api/runs/${RUN_ID}/trace`, () => HttpResponse.json(runTrace)));
+  renderWithClient(<SourcesTab runId={RUN_ID} />);
+  const table = await screen.findByRole("table", { name: "Sources" });
+  expect(table.querySelector(".source-flag")).toBeNull();
+});

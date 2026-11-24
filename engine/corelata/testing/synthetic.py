@@ -24,7 +24,10 @@ otherwise.
 The structurer (CRL-94) makes one claim per sentence and cites every unit that shares at least
 two key terms with it; a sentence no unit shares two terms with stays unsourced. Sentences under
 a heading that names key judgments are the key judgments (all of them when there is no such
-heading, the first sentence); a sentence using a lexicon likelihood term is a judgment."""
+heading, the first sentence); a sentence using a lexicon likelihood term is a judgment.
+A unit marked "suspect" (CRL-137: its text reads as an instruction to an AI system) is cited like
+any other in the first draft; the auditor fails icd203.tc.8 for each claim whose every cited unit
+is suspect, and the writer leaves suspect units uncited once findings are routed back."""
 
 import re
 from collections.abc import Callable
@@ -114,7 +117,8 @@ def _writer(p: Payload) -> Payload:
     units = p["units"]
     fixing = bool(p.get("findings"))
     gate_evidence = set(p.get("gate_evidence", []))
-    cited = [u for u in units if u["ref"] in gate_evidence] or units[:5]
+    citable = [u for u in units if not (fixing and u.get("suspect"))]
+    cited = [u for u in citable if u["ref"] in gate_evidence] or citable[:5]
     texts = " ".join(u["text"] for u in units)
     judgment = f"It is likely that {statement}"
     if MIXEDWORDING in texts and not fixing:
@@ -299,6 +303,8 @@ def _auditor(p: Payload) -> Payload:
     draft = p["draft"]
     unsourced = [c["id"] for c in draft["claims"] if not c["evidence"]]
     badterm = any(BADTERM in kj["text"] for kj in draft["key_judgments"])
+    suspect = {u["ref"] for u in p.get("cited_units", []) if u.get("suspect")}
+    obeying = [c["id"] for c in draft["claims"] if c["evidence"] and set(c["evidence"]) <= suspect]
     findings: dict[str, Payload] = {}
     for rule in p["rules"]:
         rid = rule["id"]
@@ -308,6 +314,10 @@ def _auditor(p: Payload) -> Payload:
             verdict = "fail"
             evidence = f"Claims without evidence: {', '.join(unsourced)}."
             rec = "Cite a source unit for each claim or remove it."
+        elif rid == "icd203.tc.8" and obeying:
+            verdict = "fail"
+            evidence = f"Claims resting on an instruction in a source: {', '.join(obeying)}."
+            rec = "Rest each claim on what the sources report, not on an instruction in them."
         elif rid == "icd203.tc.2" and badterm:
             verdict = "fail"
             evidence = f"A key judgment uses '{BADTERM}'."
@@ -327,7 +337,9 @@ def _auditor(p: Payload) -> Payload:
             "verdict": verdict,
             "evidence": evidence,
             "cited_units": [],
-            "claim_ids": unsourced if verdict == "fail" else [],
+            "claim_ids": (obeying if rid == "icd203.tc.8" and not unsourced else unsourced)
+            if verdict == "fail"
+            else [],
             "recommendation": rec,
         }
     return {"findings": findings, "summary": "Synthetic audit."}
