@@ -12,7 +12,7 @@ from sqlalchemy.exc import DBAPIError
 
 from corelata import removal, service
 from corelata.config import S3StorageConfig
-from corelata.schema import DiscoveryState, RunState, StageResult
+from corelata.schema import DiscoveryState, RunKind, RunState, StageResult
 from corelata.storage import S3Storage, StorageError
 from corelata.store import runs
 from corelata.store.models import (
@@ -119,6 +119,27 @@ async def test_a_source_a_run_used_is_refused_without_with_runs(svc, tmp_path):
     assert await _count(svc.db, Run, Run.project_id == pid) == 6
     assert (tmp_path / "files" / "projects" / str(pid) / "sources" / str(sid)).is_dir()
     assert (tmp_path / "files" / "runs" / str(run_ids[0]) / "report.md").is_file()
+
+
+async def test_the_report_a_check_run_audited_counts_as_used(svc, tmp_path):
+    """CRL-94: a check run's report is not one of its sources (`run_source`) but its own column;
+    deleting it alone is refused like a used source, and `--with-runs` takes the check run."""
+    pid = await svc.project()
+    report = await svc.source(pid, text="The port will very likely close. " * 3, name="r.txt")
+    sid = await svc.source(pid)
+    check = await _completed_run(svc, pid, [sid], kind=RunKind.CHECK, report_source_id=report)
+    with pytest.raises(service.ConflictError, match=f"was used by 1 run: {check};"):
+        await removal.delete_source(svc.db, svc.storage, report)
+    assert await _count(svc.db, Run, Run.id == check) == 1
+    assert [(i.name, i.runs) for i in await removal.list_sources(svc.db, "p")] == [
+        ("r.txt", 1),
+        ("port.txt", 1),
+    ]
+    done = await removal.delete_source(svc.db, svc.storage, report, with_runs=True)
+    assert [r.id for r in done.runs] == [check]
+    assert await _count(svc.db, Run, Run.project_id == pid) == 0
+    assert await _count(svc.db, SourceRow, SourceRow.id == sid) == 1
+    assert not (tmp_path / "files" / "runs" / str(check)).exists()
 
 
 async def test_with_runs_takes_the_runs_everything_they_own_and_the_discoveries(svc, tmp_path):

@@ -28,7 +28,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import ColumnElement, Select, delete, func, select
+from sqlalchemy import ColumnElement, Select, delete, func, or_, select
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -154,7 +154,8 @@ async def _source_removal(s: AsyncSession, source_id: uuid.UUID) -> Removal:
     ids = [i.id for i in sources]
     used = select(RunSource.run_id).where(RunSource.source_id.in_(ids))
     read = select(DiscoverySource.discovery_id).where(DiscoverySource.source_id.in_(ids))
-    found_runs = await _items(s, _run_items(Run.id.in_(used)))
+    # a check run (CRL-94) uses the report it audits as well as its sources
+    found_runs = await _items(s, _run_items(or_(Run.id.in_(used), Run.report_source_id.in_(ids))))
     return Removal(
         project_id=project_id,
         project=project.name,
@@ -326,7 +327,11 @@ async def list_sources(db: Database, name: str) -> list[SourceListing]:
                 SourceRow.id,
                 SourceRow.name,
                 SourceRow.created_at,
-                func.count(func.distinct(RunSource.run_id)),
+                func.count(func.distinct(RunSource.run_id))
+                # a check run's report is never one of its sources (R-CRL94-5): no overlap
+                + select(func.count())
+                .where(Run.report_source_id == SourceRow.id)
+                .scalar_subquery(),
             )
             .outerjoin(RunSource, RunSource.source_id == SourceRow.id)
             .where(SourceRow.project_id == project.id)

@@ -950,7 +950,9 @@ report, trace, drafts, claims, audit findings, model calls, review history and e
 files under `runs/<run-id>/` (the exports and the run's copy of the reference document). A run
 that only names a deleted run as its parent (a run queued with `--parent-run`) but did not use the
 source stays; it loses the link. A later run that was given a deleted report among its earlier
-accepted reports keeps, in its own trace, the title and key judgments it was given.
+accepted reports keeps, in its own trace, the title and key judgments it was given. A report uploaded to be checked ("Checking an existing report" below) counts as used by its
+check runs in the same way: deleting it is refused without `--with-runs`, and with it the check
+runs go.
 
 **What `delete-project` removes.** The project and everything in it: its sources and their files
 (`projects/<project-id>/`), its runs with everything above (`runs/<run-id>/` for each) and its
