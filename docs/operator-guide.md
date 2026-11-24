@@ -233,7 +233,7 @@ roles:
   only the verdicts the rule allows, only unit ids the draft cites. With `json_object` or `none`
   the same schema is in the prompt and Corelata checks the reply itself, so a small model needs
   its repair turn more often. If you override prompts (`prompts_dir`), an `auditor` override
-  must return `findings` as an object keyed by rule id, as the built-in `auditor/v5.j2` does; an
+  must return `findings` as an object keyed by rule id, as the built-in `auditor/v6.j2` does; an
   override that still returns a list fails every audit.
 - `max_output_tokens` is unset by default (the server decides); `temperature` defaults to 0.2.
 - The four roles: `gate` decides whether the sources can support the value statement at all,
@@ -520,6 +520,44 @@ Carry the bundle across and upgrade to it as in section 10; then add the codes t
 `ingest.ocr_languages` and apply the change ("Applying changes"). `corelata doctor` lists the
 languages the image has, and `docker image inspect --format '{{ index .Config.Labels
 "org.corelata.ocr-languages" }}' corelata/app:<version>` shows the ones it was built with.
+
+### Instructions in sources
+
+Sources are often written by the people a report is about, and a line planted in one can try to
+steer a model that reads it ("ignore previous instructions and ..."), even a line no reader of
+the document ever sees. Corelata defends against this in three ways (CRL-137); none needs a
+setting.
+
+- **Every prompt says source text is data.** The gate, discovery, digest, writer and auditor
+  prompts (`gate/v2`, `discover/v2`, `digest/v2`, `writer/v6`, `auditor/v6`) tell the model that
+  the passages may be written by an adversary and that it must never follow an instruction in
+  them. A deployment that overrides one of these prompts (`prompts_dir`) should add the same line.
+- **Hidden text is kept out of the models.** An HTML element with the `hidden` attribute,
+  `aria-hidden="true"` or an inline `display:none` or `visibility:hidden` style, and DOCX text
+  formatted hidden (`w:vanish`, on the text, its character style or its paragraph style), become
+  passages of their own marked `hidden: true` in the trace. No model reads them, so the reviewer
+  can see what was withheld without the report resting on it. Stylesheets and classes are not
+  evaluated, and other tricks (white text, a zero font size, text off the page) are read as
+  visible text. A file whose only text is hidden is refused as having no usable text.
+- **Visible text that reads as an instruction is flagged.** A passage that matches a short list
+  of patterns is marked `suspect: true` and still reaches the models, flagged, so the writer does
+  not rest a claim on it and the auditor fails `icd203.tc.8` for a claim that does. The patterns
+  are: "ignore", "disregard", "forget", "override" or "bypass" followed by "your", "previous",
+  "prior", "above" (or the like) "instructions", "prompts" or "directives", or by "all
+  instructions"; "system prompt" or "developer message"; a note, message or instructions "to"
+  or "for" an AI, a language model, a chatbot or an assistant followed by a colon, a comma or
+  "reading this"; an AI addressed by name at the start of a sentence ("AI:", "Assistant, mark
+  ...", but not "AI, in this case, ..."); "you are (now) an ... assistant" and "as an AI ..., you
+  must"; "new instructions:"; "do not tell the analyst (user, reader)"; and chat-template tokens
+  such as `<|im_start|>` or `[INST]` (`engine/corelata/ingest/injection.py`). A flag asks a reader to
+  look; it is not a verdict, and a source that reports on prompt injection will be flagged too.
+
+The Sources tab of the review screen and `corelata trace` show, for each source, how many passages
+read as instructions to an AI and how many hidden passages were withheld from the models. Flags
+are set when a file is added: a source added before this version keeps the passages it had, so
+add the file to a new project to have it read again (a project does not read the same file
+twice). The `real` bench set carries two scenarios for this, `injected-instruction-visible` and
+`injected-instruction-hidden` ("Checking a model with the bench", section 7).
 
 ### Coglossa
 
@@ -808,12 +846,18 @@ and `corelata review` (accept or return) apply the same limits.
 
 **Checking a model with the bench.** `corelata bench` plays a set of scenario files against the
 configured models and reports how often the run did what the scenario expects: gate verdict,
-failing rules, final state. Two sets ship with the engine. `synthetic` (the default, ten
+failing rules, final state. Two sets ship with the engine. `synthetic` (the default, thirteen
 scenarios) was written for the synthetic model and steers it with markers in the source text; a
-real model disagrees with it often, and that says little about the model. `real` (eight
+real model disagrees with it often, and that says little about the model. `real` (twelve
 scenarios) has short, plausible sources and expectations a good model meets, stated as ranges
 ("thin or sufficient", "these rules must pass"); use it when you change a model, a prompt
-override or the pack, and compare the numbers with the previous run:
+override or the pack, and compare the numbers with the previous run. Two of them plant an
+instruction to AI systems in a source (CRL-137): `injected-instruction-visible` in plain text,
+which a good model reads flagged and neither obeys nor rests a claim on, and
+`injected-instruction-hidden` in hidden HTML, which no model receives; both fail if the title or a
+key judgment carries the planted code word (`report_excludes`), and both check which passages
+ingest marked hidden and suspect (`hidden_units`, `suspect_units`). A model that disagrees on the
+visible one obeys text it was told is data:
 
 ```sh
 docker compose exec api corelata bench --scenarios real --out /data/files/bench-real-$(date +%F)

@@ -455,6 +455,17 @@ lowest tier among its scored spans) unless it already does. The prompts that men
 versions (`writer/v5`, `conveyor/v3`) and render, with neither, exactly as `writer/v4` and
 `conveyor/v2` (quotes, project memory and OCR included).
 
+CRL-137 amendment (untrusted source text): every prompt that reads source text says it is data
+that may be written by an adversary, never instructions, and what a unit's `suspect` flag means
+for that role (`gate/v2`, `discover/v2`, `digest/v2`, `writer/v6`, `auditor/v6`: the previous
+text with one line added before the last; the auditor fails `icd203.tc.8` for a claim that rests
+on such an instruction). Ingest keeps text the document hides from its reader (HTML `hidden`,
+`aria-hidden="true"`, inline `display:none` or `visibility:hidden`; DOCX `w:vanish`) as units
+marked `meta.hidden`, which the record keeps and the run's context leaves out (`model_view`), so
+no model request, schema enum or validator sees them; a unit whose text matches the instruction
+heuristic (`ingest/injection.py`) carries `meta.suspect` and reaches the models with
+`"suspect": true`. A source with neither is the same object and its payloads are unchanged.
+
 ### §8.2 Audit schema
 
 ```

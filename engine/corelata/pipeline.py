@@ -10,7 +10,7 @@ from typing import Any, Protocol
 
 from corelata import __version__
 from corelata.config import CorelataConfig, config_hash
-from corelata.ingest.units import UnitIndex
+from corelata.ingest.units import UnitIndex, model_view
 from corelata.llm.agent import AGENT_FAILURES, AgentRunner, CallLog
 from corelata.llm.types import OVERSIZE_ERRORS, Backend
 from corelata.prompts.check import run_prompt_ids
@@ -127,12 +127,13 @@ class _Run:
         self.now = now
         self.observer = observer
         self.log = log
+        visible = model_view(sources)  # CRL-137: hidden text stays in the record only
         self.ctx = StageContext(
             cfg=cfg,
             runner=AgentRunner(cfg, backends, prompts, log),
             pack=pack,
-            sources=sources,
-            index=UnitIndex.from_sources(sources),
+            sources=visible,
+            index=UnitIndex.from_sources(visible),
             value_statement=options.value_statement.strip(),
             extra_guidance=options.extra_guidance,
         )
@@ -489,12 +490,13 @@ async def discover(
     if not sources:
         raise ValueError("discovery needs at least one source")
     pack = pack or load_run_pack(cfg, None)
+    visible = model_view(sources)  # CRL-137: no model reads hidden text
     ctx = StageContext(
         cfg=cfg,
         runner=AgentRunner(cfg, backends, prompts, log),
         pack=pack,
-        sources=sources,
-        index=UnitIndex.from_sources(sources),
+        sources=visible,
+        index=UnitIndex.from_sources(visible),
         value_statement="",
     )
     ctx.digests = await run_digests(ctx)

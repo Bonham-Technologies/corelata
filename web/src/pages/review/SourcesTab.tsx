@@ -14,6 +14,20 @@ function notes(s: SourceSummary): string {
   return parts.join("; ");
 }
 
+/** What the Notes column flags about a source's text (CRL-137): passages that read as
+ * instructions to an AI system, and passages the document hides from its reader, which the
+ * trace keeps and no model read. */
+function flags(s: SourceSummary): string[] {
+  const out: string[] = [];
+  if (s.suspect_units > 0) {
+    out.push(`${plural(s.suspect_units, "passage")} read as instructions to an AI`);
+  }
+  if (s.hidden_units > 0) {
+    out.push(`${plural(s.hidden_units, "hidden passage")} withheld from the models`);
+  }
+  return out;
+}
+
 export function SourcesTab({ runId }: { runId: string }) {
   const trace = useTrace(runId);
   if (trace.isPending) return <Loading what="Loading sources" />;
@@ -52,7 +66,14 @@ export function SourcesTab({ runId }: { runId: string }) {
               <td>
                 {s.units} unit{s.units === 1 ? "" : "s"}
               </td>
-              <td>{notes(s)}</td>
+              <td>
+                {notes(s)}
+                {flags(s).map((flag) => (
+                  <span key={flag} className="badge source-flag">
+                    {flag}
+                  </span>
+                ))}
+              </td>
             </tr>
           ))}
         </tbody>
