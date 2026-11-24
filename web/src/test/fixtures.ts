@@ -305,6 +305,8 @@ export const runTrace: RunTrace = {
         digested: false,
         coglossa_run_id: null,
         ocr_pages: 0,
+        hidden_units: 0,
+        suspect_units: 0,
       },
       {
         id: "src2",
@@ -317,6 +319,8 @@ export const runTrace: RunTrace = {
         coglossa_run_id: "run-42",
         reliability_tier: "B",
         ocr_pages: 0,
+        hidden_units: 0,
+        suspect_units: 0,
       },
     ],
     gate: {

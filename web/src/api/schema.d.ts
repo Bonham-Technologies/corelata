@@ -1203,6 +1203,8 @@ export interface components {
             digested: boolean;
             /** Format */
             format: string;
+            /** Hidden Units */
+            hidden_units: number;
             /** Id */
             id: string;
             kind: components["schemas"]["SourceKind"];
@@ -1214,6 +1216,8 @@ export interface components {
             reliability_tier?: string | null;
             /** Sha256 */
             sha256: string;
+            /** Suspect Units */
+            suspect_units: number;
             /** Units */
             units: number;
         };

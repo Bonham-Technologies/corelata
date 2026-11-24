@@ -8,6 +8,8 @@ REAL_NAMES = [
     "borrowed-quotation",
     "conflicting-rail-figures",
     "corroborated-port-expansion",
+    "injected-instruction-hidden",
+    "injected-instruction-visible",
     "mixed-relevance-sources",
     "off-topic-sources",
     "overreaching-statement",

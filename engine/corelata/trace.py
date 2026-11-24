@@ -49,6 +49,10 @@ class SourceSummary(BaseModel):
     # CRL-96: a Coglossa export's lowest span reliability tier (`schema.reliability_tier`)
     reliability_tier: str | None = None
     ocr_pages: int  # pages whose text OCR recovered from a scan (CRL-95); 0 for none
+    # CRL-137: units the document hides from its reader, kept here and sent to no model, and
+    # units whose text reads as an instruction to an AI system (`meta.suspect`)
+    hidden_units: int
+    suspect_units: int
 
 
 class UnitCount(NamedTuple):
@@ -57,6 +61,8 @@ class UnitCount(NamedTuple):
 
     units: int
     reliability_tier: str | None
+    hidden: int = 0  # CRL-137: `meta.hidden` units
+    suspect: int = 0  # CRL-137: `meta.suspect` units
 
 
 class StageLine(BaseModel):
@@ -182,11 +188,30 @@ def load_record(run_dir: Path) -> RunRecord:
         ) from e
 
 
+def unit_count(source: Source) -> UnitCount:
+    return UnitCount(
+        len(source.units),
+        reliability_tier(source),
+        hidden=sum(bool(u.meta.get("hidden")) for u in source.units),
+        suspect=sum(bool(u.meta.get("suspect")) for u in source.units),
+    )
+
+
+def hidden_note(n: int) -> str:
+    """What a reader is told about a source's hidden text (CRL-137), as the Sources tab says it."""
+    return f"{n} hidden passage{'' if n == 1 else 's'} withheld from the models"
+
+
+def suspect_note(n: int) -> str:
+    """What a reader is told about a source's suspect units (CRL-137)."""
+    return f"{n} passage{'' if n == 1 else 's'} read as instructions to an AI"
+
+
 def summarize(record: RunRecord, units: Mapping[str, UnitCount] | None = None) -> TraceSummary:
     """`units`: each source's counted units, for a record loaded without them; None counts the
     record's own."""
     if units is None:
-        units = {s.id: UnitCount(len(s.units), reliability_tier(s)) for s in record.sources}
+        units = {s.id: unit_count(s) for s in record.sources}
     digested = {d.source_id for d in record.digests}
     by_iteration: dict[int, list[Finding]] = {}
     for f in record.findings:
@@ -225,6 +250,8 @@ def summarize(record: RunRecord, units: Mapping[str, UnitCount] | None = None) -
                 coglossa_run_id=s.provenance.get("coglossa_run_id"),
                 reliability_tier=units[s.id].reliability_tier,
                 ocr_pages=ocr_page_count(s),
+                hidden_units=units[s.id].hidden,
+                suspect_units=units[s.id].suspect,
             )
             for s in record.sources
         ],
@@ -350,6 +377,8 @@ def format_summary(s: TraceSummary, degradations: Sequence[str] = ()) -> str:
         extra += f", reliability tier {src.reliability_tier}" if src.reliability_tier else ""
         extra += ", digested" if src.digested else ""
         extra += f", {ocr_note(src.ocr_pages)}" if src.ocr_pages else ""
+        extra += f", {hidden_note(src.hidden_units)}" if src.hidden_units else ""
+        extra += f", {suspect_note(src.suspect_units)}" if src.suspect_units else ""
         out.append(f"  {src.id} {src.name} ({src.format}, {src.units} units{extra})")
     if s.gate is not None:
         supported = "supported" if s.gate.supported else "not supported"

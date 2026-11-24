@@ -9,7 +9,7 @@ from corelata.config import EvidenceQuotes
 from corelata.quotes import QuoteCheck, quote_problems
 from corelata.schema import AuditOutput, Finding, ReportBody, Verdict
 from corelata.stages.audit_schema import audit_output_type, to_audit_output
-from corelata.stages.context import StageContext, ocr_flag
+from corelata.stages.context import StageContext, unit_flags
 from corelata.stages.write import prior_reports_payload
 from corelata.standards.schema import Checkability, ResolvedPack, Severity
 from corelata.wording import wording_problems
@@ -266,12 +266,12 @@ def apply_initial_coverage(findings: list[Finding], rule_ids: list[str]) -> list
 
 def cited_unit_payload(ctx: StageContext, draft: ReportBody) -> list[dict[str, Any]]:
     """The units the draft cites, `{"ref", "text"}` each, and `ocr`, `ocr_confidence` for text
-    OCR read (CRL-95). With `evidence_quotes` on (CRL-93) each also carries `quotes`: what the
-    draft's claims quote from it, `{"claim_id", "text"}`, so the auditor reads a quote next to
-    its unit."""
+    OCR read (CRL-95) and `suspect` for text that reads as an instruction (CRL-137). With
+    `evidence_quotes` on (CRL-93) each also carries `quotes`: what the draft's claims quote from
+    it, `{"claim_id", "text"}`, so the auditor reads a quote next to its unit."""
     cited = sorted({r for c in draft.claims for r in c.evidence if ctx.index.has(r)})
     units: list[dict[str, Any]] = [
-        {"ref": r, "text": ctx.index.text(r)} | ocr_flag(ctx.index.get(r)[1]) for r in cited
+        {"ref": r, "text": ctx.index.text(r)} | unit_flags(ctx.index.get(r)[1]) for r in cited
     ]
     if ctx.evidence_quotes is EvidenceQuotes.OFF:
         return units

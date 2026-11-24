@@ -16,7 +16,7 @@ from corelata.scenarios import (
     run_scenario,
     scenario_sources,
 )
-from corelata.schema import RunState
+from corelata.schema import RunState, Verdict
 from corelata.stages.audit import ENGINE_CHECK
 from corelata.standards.loader import load_pack
 from corelata.testing.fake_backend import FakeBackend
@@ -410,12 +410,14 @@ REAL = load_scenarios(REAL_SCENARIOS_DIR)
 
 
 def test_the_real_set_is_written_for_real_models():
-    assert len(REAL) == 10
+    assert len(REAL) == 12
     rule_ids = set(load_pack("icd203-base").rule_ids())
     for s in REAL:
         e = s.expect
         assert "A good model" in s.description and "A weak model" in s.description, s.name
-        assert all(2 <= len(src.paragraphs) <= 3 for src in s.sources), s.name
+        sources = scenario_sources(s)
+        visible = [[u for u in src.units if not u.meta.get("hidden")] for src in sources]
+        assert all(2 <= len(units) <= 3 for units in visible), s.name
         assert not e.failing_rules, s.name  # rule expectations are sets, never exact per iteration
         named = set(e.rules_must_pass) | set(e.rules_may_fail or []) | set(e.rules_must_fail)
         assert named <= rule_ids, s.name
@@ -480,3 +482,75 @@ async def test_every_real_scenario_runs_to_an_outcome_on_the_synthetic_model(sce
     assert record.state in (RunState.COMPLETED, RunState.GATE_REJECTED), record.error
     assert record.gate is not None
     assert isinstance(compare(scenario, record), list)  # scoring never raises on these records
+
+
+INJECTION_SCENARIOS = ["injected-instruction-visible", "injected-instruction-hidden"]
+
+
+@pytest.mark.parametrize("name", INJECTION_SCENARIOS)
+async def test_the_injection_scenarios_agree_fully_on_the_synthetic_model(name, make_config):
+    """CRL-137: an instruction planted in a source, visible or hidden. The visible one reaches
+    the models flagged suspect; the synthetic writer cites it once, the auditor fails
+    icd203.tc.8 for the claim resting on it and the revision drops it. The hidden ones are in
+    the record and in no model request."""
+    [scenario] = [s for s in REAL if s.name == name]
+    backend = FakeBackend(name="fake")
+    record = await run_scenario(
+        scenario,
+        make_config(),
+        backends={"fake": backend},
+        prompts=PromptLibrary(),
+        log=CallLog(),
+    )
+    assert compare(scenario, record) == []
+    failed = [(f.iteration, f.rule_id) for f in record.findings if f.verdict is Verdict.FAIL]
+    sent = " ".join(r.model_dump_json() for r in backend.requests)
+    if name == "injected-instruction-visible":
+        assert failed == [(0, "icd203.tc.8")] and record.iterations == 1
+        payloads = [parse_input([m.model_dump() for m in r.messages]) for r in backend.requests]
+        units = [u for p in payloads for u in p.get("units", []) + p.get("cited_units", [])]
+        assert "HERON-CLOSED" in sent and {u["ref"] for u in units if u.get("suspect")} == {
+            "src1/u3"
+        }
+    else:
+        assert failed == [] and record.iterations == 0
+        hidden = [u.text for u in record.sources[0].units if u.meta.get("hidden")]
+        assert len(hidden) == 2 and "HERON-CANCELLED" in " ".join(hidden)
+        assert "HERON-CANCELLED" not in sent and "src1/u3" not in sent
+
+
+async def test_injection_expectations_report_every_way_they_disagree(make_config):
+    [visible] = [s for s in REAL if s.name == "injected-instruction-visible"]
+    record = await run_scenario(
+        visible,
+        make_config(),
+        backends={"fake": FakeBackend(name="fake")},
+        prompts=PromptLibrary(),
+        log=CallLog(),
+    )
+    wrong = _expecting(
+        visible,
+        state="completed",
+        hidden_units=["src1/u1"],
+        suspect_units=[],
+        report_excludes=["Varna", "absent", "PORT"],
+    )
+    assert compare(wrong, record) == [
+        "hidden_units: expected ['src1/u1'], got []",
+        "suspect_units: expected [], got ['src1/u3']",
+        "report_excludes: the title or key judgments say ['Varna', 'PORT']",
+    ]
+    assert compare(wrong, record.model_copy(update={"report": None}))[-1].startswith(
+        "suspect_units"
+    )
+
+
+@pytest.mark.parametrize(
+    "sources",
+    ["[{id: src1}]", "[{id: src1, paragraphs: [a], html: '<p>a</p>'}]"],
+)
+def test_a_scenario_source_has_paragraphs_or_html(tmp_path, sources):
+    path = tmp_path / "bad.yaml"
+    path.write_text(f"name: x\nstatement: s\nsources: {sources}\nexpect: {{state: completed}}\n")
+    with pytest.raises(ScenarioError, match="set paragraphs or html, not both"):
+        load_scenario(path)

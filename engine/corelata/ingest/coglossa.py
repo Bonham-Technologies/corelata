@@ -9,6 +9,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from corelata.ingest.base import IngestError, file_sha256, read_utf8
+from corelata.ingest.injection import suspect_meta
 from corelata.schema import BlockKind, Source, SourceKind, SourceUnit
 
 VENDORED_SCHEMA = Path(__file__).parent / "vendor" / "coglossa-report-1.schema.json"
@@ -98,7 +99,8 @@ def load_coglossa_export(source_id: str, path: Path) -> list[Source]:
                 "agreement": span.agreement,
                 "chosen_from": span.chosen_from,
                 "flags": [f.code for f in span.flags],
-            },
+            }
+            | suspect_meta(span.text),
         )
         for i, span in enumerate(export.spans, start=1)
         if span.text.strip()
@@ -142,7 +144,7 @@ def load_coglossa_export(source_id: str, path: Path) -> list[Source]:
                 text=text,
                 locator=f"coglossa:{run_id}/guide:{i}",
                 kind=BlockKind.PARAGRAPH,
-                meta=meta,
+                meta=meta | suspect_meta(text),
             )
             for i, (text, meta) in enumerate(guide_texts, start=1)
         ],
