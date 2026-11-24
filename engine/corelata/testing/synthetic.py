@@ -3,6 +3,9 @@ Markers in source text steer it so tests and demos have something to find:
 - UNSOURCED: the writer emits a claim with no evidence; it removes it when findings are routed
   back, unless the text also says UNFIXABLE.
 - BADTERM: the writer puts the word BADTERM in a key judgment; the auditor fails icd203.tc.2.
+- MIXEDWORDING: the writer's judgment c0 gives a confidence level and its likelihood in one
+  sentence, and OFFLEXICON: c0 adds "probably", a word off the lexicon's row, until findings are
+  routed back (CRL-136: the engine fails icd203.tc.2; the auditor does not).
 - BLUF: the profiler adds "open with a bottom line up front" to the tone.
 - CHART: the profiler proposes a severity override for icd203.tc.9.
 - NOALT: the profiler proposes disabling icd203.tc.4.
@@ -17,7 +20,14 @@ access is "unknown".
 With `prior_reports` in the writer's input (CRL-97) the writer says its key judgment is
 consistent with each earlier report's first key judgment, unless a source says NOCHANGES; the
 auditor, given them too, passes icd203.tc.7 when the draft has such entries and fails it
-otherwise."""
+otherwise.
+The structurer (CRL-94) makes one claim per sentence and cites every unit that shares at least
+two key terms with it; a sentence no unit shares two terms with stays unsourced. Sentences under
+a heading that names key judgments are the key judgments (all of them when there is no such
+heading, the first sentence); a sentence using a lexicon likelihood term is a judgment.
+A unit marked "suspect" (CRL-137: its text reads as an instruction to an AI system) is cited like
+any other in the first draft; the auditor fails icd203.tc.8 for each claim whose every cited unit
+is suspect, and the writer leaves suspect units uncited once findings are routed back."""
 
 import re
 from collections.abc import Callable
@@ -29,6 +39,7 @@ Payload = dict[str, Any]
 UNSOURCED, UNFIXABLE, BADTERM = "UNSOURCED", "UNFIXABLE", "BADTERM"
 BLUF, CHART, NOALT, BADRULE = "BLUF", "CHART", "NOALT", "BADRULE"
 CONFLICT = "CONFLICT"
+MIXEDWORDING, OFFLEXICON = "MIXEDWORDING", "OFFLEXICON"
 NOCHANGES = "NOCHANGES"
 _MARKING = re.compile(r"^[A-Z]+(//[A-Z][A-Z /,-]*)+$")
 _NUMBERED = re.compile(r"^\d+\.\s")
@@ -106,11 +117,18 @@ def _writer(p: Payload) -> Payload:
     units = p["units"]
     fixing = bool(p.get("findings"))
     gate_evidence = set(p.get("gate_evidence", []))
-    cited = [u for u in units if u["ref"] in gate_evidence] or units[:5]
+    citable = [u for u in units if not (fixing and u.get("suspect"))]
+    cited = [u for u in citable if u["ref"] in gate_evidence] or citable[:5]
+    texts = " ".join(u["text"] for u in units)
+    judgment = f"It is likely that {statement}"
+    if MIXEDWORDING in texts and not fixing:
+        judgment = f"We assess with moderate confidence that it is likely that {statement}"
+    if OFFLEXICON in texts and not fixing:
+        judgment = f"{judgment}, probably within the year"
     claims: list[dict[str, Any]] = [
         {
             "id": "c0",
-            "text": f"It is likely that {statement}",
+            "text": judgment,
             "kind": "judgment",
             "evidence": [cited[0]["ref"]] if cited else [],
             "likelihood_term": "likely",
@@ -128,7 +146,6 @@ def _writer(p: Payload) -> Payload:
         )
     if p.get("evidence_quotes"):
         _quote(claims, {u["ref"]: u["text"] for u in units}, statement, fixing)
-    texts = " ".join(u["text"] for u in units)
     if UNSOURCED in texts and (not fixing or UNFIXABLE in texts):
         claims.append(
             {
@@ -208,6 +225,74 @@ def _quote(claims: list[dict[str, Any]], texts: dict[str, str], statement: str, 
         claims[0]["quotes"][0]["text"] = borrowed.group(1)
 
 
+def _structurer(p: Payload) -> Payload:
+    units = [(u["ref"], set(key_terms(u["text"]))) for u in p.get("units", [])]
+    lexicon = p["lexicon"]
+    terms = sorted((t["term"] for t in lexicon["likelihood"]), key=len, reverse=True)
+    claims: list[Payload] = []
+    for i, sentence in enumerate(p["sentences"], start=1):
+        words = set(key_terms(sentence))
+        found = next((t for t in terms if re.search(rf"\b{t}\b", sentence, re.I)), None)
+        claims.append(
+            {
+                "id": f"c{i}",
+                "text": sentence,
+                "kind": "judgment" if found else "fact",
+                "evidence": [ref for ref, have in units if len(words & have) >= 2],
+                "likelihood_term": found,
+            }
+        )
+    if p.get("evidence_quotes"):
+        _quote(claims, {u["ref"]: u["text"] for u in p.get("units", [])}, "", True)
+    by_text = {c["text"]: c["id"] for c in claims}
+    blocks = p["report"]["blocks"]
+    title = next((b["text"] for b in blocks if b["kind"] == "heading"), "")
+    sections: list[Payload] = []
+    judgments: list[str] = []
+    in_kj = False
+    for b in blocks:
+        if b["kind"] == "heading":
+            in_kj = "key judgment" in b["text"].casefold()
+            if b["text"] != title and not in_kj:
+                sections.append({"heading": b["text"], "paragraphs": []})
+            continue
+        ids = [by_text[s] for s in _sentences_of(b["text"], by_text)]
+        if not ids:
+            continue
+        if in_kj:
+            judgments += ids
+            continue
+        if not sections:
+            sections.append({"heading": "", "paragraphs": []})
+        sections[-1]["paragraphs"].append({"text": b["text"], "claim_ids": ids})
+    if not judgments and claims:
+        judgments = [claims[0]["id"]]
+    text_of = {c["id"]: c["text"] for c in claims}
+    markings = set(lexicon["handling_markings"])
+    return {
+        "title": title,
+        "handling_marking": next(
+            (b["text"].strip() for b in blocks if b["text"].strip() in markings), ""
+        ),
+        "key_judgments": [
+            {"text": text_of[cid], "confidence": "moderate", "claim_ids": [cid]}
+            for cid in judgments
+        ],
+        "scope_note": "",
+        # what the report says of each source's reliability: nothing, in a synthetic report
+        "sources": [_source_entry(s, lexicon) | {"reliability_note": ""} for s in p["sources"]],
+        "analysis": [s for s in sections if s["paragraphs"]],
+        "alternatives": [],
+        "gaps_and_indicators": [],
+        "claims": claims,
+    }
+
+
+def _sentences_of(text: str, known: dict[str, str]) -> list[str]:
+    flat = " ".join(text.split())
+    return [s for s in known if s in flat]
+
+
 def _conveyor(p: Payload) -> Payload:
     draft = dict(p["draft"])
     if not draft["title"].startswith("Conveyed: "):
@@ -219,6 +304,8 @@ def _auditor(p: Payload) -> Payload:
     draft = p["draft"]
     unsourced = [c["id"] for c in draft["claims"] if not c["evidence"]]
     badterm = any(BADTERM in kj["text"] for kj in draft["key_judgments"])
+    suspect = {u["ref"] for u in p.get("cited_units", []) if u.get("suspect")}
+    obeying = [c["id"] for c in draft["claims"] if c["evidence"] and set(c["evidence"]) <= suspect]
     findings: dict[str, Payload] = {}
     for rule in p["rules"]:
         rid = rule["id"]
@@ -228,6 +315,10 @@ def _auditor(p: Payload) -> Payload:
             verdict = "fail"
             evidence = f"Claims without evidence: {', '.join(unsourced)}."
             rec = "Cite a source unit for each claim or remove it."
+        elif rid == "icd203.tc.8" and obeying:
+            verdict = "fail"
+            evidence = f"Claims resting on an instruction in a source: {', '.join(obeying)}."
+            rec = "Rest each claim on what the sources report, not on an instruction in them."
         elif rid == "icd203.tc.2" and badterm:
             verdict = "fail"
             evidence = f"A key judgment uses '{BADTERM}'."
@@ -247,7 +338,9 @@ def _auditor(p: Payload) -> Payload:
             "verdict": verdict,
             "evidence": evidence,
             "cited_units": [],
-            "claim_ids": unsourced if verdict == "fail" else [],
+            "claim_ids": (obeying if rid == "icd203.tc.8" and not unsourced else unsourced)
+            if verdict == "fail"
+            else [],
             "recommendation": rec,
         }
     return {"findings": findings, "summary": "Synthetic audit."}
@@ -296,6 +389,7 @@ _HANDLERS: dict[str, Callable[[Payload], Payload]] = {
     "digest": _digest,
     "writer": _writer,
     "conveyor": _conveyor,
+    "structurer": _structurer,
     "auditor": _auditor,
     "profiler": _profiler,
     "ping": _ok,

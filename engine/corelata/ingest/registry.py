@@ -67,7 +67,11 @@ def ingest_file(path: Path, *, ocr: OcrSettings | None = None) -> SourceDocument
             if any(clean_text(b.text) != b.text for b in doc.blocks):  # NUL, form feeds, ...
                 blocks = [b.model_copy(update={"text": clean_text(b.text)}) for b in doc.blocks]
                 doc = doc.model_copy(update={"blocks": blocks})
-            if not any(b.kind is not BlockKind.BREAK and b.text.strip() for b in doc.blocks):
+            # text the document hides from its reader is no model's to read (CRL-137)
+            if not any(
+                b.kind is not BlockKind.BREAK and b.text.strip() and not b.provenance.hidden
+                for b in doc.blocks
+            ):
                 raise IngestError(f"{path.name} contains no usable text")
             return doc
     raise AssertionError("unreachable")  # pragma: no cover - check_supported guarantees a match

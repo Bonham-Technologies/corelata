@@ -29,7 +29,7 @@ OUR_TABLES = {
     "discovery_source",
     "discovery_candidate",
 }
-HEAD = "0008"
+HEAD = "0009"
 
 
 def _tables(url):
@@ -549,6 +549,38 @@ def test_0008_adds_a_nullable_prior_reports_column_and_the_downgrade_drops_it(pg
         downgrade(url, "0007")
         with engine.connect() as conn:
             assert "prior_reports" not in _run_columns(conn)
+            assert conn.execute(text("SELECT count(*) FROM run")).scalar_one() == 1
+    finally:
+        engine.dispose()
+        drop_test_database(pg_admin, url)
+
+
+def test_0009_adds_run_kind_and_report_source_id_and_the_downgrade_drops_them(pg_admin):
+    """A 0008 database with a run in it: the upgrade adds `run.kind`, NOT NULL with the server
+    default 'report', so the existing run reads as a report run, and the nullable
+    `run.report_source_id` (CRL-94); the downgrade drops both and keeps the run."""
+    url = create_test_database(pg_admin)
+    engine = create_engine(to_sqlalchemy_url(url), poolclass=NullPool)
+    try:
+        upgrade(url, "0008")
+        project = uuid.uuid4()
+        at = datetime(2026, 11, 24, 9, tzinfo=UTC)
+        with engine.begin() as conn:
+            conn.execute(
+                text("INSERT INTO project (id, name, created_at) VALUES (:id, 'p', :at)"),
+                {"id": project, "at": at},
+            )
+            conn.execute(text(_RUN_AT_0003), {"id": uuid.uuid4(), "project": project, "at": at})
+            assert "kind" not in _run_columns(conn)
+        upgrade(url, "0009")
+        with engine.connect() as conn:
+            columns = _run_columns(conn)
+            assert columns["kind"] == "NO" and columns["report_source_id"] == "YES"
+            row = conn.execute(text("SELECT kind, report_source_id FROM run")).one()
+            assert tuple(row) == ("report", None)
+        downgrade(url, "0008")
+        with engine.connect() as conn:
+            assert not {"kind", "report_source_id"} & set(_run_columns(conn))
             assert conn.execute(text("SELECT count(*) FROM run")).scalar_one() == 1
     finally:
         engine.dispose()

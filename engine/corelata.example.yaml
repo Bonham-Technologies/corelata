@@ -22,6 +22,7 @@ roles:                             # spec §4.4; one model per role
   conveyor: { model: strong }
   auditor:  { model: strong }      # a different model family from the writer is better when you have one
   # profiler: { model: strong }    # only for `corelata profile extract` (M6)
+  # structurer: { model: strong }  # maps a finished report for `corelata check`; default: writer's model
 
 standards:                         # spec §6
   # packs_dir: ./packs             # your packs; the built-in icd203-base is always available

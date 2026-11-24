@@ -69,6 +69,7 @@ it("starts a run with the chosen sources, statement, profile and iterations, the
     profile: "team-east",
     max_iterations: 1,
     extra_guidance: "",
+    kind: "report",
   });
 });
 

@@ -10,6 +10,7 @@ export const STEP_LABEL: Record<RunState, string> = {
   created: "Waiting to start",
   ingesting: "Reading the sources",
   gating: "Checking the value statement",
+  structuring: "Reading the report",
   drafting: "Drafting",
   conveying: "Editing for the reader",
   auditing: "Checking against the standards",
@@ -31,7 +32,17 @@ export const PROGRESS_STEPS = [
   "rendering",
   "completed",
 ] as const satisfies readonly RunState[];
-export type ProgressStep = (typeof PROGRESS_STEPS)[number];
+
+/** The steps a check of a finished report lists (CRL-94): no value check, drafting or editing. */
+export const CHECK_STEPS = [
+  "created",
+  "ingesting",
+  "structuring",
+  "auditing",
+  "rendering",
+  "completed",
+] as const satisfies readonly RunState[];
+export type ProgressStep = (typeof PROGRESS_STEPS)[number] | (typeof CHECK_STEPS)[number];
 
 /** Drafting, editing and checking repeat on a revision (§4.3). */
 export const REVISED_STEPS: ReadonlySet<RunState> = new Set<RunState>([
