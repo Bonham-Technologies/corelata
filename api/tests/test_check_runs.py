@@ -35,6 +35,7 @@ async def test_a_check_run_audits_the_report_and_exports_a_findings_sheet(api):
     run = started.json()
     assert run["kind"] == "check" and run["report_source_id"] == rid
     assert run["value_statement"] == "" and run["source_ids"] == [sid]
+    assert run["max_iterations"] == 0  # no revision loop, as the trace says (R-CRL94-7)
     assert await complete_queued(api) == 1
     done = (await api.client.get(f"/api/runs/{run['run_id']}")).json()
     assert done["state"] == "completed" and done["status"] == "findings_open"

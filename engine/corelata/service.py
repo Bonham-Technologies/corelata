@@ -453,7 +453,11 @@ async def _create_run(
             value_statement=req.value_statement.strip(),
             profile=profile,
             max_iterations=(
-                cfg.pipeline.max_iterations if req.max_iterations is None else req.max_iterations
+                0  # a check has no revision loop (R-CRL94-7), as its trace says
+                if req.kind is RunKind.CHECK
+                else cfg.pipeline.max_iterations
+                if req.max_iterations is None
+                else req.max_iterations
             ),
             extra_guidance=req.extra_guidance,
             config_hash=config_hash(cfg),
