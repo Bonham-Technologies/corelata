@@ -146,6 +146,7 @@ class _CancelsBetween:
 
     def __init__(self, manager, db, run_id) -> None:
         self.manager, self.db, self.run_id = manager, db, run_id
+        self.connector = manager.connector
 
     async def get_stalled_jobs(self, **kwargs):
         stalled = await self.manager.get_stalled_jobs(**kwargs)

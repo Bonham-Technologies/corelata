@@ -974,6 +974,14 @@ accepted reports only once you set `pipeline.prior_judgments.max_reports` above 
 Pipeline; unset, it is 0); `icd203.tc.7` is checked against them only once your pack has the base pack's
 `with_prior_reports` block (see the next paragraph).
 
+Migration 0009 also runs inside `migrate`, before `api` and `worker` start, and brings the job
+queue's tables and functions to procrastinate 3.12.0: it adds a `lock_mode` column to
+`procrastinate_jobs` (every existing job gets `ordered`, the behaviour it had), replaces one
+index on that table with another and replaces procrastinate's 3.10 functions with their 3.12
+versions. Jobs waiting in the queue are kept and run after the upgrade. It needs the old version
+stopped first, as step 4 does: a 0.1.8 worker or API cannot queue jobs once it has run. A restore
+of an older backup runs it too.
+
 **New rules in a newer base pack.** The bundle ships its base pack in `config/packs.example/`,
 which the installer never copies over your own. See what changed, then merge by hand:
 

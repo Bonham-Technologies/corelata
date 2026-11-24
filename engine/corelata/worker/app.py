@@ -13,9 +13,9 @@ from typing import Any
 import procrastinate
 import psycopg
 from procrastinate import JobContext, RetryStrategy, signals
-from procrastinate.exceptions import AlreadyEnqueued, ConnectorException, UniqueViolation
+from procrastinate.exceptions import AlreadyEnqueued, ConnectorException
 from procrastinate.jobs import Job, Status
-from procrastinate.manager import QUEUEING_LOCK_CONSTRAINT, JobManager
+from procrastinate.manager import JobManager
 from sqlalchemy.exc import InterfaceError, OperationalError
 
 from corelata.config import CorelataConfig
@@ -125,7 +125,7 @@ async def discover_task(context: JobContext, discovery_id: str) -> None:
     await run_job(_services(context), TASK_DISCOVER, {"discovery_id": discovery_id})
 
 
-# What procrastinate_retry_job_v2 raises (procrastinate 3.10) for a job that is not 'doing'
+# What procrastinate_retry_job_v2 raises (procrastinate 3.10 to 3.12) for a job not 'doing'
 _RETRY_REFUSED = "invalid status to retry"
 
 
@@ -136,30 +136,34 @@ def _closed_meanwhile(e: ConnectorException) -> bool:
     return isinstance(cause, psycopg.errors.RaiseException) and _RETRY_REFUSED in str(cause)
 
 
+async def _closed_for_its_copy(manager: Any, job: Job) -> bool:
+    """procrastinate's retry (3.12) closed the stalled job as failed instead of re-queueing it,
+    because a copy with the same queueing lock is already waiting: the copy does the work."""
+    rows = await manager.connector.execute_query_all_async(_JOB_NOW, job_id=job.id)
+    return bool(rows) and rows[0]["status"] == "failed"
+
+
 async def requeue_stalled(manager: Any, seconds: float) -> int:
     """Re-queue the jobs of workers silent for `seconds`; returns how many were re-queued.
-    A stalled job whose copy is already waiting (same queueing lock) can't be re-queued: it
-    is closed as failed instead, and the waiting copy does the work. A job closed between the
-    listing and its retry is skipped."""
+    A stalled job whose copy is already waiting (same queueing lock) can't be re-queued:
+    procrastinate's retry closes it as failed instead, and the waiting copy does the work. A job
+    closed between the listing and its retry is skipped."""
     requeued = 0
     for job in await manager.get_stalled_jobs(seconds_since_heartbeat=seconds):
         try:
             await manager.retry_job(job)
-        except UniqueViolation as e:
-            if e.constraint_name != QUEUEING_LOCK_CONSTRAINT:
-                raise
-            await manager.finish_job_by_id_async(job.id, Status.FAILED, delete_job=False)
-            log.warning(
-                "closed job %s (%s) from a worker that stopped responding: a copy is waiting",
-                job.id,
-                job.queueing_lock,
-            )
-            continue
         except ConnectorException as e:
             if not _closed_meanwhile(e):
                 raise
             log.info(
                 "job %s (%s) was closed before it could be re-queued; skipped",
+                job.id,
+                job.queueing_lock,
+            )
+            continue
+        if await _closed_for_its_copy(manager, job):
+            log.warning(
+                "closed job %s (%s) from a worker that stopped responding: a copy is waiting",
                 job.id,
                 job.queueing_lock,
             )

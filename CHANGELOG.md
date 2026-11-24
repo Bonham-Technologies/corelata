@@ -5,6 +5,7 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+- The job queue runs on procrastinate 3.12.0 (from 3.10.0): migration 0009 applies procrastinate's 3.11 and 3.12 schema migrations, and jobs already queued are kept. A stalled job whose copy is already waiting is now closed by procrastinate itself when the worker re-queues it. Upgrade by stopping the old version first, as the operator guide's upgrade steps already do.
 - The public site lives at https://corelata.tech: its canonical, Open Graph and structured-data URLs, sitemap, robots file, `security.txt`, page text and site check use the new host, and corelata.com redirects there. Ticket: CRL-143
 - No other site can show Corelata in a frame (`X-Frame-Options: SAMEORIGIN`; an HTML report: `DENY`), and every API answer except the health check carries `Cache-Control: no-store`, so report and source text is not kept in a shared workstation's browser cache. Ticket: CRL-131
 - Below 440 CSS px wide (400% zoom, or a phone held upright) the top bar now wraps onto extra lines and scrolls away with the page instead of clipping "Your projects" and covering the page, and the projects sidebar opens just below it (WCAG 1.4.10 Reflow). Ticket: CRL-129

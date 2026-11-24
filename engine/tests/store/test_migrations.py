@@ -1,13 +1,15 @@
 import uuid
 from datetime import UTC, datetime
 
+import psycopg
+import pytest
 from procrastinate.schema import SchemaManager
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.pool import NullPool
 
 from corelata.schema import ReviewState
-from corelata.store.db import to_sqlalchemy_url
-from corelata.store.migrate import MIGRATIONS_DIR, downgrade, migration_state, upgrade
+from corelata.store.db import to_libpq_url, to_sqlalchemy_url
+from corelata.store.migrate import downgrade, migration_state, upgrade
 from corelata.store.models import Base
 from corelata.testing.postgres import PROCRASTINATE_TABLES, create_test_database, drop_test_database
 
@@ -29,7 +31,7 @@ OUR_TABLES = {
     "discovery_source",
     "discovery_candidate",
 }
-HEAD = "0008"
+HEAD = "0009"
 
 
 def _tables(url):
@@ -40,12 +42,149 @@ def _tables(url):
         engine.dispose()
 
 
-def test_vendored_procrastinate_schema_matches_the_installed_package():
-    vendored = MIGRATIONS_DIR / "versions" / "0001_procrastinate_3_10_0.sql"
-    assert vendored.read_text(encoding="utf-8") == SchemaManager.get_schema(), (
-        "the installed procrastinate's schema differs from the one revision 0001 installs: "
-        "add a new Alembic revision that applies procrastinate's migration SQL"
+# procrastinate's objects as Postgres sees them, each kind a sorted list of rows: the
+# definitions come from pg_get_*def so two schemas built by different SQL compare equal
+# exactly when they would behave the same. (Copied from Coglossa.) The indexes leave out the two
+# revision 0003 puts on procrastinate_jobs for the orphan sweep, which are Corelata's own.
+_PROCRASTINATE_CATALOG = {
+    "functions": """
+        SELECT p.oid::regprocedure::text, pg_get_functiondef(p.oid)
+        FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public' AND p.proname LIKE 'procrastinate%'
+    """,
+    "columns": """
+        SELECT c.relname, c.relkind::text, a.attname, format_type(a.atttypid, a.atttypmod),
+               a.attnotnull, pg_get_expr(d.adbin, d.adrelid)
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped
+        LEFT JOIN pg_attrdef d ON d.adrelid = c.oid AND d.adnum = a.attnum
+        WHERE n.nspname = 'public' AND c.relname LIKE 'procrastinate%'
+          AND c.relkind IN ('r', 'v', 'c')
+    """,
+    "enums": """
+        SELECT t.typname, array_agg(e.enumlabel::text ORDER BY e.enumsortorder)
+        FROM pg_type t
+        JOIN pg_namespace n ON n.oid = t.typnamespace
+        JOIN pg_enum e ON e.enumtypid = t.oid
+        WHERE n.nspname = 'public' AND t.typname LIKE 'procrastinate%'
+        GROUP BY t.typname
+    """,
+    "sequences": """
+        SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = 'public' AND c.relname LIKE 'procrastinate%' AND c.relkind = 'S'
+    """,
+    "constraints": """
+        SELECT cl.relname, co.conname, pg_get_constraintdef(co.oid)
+        FROM pg_constraint co JOIN pg_class cl ON cl.oid = co.conrelid
+        JOIN pg_namespace n ON n.oid = cl.relnamespace
+        WHERE n.nspname = 'public' AND cl.relname LIKE 'procrastinate%'
+    """,
+    "indexes": """
+        SELECT tablename, indexname, indexdef FROM pg_indexes
+        WHERE schemaname = 'public' AND tablename LIKE 'procrastinate%'
+          AND indexname NOT IN ('ix_procrastinate_jobs_run_id',
+                                'ix_procrastinate_jobs_discovery_id')
+    """,
+    "triggers": """
+        SELECT c.relname, t.tgname, pg_get_triggerdef(t.oid)
+        FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = 'public' AND c.relname LIKE 'procrastinate%' AND NOT t.tgisinternal
+    """,
+}
+
+
+def _procrastinate_catalog(url) -> dict[str, list[tuple]]:
+    with psycopg.connect(to_libpq_url(url)) as conn:
+        return {
+            kind: sorted(tuple(row) for row in conn.execute(query).fetchall())
+            for kind, query in _PROCRASTINATE_CATALOG.items()
+        }
+
+
+def _assert_same_catalog(actual, expected, message):
+    for kind in _PROCRASTINATE_CATALOG:
+        missing = [row for row in expected[kind] if row not in actual[kind]]
+        extra = [row for row in actual[kind] if row not in expected[kind]]
+        assert not missing and not extra, f"{message}: {kind} differ\n{missing=}\n{extra=}"
+
+
+@pytest.fixture(scope="module")
+def installed_procrastinate_catalog(pg_admin):
+    """procrastinate's objects in a database built from the installed package's schema.sql."""
+    url = create_test_database(pg_admin)
+    try:
+        with psycopg.connect(to_libpq_url(url)) as conn:
+            conn.execute(SchemaManager.get_schema())
+        return _procrastinate_catalog(url)
+    finally:
+        drop_test_database(pg_admin, url)
+
+
+def test_vendored_procrastinate_schema_matches_the_installed_package(
+    pg_url, installed_procrastinate_catalog
+):
+    """Revision 0001 installs procrastinate 3.10.0's schema; later revisions (0009) apply the
+    package's migrations since. Together they must build what the installed procrastinate
+    expects, so a procrastinate upgrade that brings a new migration fails here until a
+    revision applies it."""
+    assert installed_procrastinate_catalog["functions"]  # the snapshot found the objects
+    _assert_same_catalog(
+        _procrastinate_catalog(pg_url),
+        installed_procrastinate_catalog,
+        "the installed procrastinate's schema differs from the one the migrations build: "
+        "add a new Alembic revision that applies procrastinate's migration SQL",
     )
+
+
+def _function_names(catalog) -> set[str]:
+    return {signature.split("(")[0] for signature, _ in catalog["functions"]}
+
+
+def test_0009_round_trips_procrastinate_3_12(pg_admin, installed_procrastinate_catalog):
+    """0009 applies procrastinate 3.11's and 3.12's migrations, and its downgrade puts back
+    procrastinate 3.10.0's objects exactly as revision 0001 installed them. A job deferred
+    under 3.12 keeps its row across the downgrade."""
+    url = create_test_database(pg_admin)
+    try:
+        upgrade(url, "0008")
+        procrastinate_3_10 = _procrastinate_catalog(url)
+        upgrade(url, "0009")
+        procrastinate_3_12 = _procrastinate_catalog(url)
+        _assert_same_catalog(
+            procrastinate_3_12, installed_procrastinate_catalog, "0009 does not build 3.12"
+        )
+        assert _function_names(procrastinate_3_10) - _function_names(procrastinate_3_12) == {
+            "procrastinate_defer_jobs_v1",
+            "procrastinate_defer_periodic_job_v2",
+        }
+        assert _function_names(procrastinate_3_12) - _function_names(procrastinate_3_10) == {
+            "procrastinate_defer_jobs_v2",
+            "procrastinate_defer_periodic_job_v3",
+        }
+        with psycopg.connect(to_libpq_url(url)) as conn:
+            conn.execute(
+                "SELECT procrastinate_defer_jobs_v2(ARRAY[ROW('q', 't', 0, 'l', 'l', '{}', "
+                "NULL, 'mutex')]::procrastinate_job_to_defer_v2[])"
+            )
+        downgrade(url, "0008")
+        _assert_same_catalog(
+            _procrastinate_catalog(url), procrastinate_3_10, "0009's downgrade left a change"
+        )
+        with psycopg.connect(to_libpq_url(url)) as conn:
+            assert conn.execute("SELECT task_name, lock FROM procrastinate_jobs").fetchall() == [
+                ("t", "l")
+            ]
+        upgrade(url)
+        assert migration_state(url).up_to_date
+        _assert_same_catalog(
+            _procrastinate_catalog(url),
+            installed_procrastinate_catalog,
+            "upgrading again does not build the installed procrastinate's schema",
+        )
+    finally:
+        drop_test_database(pg_admin, url)
 
 
 def test_upgrade_creates_our_tables_and_the_job_queue(pg_url):
