@@ -23,7 +23,7 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.add_column("run", sa.Column("kind", sa.String(), server_default="report", nullable=False))
+    op.add_column("run", sa.Column("kind", sa.Text(), server_default="report", nullable=False))
     op.add_column("run", sa.Column("report_source_id", sa.Uuid(), nullable=True))
     op.create_foreign_key(
         "run_report_source_id_fkey",

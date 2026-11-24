@@ -293,7 +293,7 @@ describe("a checked report (CRL-94)", () => {
     expect(
       within(main).getByText(/written outside Corelata, checked against the standards/),
     ).toBeInTheDocument();
-    await user.click(within(main).getByRole("button", { name: "Download ▾" }));
+    await user.click(within(main).getByRole("button", { name: "Download" }));
     expect(screen.getByRole("menuitem", { name: "Standards sheet (CSV)" })).toHaveAttribute(
       "href",
       `/api/runs/${RUN_ID}/exports/findings.csv`,
