@@ -40,10 +40,19 @@ def _style_hidden(style: Any) -> bool | None:
     return None
 
 
-def _split(paragraph: Paragraph) -> tuple[str, str]:
+def _default_hidden(document: Any) -> bool:
+    """The `w:vanish` of the document's default run properties (`w:docDefaults`), which every
+    run without a `w:vanish` of its own or of its styles inherits."""
+    found = document.styles.element.xpath("w:docDefaults/w:rPrDefault/w:rPr/w:vanish")
+    return bool(found) and bool(found[0].val)
+
+
+def _split(paragraph: Paragraph, default: bool = False) -> tuple[str, str]:
     """The paragraph's visible text, as `Paragraph.text` reads it, and its hidden text: each run
-    of consecutive hidden runs, joined by spaces."""
+    of consecutive hidden runs, joined by spaces. `default`: the document's default `w:vanish`."""
     by_style = _style_hidden(paragraph.style)
+    if by_style is None:
+        by_style = default
     visible: list[str] = []
     hidden: list[list[str]] = []
     was_hidden = False
@@ -68,7 +77,8 @@ def _split(paragraph: Paragraph) -> tuple[str, str]:
 class _Items:
     """Items in order, with the indexes of the hidden ones."""
 
-    def __init__(self) -> None:
+    def __init__(self, default_hidden: bool = False) -> None:
+        self.default_hidden = default_hidden
         self.items: list[Item] = []
         self.hidden: set[int] = set()
 
@@ -88,7 +98,7 @@ def _table_items(table: Table, table_no: int, out: _Items) -> None:
             if any(tc is s for s in seen):  # merged cells repeat the same underlying element
                 continue
             seen.append(tc)
-            parts = [_split(p) for p in cell.paragraphs]
+            parts = [_split(p, out.default_hidden) for p in cell.paragraphs]
             text = "\n".join(v for v, _ in parts).strip()
             hidden = " ".join(h for _, h in parts if h)
             out.add(BlockKind.TABLE_CELL, text, f"table {table_no} row {r} col {c}", hidden)
@@ -140,14 +150,14 @@ class DocxIngestor:
             document = docx.Document(str(path))
         except Exception as e:  # python-docx raises several unrelated types for bad files
             raise IngestError(f"{path.name} is not a readable DOCX file ({e})") from e
-        out = _Items()
+        out = _Items(_default_hidden(document))
         table_no = 0
         for part in document.iter_inner_content():
             if isinstance(part, Table):
                 table_no += 1
                 _table_items(part, table_no, out)
                 continue
-            visible, hidden = _split(part)
+            visible, hidden = _split(part, out.default_hidden)
             text = visible.strip()
             style = part.style.name if part.style is not None and text else ""
             out.add(_paragraph_kind(style, text), text, None, hidden)

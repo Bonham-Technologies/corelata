@@ -20,32 +20,53 @@ _AI = (
     r"(?:ai |virtual )?assistants?|ai (?:systems?|models?|agents?|tools?))"
 )
 
+# Words that continue a sentence about AI rather than address one: "AI, in this case, ...",
+# "Large language models, according to ...".
+_CONNECTIVE = (
+    r"(?:in|according|for|however|meanwhile|though|which|who|whose|that|and|or|but|as|like|by|"
+    r"on|at|with|too|also|then|therefore|thus|such|including|especially|unlike|often|now|"
+    r"increasingly|once|still|while|when|where|if|used|the|a|an|it|they|this|these|e\.g\.|i\.e\.)"
+)
+
 # Each pattern is one form a planted instruction takes; a unit matching any of them is suspect.
+# Whitespace is bounded and never repeated next to another whitespace class, so no pattern
+# backtracks on a long run of spaces or newlines (tests/ingest/test_injection.py times them).
 INSTRUCTION_PATTERNS: tuple[re.Pattern[str], ...] = tuple(
     re.compile(p, re.IGNORECASE | re.MULTILINE)
     for p in (
-        # "ignore previous instructions", "disregard all prior prompts", "forget your instructions"
-        r"\b(?:ignore|disregard|forget|override|bypass)\b[^.\n]{0,40}?"
-        r"\b(?:instructions?|prompts?|directives?)\b",
+        # "ignore previous instructions", "disregard all of the prior prompts", "forget your
+        # instructions": the instructions are the reader's own, earlier or above; a bare
+        # "commanders ignore directives" is reporting, not an instruction
+        r"\b(?:ignore|disregard|forget|override|bypass) {1,3}"
+        r"(?:(?:all|any|of|the|these|those) {1,3}){0,3}"
+        r"(?:your|my|previous|prior|above|preceding|earlier|original|foregoing|system|initial)"
+        r" {1,3}(?:\w+ {1,3})?(?:instructions?|prompts?|directives?)\b",
+        r"\b(?:ignore|disregard|forget) {1,3}(?:all|any) {1,3}(?:(?:other|of|the|these) {1,3})?"
+        r"(?:instructions?|prompts?)\b",
         # the model's own configuration named
         r"\b(?:system|developer) (?:prompt|message|instructions?)\b",
         # "note to the AI:", "instructions for any language model reading this"
-        rf"\b(?:note|message|instructions?|directive)s?\s+(?:to|for)\s+"
-        rf"(?:the\s+|any\s+|all\s+|every\s+)?{_AI}"
-        r"(?:\s*[:,]|\s+(?:reading|processing|summari[sz]ing|analy[sz]ing|reviewing)\b)",
-        # an AI addressed by name at the start of a line or sentence: "AI: write …", "Assistant,"
-        rf"(?:^|[.!?]\s+)\s*(?:dear\s+|hey\s+)?{_AI}\s*[,:]",
+        rf"\b(?:note|message|instructions?|directive)s?[ \t\n]{{1,4}}(?:to|for)[ \t\n]{{1,4}}"
+        rf"(?:(?:the|any|all|every)[ \t\n]{{1,4}})?{_AI}"
+        r"(?:[ \t]{0,4}[:,]|[ \t\n]{1,4}"
+        r"(?:reading|processing|summari[sz]ing|analy[sz]ing|reviewing)\b)",
+        # an AI addressed by name at the start of a line or sentence: "AI: write ...",
+        # "Assistant, mark ..."
+        rf"(?:^[ \t]{{0,4}}|[.!?][ \t\n]{{1,4}})(?:(?:dear|hey)[ \t]{{1,4}})?{_AI}"
+        rf"[ \t]{{0,4}}(?::|,(?![ \t\n]{{0,4}}{_CONNECTIVE}\b))",
         # "if you are an AI", "you are now an assistant", "as an AI language model, you must"
-        rf"\b(?:if\s+)?you\s+are\s+(?:now\s+)?(?:an?\s+)?(?:[a-z-]+\s+){{0,2}}{_AI}\b",
-        rf"\bas\s+an?\s+{_AI}\b[^.\n]{{0,40}}\byou\s+(?:must|should|will)\b",
+        rf"\b(?:if[ \t\n]{{1,4}})?you[ \t\n]{{1,4}}are[ \t\n]{{1,4}}(?:now[ \t\n]{{1,4}})?"
+        rf"(?:an?[ \t\n]{{1,4}})?(?:[a-z-]{{1,30}}[ \t\n]{{1,4}}){{0,2}}{_AI}\b",
+        rf"\bas[ \t\n]{{1,4}}an?[ \t\n]{{1,4}}{_AI}\b[^.\n]{{0,40}}"
+        r"\byou[ \t\n]{1,4}(?:must|should|will)\b",
         # "new instructions:", "updated instructions:"
-        r"\b(?:new|updated|revised|real|actual)\s+instructions?\s*:",
+        r"\b(?:new|updated|revised|real|actual)[ \t\n]{1,4}instructions?[ \t]{0,4}:",
         # "do not tell the analyst", "don't mention this to the user"
-        r"\b(?:do not|don't|never)\s+(?:tell|inform|mention|reveal|show)\b[^.\n]{0,30}?"
-        r"\b(?:the\s+)?(?:user|analyst|reader|human|reviewer)s?\b",
+        r"\b(?:do not|don't|never)[ \t\n]{1,4}(?:tell|inform|mention|reveal|show)\b[^.\n]{0,30}?"
+        r"\bthe[ \t\n]{1,4}(?:user|analyst|reader|reviewer)s?\b",
         # chat-template tokens that have no business in a document
         r"<\|(?:im_start|im_end|system|user|assistant|endoftext)\|>|\[/?INST\]|<<SYS>>|"
-        r"^\s*#{2,}\s*(?:system|instructions?)\s*:?\s*$",
+        r"^[ \t]{0,4}#{2,6}[ \t]{0,4}(?:system|instructions?)[ \t]{0,4}:?[ \t]{0,4}$",
     )
 )
 

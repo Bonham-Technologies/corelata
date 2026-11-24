@@ -1,6 +1,13 @@
+import time
+
 import pytest
 
-from corelata.ingest.injection import instruction_match, suspect_flag, suspect_meta
+from corelata.ingest.injection import (
+    INSTRUCTION_PATTERNS,
+    instruction_match,
+    suspect_flag,
+    suspect_meta,
+)
 
 
 @pytest.mark.parametrize(
@@ -41,6 +48,13 @@ def test_instructions_to_an_ai_are_suspect(text):
         "The harbour master's instructions to crews were posted on 3 May.",
         "The message to the assistant minister was delayed.",
         "The minister drew attention to AI-enabled drones in a note to AI developers.",
+        "Commanders often ignore directives from the capital when supplies run short.",
+        "The president can override directives issued by the defence ministry.",
+        "Officials never mention human rights abuses in their briefings.",
+        "Handlers never reveal human sources to liaison partners.",
+        "The group's operators never reveal user data to outside parties.",
+        "Large language models, according to the report, are used to draft propaganda.",
+        "AI, in this case, refers to the group's automated targeting software.",
     ],
 )
 def test_ordinary_reporting_is_not_suspect(text):
@@ -56,3 +70,23 @@ def test_the_match_is_the_instruction_span():
 def test_the_model_input_flag_names_only_suspect_units():
     assert suspect_flag({"suspect": True, "hidden": True}) == {"suspect": True}
     assert suspect_flag({"ocr": True}) == {}
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "." + " " * 200_000,
+        "." + "\n" * 200_000,
+        "." + "a " * 100_000,
+        ". " * 100_000,
+        "AI " * 66_000,
+        "you are " * 25_000,
+        "ignore all of the " * 12_000,
+    ],
+)
+def test_no_pattern_backtracks_on_long_runs(text):
+    """A planted run of spaces, newlines or words must not stall ingest (CRL-137 review)."""
+    for pattern in INSTRUCTION_PATTERNS:
+        started = time.perf_counter()
+        pattern.search(text)
+        assert time.perf_counter() - started < 2

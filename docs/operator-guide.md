@@ -531,13 +531,14 @@ setting.
 - **Visible text that reads as an instruction is flagged.** A passage that matches a short list
   of patterns is marked `suspect: true` and still reaches the models, flagged, so the writer does
   not rest a claim on it and the auditor fails `icd203.tc.8` for a claim that does. The patterns
-  are: "ignore", "disregard", "forget", "override" or "bypass" followed by "instructions",
-  "prompts" or "directives"; "system prompt" or "developer message"; a note, message or
-  instructions "to" or "for" an AI, a language model, a chatbot or an assistant followed by a
-  colon, a comma or "reading this"; an AI addressed by name at the start of a sentence ("AI:",
-  "Assistant,"); "you are (now) an ... assistant" and "as an AI ..., you must"; "new
-  instructions:"; "do not tell the analyst (user, reader)"; and chat-template tokens such as
-  `<|im_start|>` or `[INST]` (`engine/corelata/ingest/injection.py`). A flag asks a reader to
+  are: "ignore", "disregard", "forget", "override" or "bypass" followed by "your", "previous",
+  "prior", "above" (or the like) "instructions", "prompts" or "directives", or by "all
+  instructions"; "system prompt" or "developer message"; a note, message or instructions "to"
+  or "for" an AI, a language model, a chatbot or an assistant followed by a colon, a comma or
+  "reading this"; an AI addressed by name at the start of a sentence ("AI:", "Assistant, mark
+  ...", but not "AI, in this case, ..."); "you are (now) an ... assistant" and "as an AI ..., you
+  must"; "new instructions:"; "do not tell the analyst (user, reader)"; and chat-template tokens
+  such as `<|im_start|>` or `[INST]` (`engine/corelata/ingest/injection.py`). A flag asks a reader to
   look; it is not a verdict, and a source that reports on prompt injection will be flagged too.
 
 The Sources tab of the review screen and `corelata trace` show, for each source, how many passages

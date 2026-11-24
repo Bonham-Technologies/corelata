@@ -160,14 +160,31 @@ class _Collector:
     def _hide(self, el: Any, tag: str) -> None:
         """A hidden element's text as blocks of their own, kept out of the visible text around
         it: after the current block for an inline element, in place for a block."""
+        items = self._hidden_items(el)
+        if _is_footnote(el) or tag in _BLOCK_TAGS:
+            self.flush()
+            self._add_hidden(items)
+        else:
+            self._pending.extend(items)
+
+    def _hidden_items(self, el: Any) -> list[Item]:
         inner = _Collector(self.locator, self._kinds[-1], hiding=True)
         inner.walk(el)
         inner.flush()
-        if _is_footnote(el) or tag in _BLOCK_TAGS:
-            self.flush()
-            self._add_hidden(inner.items)
-        else:
-            self._pending.extend(inner.items)
+        return inner.items
+
+    def _pre_text(self, el: Any) -> str:
+        """A `<pre>` element's text, as `text_content()` reads it but without the text of a
+        hidden element inside it, which is held for after the block (CRL-137)."""
+        parts = [el.text or ""]
+        for child in el:
+            if isinstance(child.tag, str):
+                if not self._hiding and _is_hidden(child):
+                    self._pending.extend(self._hidden_items(child))
+                else:
+                    parts.append(self._pre_text(child))
+            parts.append(child.tail or "")
+        return "".join(parts)
 
     def walk(self, el: Any) -> None:
         tag = _tag(el)
@@ -194,7 +211,7 @@ class _Collector:
                 kind = BlockKind.FOOTNOTE if footnote else _KIND_OF_TAG.get(tag, outer)
             self._kinds.append(kind)
         if tag == "pre":
-            self._buffer.append(_clean(el.text_content()).replace("\n", _LINE_BREAK))
+            self._buffer.append(_clean(self._pre_text(el)).replace("\n", _LINE_BREAK))
         else:
             if el.text:
                 self._buffer.append(_clean(el.text))
