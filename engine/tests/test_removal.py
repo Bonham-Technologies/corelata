@@ -1,12 +1,14 @@
 """CRL-125: removing a source added by mistake, or a whole project, from the command line."""
 
+import asyncio
 import json
 import logging
 import uuid
 
 import boto3
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
+from sqlalchemy.exc import DBAPIError
 
 from corelata import removal, service
 from corelata.config import S3StorageConfig
@@ -191,6 +193,7 @@ async def test_a_project_goes_with_everything_in_it(svc, tmp_path, caplog):
     did = await _discovery(svc, pid, [sid])
     other = await svc.project("other")
     kept = await svc.source(other)  # the same file in another project is its own
+    kept_run = await _completed_run(svc, other, [kept])
     plan = await removal.plan_project(svc.db, "p")
     with caplog.at_level(logging.INFO, logger="corelata.removal"):
         done = await removal.delete_project(svc.db, svc.storage, "p", expected=plan)
@@ -205,8 +208,12 @@ async def test_a_project_goes_with_everything_in_it(svc, tmp_path, caplog):
     ):
         assert await _count(svc.db, model, where) == 0
     files = tmp_path / "files"
-    assert not (files / "projects" / str(pid)).exists() and not (files / "runs").exists()
+    assert not (files / "projects" / str(pid)).exists()
+    assert not (files / "runs" / str(run_id)).exists()
     assert (files / "projects" / str(other) / "sources" / str(kept)).is_dir()
+    assert (files / "runs" / str(kept_run) / "report.md").is_file()
+    assert await _count(svc.db, Run, Run.project_id == other) == 1
+    assert await _count(svc.db, ExportRow, ExportRow.run_id == kept_run) == 1
     [line] = [r.getMessage() for r in caplog.records if r.name == "corelata.removal"]
     assert line == (
         f"deleted project 'p' ({pid}): 1 source, 1 run, 1 discovery; sources [{sid}]; "
@@ -267,6 +274,75 @@ async def test_a_storage_failure_deletes_no_row_and_running_it_again_finishes(sv
     monkeypatch.setattr(svc.storage, "delete_prefix", real)
     await removal.delete_project(svc.db, svc.storage, "p")
     assert await _count(svc.db, Project, Project.id == pid) == 0
+
+
+_BLOCKED_BY = text(
+    "SELECT count(*) FROM pg_stat_activity "
+    "WHERE datname = current_database() AND :holder = ANY(pg_blocking_pids(pid))"
+)
+
+
+async def _until_blocked_by(db, holder: int) -> None:
+    """Until another session in this database waits for a lock `holder`'s backend holds."""
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + 10
+    while True:
+        async with db.session() as watch:
+            if await watch.scalar(_BLOCKED_BY, {"holder": holder}):
+                return
+        assert loop.time() < deadline, "the removal never waited for the lock"
+        await asyncio.sleep(0.02)
+
+
+async def test_a_removal_that_loses_a_deadlock_deletes_no_file(svc, tmp_path):
+    """A return locks its run, then inserts the rerun into the project (KEY SHARE); a removal
+    locks the project, then deletes the run. When the two meet, Postgres aborts the one that
+    waited first, the removal: its rows stay, and so must every stored file; the operator is
+    told to try again (status 2)."""
+    pid = await svc.project()
+    sid = await svc.source(pid)
+    run_id = await _completed_run(svc, pid, [sid])
+    files = tmp_path / "files"
+    async with svc.db.session() as s, s.begin():
+        holder = await s.scalar(text("SELECT pg_backend_pid()"))
+        await runs.get_run(s, run_id, lock=True)  # as review_run does
+        removing = asyncio.create_task(removal.delete_project(svc.db, svc.storage, "p"))
+        await _until_blocked_by(svc.db, holder)  # it holds the project, waits for the run
+        s.add(Discovery(project_id=pid))  # the rerun's insert into the project
+        await s.flush()
+    with pytest.raises(
+        service.ConflictError, match=r"\(deadlock\); nothing was deleted, try again"
+    ):
+        await removing
+    assert await _count(svc.db, Run, Run.id == run_id) == 1
+    assert (files / "runs" / str(run_id) / "report.md").is_file()
+    assert (files / "projects" / str(pid) / "sources" / str(sid)).is_dir()
+
+
+async def test_another_database_error_is_not_called_a_lost_lock():
+    with pytest.raises(DBAPIError):
+        async with removal._lost_a_lock():
+            raise DBAPIError("DELETE", {}, Exception("connection reset"))
+
+
+async def test_an_insert_into_the_project_holds_the_removal_until_it_commits(svc, tmp_path):
+    """The project's row lock: a run, a source or a discovery being added when the removal
+    starts makes it wait; once it commits, the removal sees it and deletes nothing."""
+    pid = await svc.project()
+    sid = await svc.source(pid)
+    plan = await removal.plan_project(svc.db, "p")
+    async with svc.db.session() as s, s.begin():
+        holder = await s.scalar(text("SELECT pg_backend_pid()"))
+        s.add(Discovery(project_id=pid, state="completed"))  # KEY SHARE on the project
+        await s.flush()
+        removing = asyncio.create_task(
+            removal.delete_project(svc.db, svc.storage, "p", expected=plan)
+        )
+        await _until_blocked_by(svc.db, holder)
+    with pytest.raises(service.ConflictError, match="changed since it was listed"):
+        await removing
+    assert await _count(svc.db, Project, Project.id == pid) == 1
+    assert (tmp_path / "files" / "projects" / str(pid) / "sources" / str(sid)).is_dir()
 
 
 async def test_s3_storage_loses_the_objects_too(svc, s3):  # noqa: F811 - the fixture

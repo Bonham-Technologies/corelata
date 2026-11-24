@@ -908,7 +908,9 @@ This removes only closed jobs older than 30 days; it never touches runs, reports
 A file uploaded by mistake, or a whole project that should not exist, is removed from the command
 line. The web app and the HTTP API have no delete; this is an operator's job. A removal cannot be
 undone, except by restoring a backup (section 9), and the backups you already have still hold what
-it removed: delete or age out those too if the data must be gone everywhere.
+it removed: delete or age out those too if the data must be gone everywhere. A bucket with
+versioning turned on keeps the deleted objects' earlier versions; expire them with a lifecycle rule
+if they must go too.
 
 Find the source's id first. `corelata sources` lists a project's sources, oldest first, with how
 many runs used each:
@@ -961,10 +963,11 @@ ended is refused the same way; it ends by itself, at the latest by its deadline
 
 **While it runs** the project is locked: an upload or a new run in that project waits until the
 removal has finished. A progress page open on a deleted run shows that the report was deleted.
-The stored files are removed first, then the database rows, in one transaction: if the files
-volume or the bucket fails, nothing in the database changes and the command says what failed
-(`error: cannot delete …`, status 2); if it stops after the files, run the same command again, and
-it finishes.
+The database rows are deleted first, then the stored files, in one transaction that commits only
+after both: if the database refuses (a review returning one of the runs at that moment, say),
+nothing is deleted; if the files volume or the bucket fails, no row is deleted and the command says
+what failed (`error: cannot delete …`, status 2), though some files may already be gone; if it
+stops after the files, run the same command again, and it finishes.
 
 **The record.** On success the command prints `deleted source <id> (<name>) of project '<name>':
 N sources, N runs, N discoveries` (or `deleted project '<name>' (<id>): …`) and writes one JSON

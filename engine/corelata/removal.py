@@ -3,10 +3,12 @@ added by mistake or a project that should not exist. The web app and the API hav
 
 A removal takes the project row's lock (FOR UPDATE, so no run, source or discovery can be added
 to the project meanwhile), works out what goes, refuses when something it would take is still
-running, removes the stored files, then the rows, and announces every removed run on the run
-channel, all in one transaction. The files go first: if that fails nothing in the database
-changes, and if the transaction fails after them the same command run again finishes the job
-(a missing file is no error). What goes:
+running, deletes the rows, then removes the stored files, and announces every removed run on the
+run channel, all in one transaction. The rows go first, so every row lock is taken before a file
+is lost: a removal that loses a lock or a deadlock (a return locks its run, then inserts its
+rerun into the project) is rolled back with every file still there. If removing the files fails,
+the rows are rolled back too; if the commit fails after them, the same command run again finishes
+the job (a missing file is no error). What goes:
 
 - a source: its row and units, with every row that shares its stored file (a Coglossa export's
   guide), and the file's directory `projects/<project>/sources/<id>/`; the discoveries that read
@@ -18,14 +20,16 @@ changes, and if the transaction fails after them the same command run again fini
 - a project: everything in it, `projects/<id>/` and every run's `runs/<id>/`.
 """
 
+import contextlib
 import logging
 import uuid
-from collections.abc import Iterable
+from collections.abc import AsyncIterator, Iterable
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
 from sqlalchemy import ColumnElement, Select, delete, func, select
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from corelata.schema import TERMINAL_STATES, DiscoveryState, RunState
@@ -39,6 +43,8 @@ log = logging.getLogger("corelata.removal")
 
 _DISCOVERY_ENDED = {DiscoveryState.COMPLETED.value, DiscoveryState.FAILED.value}
 _LISTED = 5  # ids a refusal names before "and N more"
+# what the database says when a removal loses a lock to another change to the project
+_LOST_A_LOCK = {"40P01": "deadlock", "40001": "serialization failure", "55P03": "lock timeout"}
 
 
 @dataclass(frozen=True)
@@ -237,8 +243,7 @@ async def _remove(
         raise ConflictError(
             "what would be deleted changed since it was listed; nothing was deleted, try again"
         )
-    for prefix in removal.prefixes:
-        await storage_call(storage.delete_prefix, prefix)
+    # rows first: every lock and cascade is taken while nothing is lost yet (module docstring)
     if removal.whole_project:
         await runs.delete_project(s, removal.project_id)  # every row cascades from the project
     else:
@@ -246,8 +251,25 @@ async def _remove(
             if items:
                 await s.execute(delete(table).where(table.id.in_([i.id for i in items])))
         await s.execute(delete(SourceRow).where(SourceRow.id.in_([i.id for i in removal.sources])))
+    for prefix in removal.prefixes:
+        await storage_call(storage.delete_prefix, prefix)
     for run in removal.runs:  # an open progress page gets `event: deleted` (CRL-22)
         await runs.notify_run(s, run.id)
+
+
+@contextlib.asynccontextmanager
+async def _lost_a_lock() -> AsyncIterator[None]:
+    """A removal that loses a lock to another change to the project (a review returning one of
+    its runs, say) is a ConflictError. The rows go before the files, so it lost nothing."""
+    try:
+        yield
+    except DBAPIError as e:
+        what = _LOST_A_LOCK.get(getattr(e.orig, "sqlstate", None) or "")
+        if what is None:
+            raise
+        raise ConflictError(
+            f"another change to the project got in the way ({what}); nothing was deleted, try again"
+        ) from e
 
 
 def _audit(removal: Removal) -> None:
@@ -271,7 +293,7 @@ async def delete_source(
 ) -> Removal:
     """Delete the source as the module says. `expected`: the plan the operator confirmed; if
     what would go differs from it now, nothing is deleted (ConflictError)."""
-    async with db.session() as s, s.begin():
+    async with _lost_a_lock(), db.session() as s, s.begin():
         project_id = await s.scalar(select(SourceRow.project_id).where(SourceRow.id == source_id))
         if project_id is None:
             raise runs.NotFoundError(f"source {source_id} not found")
@@ -286,7 +308,7 @@ async def delete_project(
     db: Database, storage: Storage, name: str, *, expected: Removal | None = None
 ) -> Removal:
     """Delete the project and everything in it, as the module says."""
-    async with db.session() as s, s.begin():
+    async with _lost_a_lock(), db.session() as s, s.begin():
         project = await runs.find_project(s, name)
         await _lock_project(s, project.id)
         removal = await _project_removal(s, project)
