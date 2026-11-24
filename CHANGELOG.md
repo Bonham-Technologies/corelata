@@ -5,6 +5,7 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+- Operators can now remove a source uploaded by mistake, or a whole project, from the command line: `corelata sources --project NAME` lists a project's sources with their ids, `corelata delete-source ID` deletes a source with its stored file (refused while runs used it, unless `--with-runs` deletes those runs too), and `corelata delete-project NAME` deletes a project and everything in it. Both list what they delete and ask to confirm (`--yes` for scripts), refuse while a run they would delete is still queued or writing, and log one audit line (operator guide, "Removing a source or a project"). Ticket: CRL-125
 - The public site lives at https://corelata.tech: its canonical, Open Graph and structured-data URLs, sitemap, robots file, `security.txt`, page text and site check use the new host, and corelata.com redirects there. Ticket: CRL-143
 - No other site can show Corelata in a frame (`X-Frame-Options: SAMEORIGIN`; an HTML report: `DENY`), and every API answer except the health check carries `Cache-Control: no-store`, so report and source text is not kept in a shared workstation's browser cache. Ticket: CRL-131
 - Below 440 CSS px wide (400% zoom, or a phone held upright) the top bar now wraps onto extra lines and scrolls away with the page instead of clipping "Your projects" and covering the page, and the projects sidebar opens just below it (WCAG 1.4.10 Reflow). Ticket: CRL-129
