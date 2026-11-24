@@ -10,6 +10,7 @@ import corelata
 DATABASE_MODULES = (
     "corelata.store",
     "corelata.service",
+    "corelata.removal",
     "corelata.worker",
     "corelata.doctor",
     "corelata.cli_ops",
