@@ -224,7 +224,7 @@ async def run_writer(
             "value_statement": ctx.value_statement,
             "template": ctx.pack.template.model_dump(),
             "rules": [r.model_dump() for r in ctx.pack.rules_for("writer")],
-            "lexicon": ctx.pack.lexicon.model_dump(),
+            "lexicon": ctx.pack.lexicon.model_view(),
             "digests": ctx.digest_payload(),
             "units": ctx.unit_payload(select_writer_units(ctx)),
             "gate_evidence": list(ctx.gate_evidence),

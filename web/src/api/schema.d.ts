@@ -800,14 +800,20 @@ export interface components {
             confidence_definitions: {
                 [key: string]: string;
             };
+            /** Confidence Phrases */
+            confidence_phrases?: string[];
             /** Handling Markings */
             handling_markings: string[];
             /** Likelihood */
             likelihood: components["schemas"]["LikelihoodTerm"][];
+            /** Likelihood Alternates */
+            likelihood_alternates?: string[];
             /** Source Access */
             source_access?: string[];
             /** Source Descriptors */
             source_descriptors: string[];
+            /** Unlisted Probability Words */
+            unlisted_probability_words?: string[];
         };
         /** LikelihoodTerm */
         LikelihoodTerm: {

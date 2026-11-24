@@ -38,7 +38,7 @@ async def test_full_agreement_on_the_shipped_set(make_config, tmp_path):
         clock=_ticker(),
         progress=lines.append,
     )
-    assert report.summary.scenarios == 13 and report.summary.runs == 13
+    assert report.summary.scenarios == 15 and report.summary.runs == 15
     assert report.summary.errors == 0 and report.summary.full_agreement.ratio == 1.0
     assert report.summary.gate_agreement.total >= 1 and report.summary.rule_agreement.total >= 1
     assert report.models == {
@@ -50,7 +50,7 @@ async def test_full_agreement_on_the_shipped_set(make_config, tmp_path):
     assert report.scenarios_dir == str(SCENARIOS_DIR) and report.repeat == 1
     assert report.started_at == FROZEN and report.corelata_version
     assert exit_code(report) == 0
-    assert len(lines) == 13 and lines[0].startswith("badterm-fixed-one-loop 1/1: completed clean")
+    assert len(lines) == 15 and lines[0].startswith("badterm-fixed-one-loop 1/1: completed clean")
     trace = tmp_path / "bench" / "clean-single-source" / "run-1" / "trace.json"
     assert json.loads(trace.read_text())["run_id"] == "clean-single-source"
     assert report.rules["icd203.tc.2"].hit >= 1
