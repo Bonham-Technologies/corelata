@@ -85,6 +85,7 @@ def test_the_base_pack_fills_the_three_lists_from_icd_203():
         ("We assess with high confidence.", ["high confidence"]),
         ("Remote sensing shows likelihood rising.", []),
         ("The unlikelyhood and likelyish ideas.", []),
+        ("Dotless lıkely and dotted İmprobable are not the listed words.", []),
     ],
 )
 def test_matching_takes_whole_words_and_the_longest_phrase(text, found):

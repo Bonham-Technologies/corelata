@@ -71,11 +71,13 @@ class WordingCheck:
             r"\s+".join(map(re.escape, form.split()))
             for form in sorted(forms, key=lambda f: (-len(f), f))
         ]
-        self.pattern = re.compile(rf"(?<!\w)(?:{'|'.join(alternatives)})(?!\w)", re.IGNORECASE)
+        # Matched against casefolded text, not with re.IGNORECASE: that also matches "ı" and "İ"
+        # to "i", which casefold does not, so the match would have no entry in `forms`.
+        self.pattern = re.compile(rf"(?<!\w)(?:{'|'.join(alternatives)})(?!\w)")
 
     def find(self, text: str) -> list[Found]:
         """The listed wording in `text`, in order, each place matched once."""
-        return [self.forms[_norm(m.group())] for m in self.pattern.finditer(text)]
+        return [self.forms[_norm(m.group())] for m in self.pattern.finditer(text.casefold())]
 
     def problems(self, text: str, likelihood_term: str | None = None) -> list[str]:
         """What is wrong with one judgment's wording, each problem a phrase completing its name:
