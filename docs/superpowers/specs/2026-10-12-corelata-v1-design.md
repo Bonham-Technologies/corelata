@@ -531,6 +531,23 @@ whitespace, quote marks and other punctuation are set aside, and `pipeline.quote
 (default 1.0, exact) allows a fuzzy match. A rule the auditor already failed keeps the
 auditor's verdict and recommendation, with the quote problems appended to its evidence.
 
+CRL-136 amendment (ICD 203 D.6.e(2)(a)-(b)): the lexicon may carry `likelihood_alternates` (the
+other rows of the ICD 203 likelihood table), `unlisted_probability_words` (estimative wording on
+no row) and `confidence_phrases` (a confidence level written in prose). With any of them the
+engine fails `icd203.tc.2`, as an engine check, for a key judgment or `judgment` claim that puts a
+confidence phrase and a likelihood in one sentence, uses an alternate or unlisted word, or (a
+claim) does not write its own `likelihood_term` in its text (`engine check: c3 puts a confidence
+level and a likelihood in one sentence ('high confidence', 'likely')`). Matching ignores case,
+takes whole words and the longest listed phrase at each place ("very likely" is not "likely";
+"unlikely" contains no "likely"), and lets a term or alternate match its adverb ("almost
+certainly"); a sentence ends at `.`, `!` or `?` followed by whitespace, and a claim's text is read
+as stored. The check runs on a degraded audit too (R-M11-6), and a profile relaxes it by
+disabling `icd203.tc.2` or lowering its severity. The engine reads the lists; the writer and
+auditor are not sent them, so their requests are unchanged. A lexicon without them (every pack
+before) dumps, hashes and runs as before. The base pack, version 1.2.0, fills them from the ICD
+203 table: row 2 as alternates ("remote" only in phrases such as "remote chance"), common
+off-table words ("possibly", "perhaps", "certainly", ...) and "high/moderate/low confidence".
+
 ## §9 Rendering and exports
 
 Markdown and HTML renderers are pure functions of `Report` + resolved template + lexicon. DOCX uses python-docx; if the profile names a `docx_reference`, its styles are used, otherwise a neutral built-in reference. Rendered documents show claim ids as unobtrusive superscripts when `--with-claim-ids` is passed (default on for HTML in the review UI, off for DOCX downloads). A sources section lists each source with its descriptor, and for Coglossa sources the Coglossa run id. Open findings, when present, render as an appendix headed "Audit findings open at delivery".

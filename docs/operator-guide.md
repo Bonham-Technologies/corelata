@@ -286,6 +286,17 @@ config/packs/icd203-base/
   writer reads a date and an author or publisher from an HTML page's `<meta>` elements and a
   Word file's properties as hints, and a Coglossa export's note names its reliability tier (the
   lowest tier among its scored spans), which the review screen's Sources tab shows too.
+- **Uncertainty wording (ICD 203).** A lexicon with `likelihood_alternates`,
+  `unlisted_probability_words` or `confidence_phrases` has the engine check every key judgment
+  and judgment claim: a confidence phrase in the same sentence as a likelihood ("we assess with
+  high confidence that it is likely"), a word from another row of the ICD 203 table or none
+  ("probably", "perhaps"), or a claim whose text does not use its own likelihood term fails
+  `icd203.tc.2` as an engine finding (`engine check: c3 uses probability wording outside the
+  lexicon ('probable')`), and the writer revises. Matching ignores case and takes whole words, so
+  "unlikely" is not "likely"; a term also matches its adverb ("almost certainly"). The base
+  pack's lists come from the ICD 203 table; edit them in `lexicon.yaml`. A profile that mixes rows
+  on purpose (ICD 203 then asks for a disclaimer) relaxes the check by disabling `icd203.tc.2` or
+  overriding its severity to `minor`. The model is not sent these lists.
 - `draft: true` marks a profile that is still under review. A run cannot use a draft profile;
   remove the flag when the team has approved it.
 - `standards.default_pack` (default `icd203-base`) and `standards.default_profile` choose what a
@@ -994,7 +1005,10 @@ The exported directory's `trace.json` carries the snapshot.
 
 Take the rules you want, then run `pack validate` (section 5). Base pack 1.1.0 (CRL-96) adds the
 `source_summary` section to `template.yaml`, the `source_access` list to `lexicon.yaml` and the
-ICD 206 D.3.d wording of `icd206.src.1`; a pack without them runs exactly as before.
+ICD 206 D.3.d wording of `icd206.src.1`; a pack without them runs exactly as before. Base pack 1.2.0
+(CRL-136) adds the `likelihood_alternates`, `unlisted_probability_words` and `confidence_phrases`
+lists to `lexicon.yaml`; copy them into a customised lexicon to have the engine check uncertainty
+wording.
 
 **Going back.** Migrations only go forward, so an older version cannot run on an upgraded
 database. Run `docker compose down` in the new directory, then restore the pre-upgrade backup

@@ -102,9 +102,34 @@ class Lexicon(_Strict):
     # for its date of information, origin and access; an empty one (every lexicon before CRL-96)
     # asks for none of them and is left out of every dump, so such a pack hashes as it did.
     source_access: list[str] = Field(default_factory=list, exclude_if=_empty)
+    # CRL-136 (ICD 203 D.6.e(2)): the engine's check of a judgment's uncertainty wording
+    # (`corelata.wording`). `likelihood_alternates` are the other rows of the ICD 203 table,
+    # `unlisted_probability_words` estimative wording on no row, `confidence_phrases` how a
+    # confidence level is written in prose. With any of them the engine fails icd203.tc.2 on a
+    # judgment that uses an alternate or unlisted word, puts a confidence phrase and a likelihood
+    # in one sentence, or does not write its own likelihood term. The engine reads them; the
+    # model is not sent them (`model_view`). Empty lists, as in every lexicon before CRL-136, are
+    # left out of every dump, so such a pack hashes and runs as it did.
+    likelihood_alternates: list[str] = Field(default_factory=list, exclude_if=_empty)
+    unlisted_probability_words: list[str] = Field(default_factory=list, exclude_if=_empty)
+    confidence_phrases: list[str] = Field(default_factory=list, exclude_if=_empty)
 
     def terms(self) -> set[str]:
         return {t.term for t in self.likelihood}
+
+    @property
+    def checks_wording(self) -> bool:
+        """The engine checks judgments' uncertainty wording (CRL-136)."""
+        return any(getattr(self, name) for name in WORDING_LISTS)
+
+    def model_view(self) -> dict[str, object]:
+        """The lexicon as the writer and auditor read it: without the wording lists, which only
+        the engine reads (CRL-136). The prompts call the lexicon the only terms the model may
+        use, so a list of words to avoid would read as permission."""
+        return self.model_dump(exclude=set(WORDING_LISTS))
+
+
+WORDING_LISTS = ("likelihood_alternates", "unlisted_probability_words", "confidence_phrases")
 
 
 class PackMeta(_Strict):

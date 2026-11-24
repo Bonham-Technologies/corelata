@@ -1,0 +1,18 @@
+name: offlexicon-fixed-one-loop
+description: A judgment uses "probably", a word off the lexicon's row; the engine fails icd203.tc.2 though the auditor passes it, and one revision clears it.
+statement: Varna port capacity expansion matters to shippers
+sources:
+  - id: src1
+    paragraphs:
+      - The port of Varna expanded its container capacity in 2025.
+      - Capacity expansion was financed by a state bank.
+      - Container traffic through Varna rose 40 percent.
+      - OFFLEXICON appears in the Varna coverage.
+expect:
+  state: completed
+  status: clean
+  iterations: 1
+  failing_rules:
+    0: [icd203.tc.2]
+    1: []
+  open_findings: []

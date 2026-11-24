@@ -454,6 +454,23 @@ async def test_an_audit_that_fails_after_a_loop_drops_the_engine_finding_the_rev
     assert note.startswith("audit incomplete after 2 attempts: ")
 
 
+async def test_an_auditor_that_never_answers_still_fails_mixed_uncertainty_wording(
+    run, fake_backend
+):
+    """CRL-136, acceptance 6: the wording check runs on a degraded audit, as the unsourced-claim
+    check does, so a judgment mixing confidence and likelihood stays open on the report."""
+    fake_backend.script("auditor", *[BAD] * 4)
+    rec = await run(text_source("src1", *PORT, "MIXEDWORDING detail on Varna."))
+    assert rec.state is RunState.COMPLETED and rec.status is ReportStatus.FINDINGS_OPEN
+    assert rec.iterations == 0 and rec.report.metadata.open_findings == ["icd203.tc.2@0"]
+    [tc2] = delivered_open_findings(rec)
+    assert tc2.verdict is Verdict.FAIL and tc2.claim_ids == ["c0"]
+    assert tc2.evidence == (
+        "engine check: c0 puts a confidence level and a likelihood in one sentence "
+        "('moderate confidence', 'likely')"
+    )
+
+
 async def test_an_audit_that_fails_after_a_loop_keeps_the_auditors_own_findings_open(
     run, fake_backend
 ):

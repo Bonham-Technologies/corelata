@@ -31,3 +31,55 @@ source_access:
   - direct
   - indirect
   - unknown
+# CRL-136: what the engine checks a judgment's wording against (ICD 203 D.6.e(2)(a)-(b)). A
+# judgment that uses one of these alternates or unlisted words, puts a confidence phrase in the
+# same sentence as a likelihood, or does not write its own likelihood term fails icd203.tc.2.
+# Matching ignores case and runs on whole words; a likelihood term or alternate also matches its
+# adverb ("almost certainly", "probably"). The model is not sent these three lists.
+likelihood_alternates:  # row 2 of the ICD 203 table, which a product must not mix with row 1
+  - remote chance  # "remote" on its own is too common a word to check ("remote areas")
+  - remote possibility
+  - remote likelihood
+  - chance is remote
+  - chances are remote
+  - possibility is remote
+  - highly improbable
+  - improbable
+  - roughly even odds
+  - probable
+  - highly probable
+  - nearly certain
+unlisted_probability_words:  # estimative wording on no row of the table
+  - possibly
+  - possible that
+  - it is possible
+  - perhaps
+  - maybe
+  - conceivably
+  - presumably
+  - plausibly
+  - doubtful
+  - certainly
+  - definitely
+  - undoubtedly
+  - in all likelihood
+  - chances are
+  - odds are
+  - even chance
+  - fifty-fifty
+  - good chance
+  - real chance
+  - fair chance
+  - slight chance
+  - strong chance
+  - may well
+  - might well
+  - could well
+confidence_phrases:
+  - high confidence
+  - moderate confidence
+  - medium confidence
+  - low confidence
+  - highly confident
+  - moderately confident
+  - with confidence

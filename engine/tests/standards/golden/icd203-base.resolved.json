@@ -9,6 +9,15 @@
       "low": "Judgments rest on fragmentary, uncorroborated or questionable information, or on significant assumptions; alternatives are as plausible as the judgment.\n",
       "moderate": "Judgments rest on credible but incompletely corroborated information, or on sound reasoning from limited information; alternative explanations remain plausible.\n"
     },
+    "confidence_phrases": [
+      "high confidence",
+      "moderate confidence",
+      "medium confidence",
+      "low confidence",
+      "highly confident",
+      "moderately confident",
+      "with confidence"
+    ],
     "handling_markings": [
       "UNCLASSIFIED"
     ],
@@ -49,6 +58,20 @@
         "term": "almost certain"
       }
     ],
+    "likelihood_alternates": [
+      "remote chance",
+      "remote possibility",
+      "remote likelihood",
+      "chance is remote",
+      "chances are remote",
+      "possibility is remote",
+      "highly improbable",
+      "improbable",
+      "roughly even odds",
+      "probable",
+      "highly probable",
+      "nearly certain"
+    ],
     "source_access": [
       "direct",
       "indirect",
@@ -63,6 +86,33 @@
       "translated document",
       "technical data extract",
       "analyst-provided material"
+    ],
+    "unlisted_probability_words": [
+      "possibly",
+      "possible that",
+      "it is possible",
+      "perhaps",
+      "maybe",
+      "conceivably",
+      "presumably",
+      "plausibly",
+      "doubtful",
+      "certainly",
+      "definitely",
+      "undoubtedly",
+      "in all likelihood",
+      "chances are",
+      "odds are",
+      "even chance",
+      "fifty-fifty",
+      "good chance",
+      "real chance",
+      "fair chance",
+      "slight chance",
+      "strong chance",
+      "may well",
+      "might well",
+      "could well"
     ]
   },
   "name": "icd203-base",
@@ -334,5 +384,5 @@
     ]
   },
   "tone": "",
-  "version": "1.1.0"
+  "version": "1.2.0"
 }
