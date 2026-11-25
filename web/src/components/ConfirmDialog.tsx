@@ -15,7 +15,6 @@ export function ConfirmDialog({
   busy = false,
   confirmDisabled = false,
   initialFocusId,
-  restoreFocus = true,
   onConfirm,
   onCancel,
 }: {
@@ -29,8 +28,6 @@ export function ConfirmDialog({
   busy?: boolean;
   confirmDisabled?: boolean;
   initialFocusId?: string;
-  /** Give focus back to the opener on close; false when the caller moves it elsewhere. */
-  restoreFocus?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
@@ -50,9 +47,9 @@ export function ConfirmDialog({
       )?.focus();
     } else if (!open && dialog.open) {
       dialog.close();
-      if (restoreFocus) (opener.current as HTMLElement | null)?.focus?.();
+      (opener.current as HTMLElement | null)?.focus?.();
     }
-  }, [open, initialFocusId, restoreFocus]);
+  }, [open, initialFocusId]);
   return (
     <dialog
       ref={ref}

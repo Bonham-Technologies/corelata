@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { exportUrl, reportUrl } from "../../api/client";
 import { rerunFreed, useReview } from "../../api/runs";
@@ -44,7 +44,7 @@ export function ReviewActions({
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
-  const [acceptedHere, setAcceptedHere] = useState(false);
+  const acceptedHere = useRef(false);
   const [note, setNote] = useState("");
   const noteId = useId();
   const countId = useId();
@@ -53,19 +53,26 @@ export function ReviewActions({
   const decided = review !== null && !freed;
 
   /** Accept is final (CRL-127), so the button only asks; this sends it once confirmed. On success
-   * the dialog closes without giving focus back to the button, and the page moves it to the banner. */
+   * the dialog closes, and only then does the page move focus to the banner: while a modal dialog
+   * is open the page behind it is inert and cannot take focus. */
   function accept() {
     send.mutate(
       { action: "accept", note: "" },
       {
         onSuccess: () => {
-          setAcceptedHere(true);
+          acceptedHere.current = true;
           setConfirming(false);
-          onAccepted?.();
         },
       },
     );
   }
+
+  // The dialog is a child, so its effect (which closes it) has run by the time this one does.
+  useEffect(() => {
+    if (confirming || !acceptedHere.current) return;
+    acceptedHere.current = false;
+    onAccepted?.();
+  });
 
   function sendReturn() {
     send.mutate(
@@ -89,7 +96,6 @@ export function ReviewActions({
             className="primary"
             onClick={() => {
               send.reset();
-              setAcceptedHere(false);
               setConfirming(true);
             }}
             disabled={busy || decided}
@@ -126,7 +132,6 @@ export function ReviewActions({
         busyLabel="Accepting…"
         cancelLabel="Cancel"
         busy={busy}
-        restoreFocus={!acceptedHere}
         onConfirm={accept}
         onCancel={() => {
           send.reset();

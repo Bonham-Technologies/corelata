@@ -456,8 +456,24 @@ it("a stale page whose report another reviewer accepted shows the refusal, then 
   expect(screen.getByRole("button", { name: "Return with note…" })).toBeDisabled();
 });
 
+/** jsdom lets anything take focus; a browser makes the page behind a modal dialog inert, so a
+ * focus() outside an open dialog does nothing (CRL-127: the banner must be focused after the
+ * Accept dialog has closed, not while it is still open). */
+function focusLikeABrowser() {
+  const focus = HTMLElement.prototype.focus;
+  vi.spyOn(HTMLElement.prototype, "focus").mockImplementation(function (
+    this: HTMLElement,
+    options?: FocusOptions,
+  ) {
+    const modal = document.querySelector("dialog[open]");
+    if (modal && !modal.contains(this)) return;
+    focus.call(this, options);
+  });
+}
+
 it("moves focus to the banner after Accept (M18 polish F1)", async () => {
   let decided = false;
+  focusLikeABrowser();
   serveCompleted();
   server.use(
     http.get(`*/api/runs/${RUN_ID}`, () =>
