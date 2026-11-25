@@ -7,7 +7,7 @@ import {
 } from "@tanstack/react-query";
 import { useSyncExternalStore } from "react";
 import { client, unwrap } from "./client";
-import type { ProjectView, RunPage, SourceKind, SourceView } from "./types";
+import type { ProjectView, RunPage, SourceKind, SourceStatement, SourceView } from "./types";
 
 export const projectKeys = {
   all: ["projects"] as const,
@@ -163,6 +163,21 @@ export function useUploadSource(projectId: string) {
       void refreshProjects(queryClient);
       return queryClient.invalidateQueries({ queryKey: projectKeys.sources(projectId) });
     },
+  });
+}
+
+/** Set what the analyst states about a source (CRL-138); an empty value clears that field. */
+export function useEditSource(projectId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ sourceId, stated }: { sourceId: string; stated: Required<SourceStatement> }) =>
+      unwrap<SourceView>(
+        client.PATCH("/api/projects/{project_id}/sources/{source_id}", {
+          params: { path: { project_id: projectId, source_id: sourceId } },
+          body: stated,
+        }),
+      ),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: projectKeys.sources(projectId) }),
   });
 }
 

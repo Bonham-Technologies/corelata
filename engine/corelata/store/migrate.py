@@ -2,7 +2,7 @@
 schema (3.10.0), revision 0002 the Corelata tables, 0003 the orphan-sweep indexes, 0004
 `run.review_state`, 0005 the rerun's fate in it, 0006 the run list's index, 0007 drops the
 project index it made redundant, 0008 `run.prior_reports`, 0009 `run.kind` and
-`run.report_source_id`, 0010 brings procrastinate's schema to 3.12.0; a procrastinate upgrade
+`run.report_source_id`, 0010 `source.stated` and `run_source.stated`, 0011 brings procrastinate's schema to 3.12.0; a procrastinate upgrade
 needs a new revision that applies its migration SQL. Copied from Coglossa."""
 
 from dataclasses import dataclass

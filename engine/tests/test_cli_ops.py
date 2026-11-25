@@ -53,7 +53,7 @@ def _cli(capsys, *argv) -> tuple[int, str, str]:
 def test_migrate_is_idempotent_and_redacts_the_url(setup, capsys):
     config, _ = setup
     code, out, _ = _cli(capsys, "migrate", "--config", str(config))
-    assert code == 0 and "at revision 0010" in out and "corelata:corelata@" not in out
+    assert code == 0 and "at revision 0011" in out and "corelata:corelata@" not in out
 
 
 def test_migrate_unreachable_database(setup, capsys, monkeypatch):
@@ -169,6 +169,43 @@ def test_ingest_then_run_by_source_id(setup, capsys):
     run_id = _run_id(out)
     assert _cli(capsys, "worker", "--burst", *args)[0] == 0
     assert "completed" in _cli(capsys, "status", run_id, *args)[1]
+
+
+def test_ingest_and_source_set_state_a_source(setup, capsys):
+    """CRL-138: `ingest` takes the statement for each file it adds, and `source set` changes
+    it; an empty value clears a field, and a term outside the lexicon is refused."""
+    config, doc = setup
+    args = ["--config", str(config)]
+    code, out, _ = _cli(
+        capsys, "ingest", str(doc), "--project", "p", "--origin", "Varna Daily", *args
+    )
+    assert code == 0
+    [sid] = out.split()
+    code, out, _ = _cli(capsys, "source", "set", sid, "--project", "p", "--access", "direct", *args)
+    assert code == 0
+    assert out == f"source {sid}: stated\n  origin: Varna Daily\n  access: direct\n"
+    code, _, err = _cli(
+        capsys, "source", "set", sid, "--project", "p", "--descriptor", "gossip", *args
+    )
+    assert code == 2 and "descriptor 'gossip' is not in the lexicon" in err
+    code, _, err = _cli(capsys, "source", "set", sid, "--project", "p", *args)
+    assert code == 2 and "give at least one of --descriptor" in err
+    code, out, _ = _cli(
+        capsys,
+        "source",
+        "set",
+        sid,
+        "--project",
+        "p",
+        "--origin",
+        "",
+        "--access",
+        "",
+        *args,
+    )
+    assert code == 0 and out == f"source {sid}: nothing stated\n"
+    code, _, err = _cli(capsys, "source", "set", sid, "--project", "nope", "--origin", "x", *args)
+    assert code == 2 and "project 'nope' not found" in err
 
 
 def test_source_id_needs_project(setup, capsys):

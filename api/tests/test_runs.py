@@ -27,6 +27,7 @@ async def test_start_run_queues_one_job(api):
     [source] = (await api.client.get(f"/api/projects/{run['project_id']}/sources")).json()
     assert run["source_ids"] == [source["id"]]
     assert (run["value_statement"], run["profile"]) == (STATEMENT, None)
+    assert run["extra_guidance"] == ""  # none given (CRL-132)
     listed = await api.client.get("/api/runs", params={"project_id": run["project_id"]})
     assert listed.status_code == 200
     assert listed.json()["next_before"] is None
@@ -386,3 +387,11 @@ async def test_a_run_whose_rerun_was_cancelled_can_be_returned_again(api):
     assert shown["note"] == "Tighten it more"
     third = await api.client.post(review, json={"action": "return", "note": "Once more"})
     assert third.status_code == 409 and second["run_id"] in third.json()["detail"]
+
+
+async def test_a_run_carries_the_guidance_it_was_given(api):
+    """CRL-132: GET /runs/{id} returns `extra_guidance`, so a new report can start from it."""
+    run = await start_run(api, extra_guidance="Lead with the port's capacity.")
+    assert run["extra_guidance"] == "Lead with the port's capacity."
+    again = await api.client.get(f"/api/runs/{run['run_id']}")
+    assert again.json()["extra_guidance"] == "Lead with the port's capacity."

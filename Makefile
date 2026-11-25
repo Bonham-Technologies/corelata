@@ -54,7 +54,12 @@ image-app:
 COMPOSE_DEMO = cd deploy && CORELATA_DB_PASSWORD=$${CORELATA_DB_PASSWORD:-demo} \
   CORELATA_HTTP_BIND=127.0.0.1 docker compose -p corelata-demo -f compose.yaml -f compose.demo.yaml
 
+# deploy/config/packs/ is git-ignored (an install's edited packs live there); a fresh clone gets
+# the base pack, as install.sh does from the bundle, and an existing one is never overwritten.
 demo: image-app
+	@[ -d deploy/config/packs ] || { mkdir -p deploy/config/packs && \
+	  cp -R engine/corelata/standards/packs/icd203-base deploy/config/packs/ && \
+	  find deploy/config/packs -name __pycache__ -prune -exec rm -rf {} + ; }
 	$(COMPOSE_DEMO) up -d --wait
 	@echo "Corelata with the demo model: http://127.0.0.1:$${CORELATA_HTTP_PORT:-8080}"
 

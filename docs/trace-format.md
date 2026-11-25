@@ -117,6 +117,19 @@ from the file) and confirms, corrects or blanks them, and the engine never fills
 in. A Coglossa export's `reliability_note` starts with `Coglossa reliability tier <A|B|C>.` (the
 lowest tier among its scored spans) unless the note already names it.
 
+What the analyst states about a source (CRL-138: set at upload, with `PATCH
+/api/projects/{id}/sources/{sid}` or `corelata source set`) is snapshot when the run is queued and
+recorded on the run's source as `stated`: `{descriptor, reliability_note, date_of_information,
+origin, access}`, only the fields stated. The engine writes each stated value verbatim into the
+source's entry after every writer and conveyor reply (the date, origin and access only when the
+pack has source details), so the report carries the analyst's value and any other value of the
+entry is the model's: the trace summary's `sources[].stated` and the review screen's Sources tab
+label each value "stated by analyst" or "inferred by model". When a reply gave a stated field a
+different value, blank included, that stage's `output` has `stated_overrides`: one `{source_id,
+field, model_value, stated_value}` per value the engine wrote over; a drafting or conveying
+output without it changed nothing. A check run states nothing over the report it checks, so its
+sources have no `stated`. Sources with nothing stated, and every older trace, have neither key.
+
 `report.source_summary` (CRL-96) is present when the pack's template listed `source_summary`:
 `{strengths_and_weaknesses, key_sources, corroboration, conflicting_sources}`, the two lists
 being source ids. It is absent otherwise, and in every older trace.
@@ -152,7 +165,8 @@ or change`, whatever the auditor answered.
 `corelata trace RUN_DIR` prints a `TraceSummary` (`schema/trace-summary.schema.json`):
 sources with unit counts, digest flags, the number of pages OCR read (`ocr_pages`), a Coglossa
 export's `reliability_tier` (CRL-96) and the units marked hidden and suspect (`hidden_units`,
-`suspect_units`, CRL-137), the gate verdict, a stage timeline with durations, failed and
+`suspect_units`, CRL-137), what the analyst stated about each (`stated`, CRL-138, absent when
+nothing; `corelata trace` prints each value with "(stated by analyst)"), the gate verdict, a stage timeline with durations, failed and
 open rule ids per iteration, findings open at delivery, usage by role, and the earlier accepted
 reports the run was given (`prior_reports`, absent when none; the review screen's Process tab
 lists them).
