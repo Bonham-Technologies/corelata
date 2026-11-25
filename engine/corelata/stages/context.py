@@ -61,6 +61,9 @@ class StageContext:
     # Rules the engine records `not_applicable` (initial coverage) after the audit: the rules
     # with `with_prior_reports` when the project has no earlier accepted report.
     initial_coverage: list[str] = field(default_factory=list)
+    # CRL-138: the source entry values the engine wrote over in the last writer or conveyor
+    # reply because the analyst stated them (`stages.stated.apply_stated`); empty when none.
+    stated_overrides: list[dict[str, Any]] = field(default_factory=list)
 
     def source(self, source_id: str) -> Source:
         return next(s for s in self.sources if s.id == source_id)

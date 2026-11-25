@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { readFileSync } from "node:fs";
-import { NOTE_MAX_LENGTH, VALUE_STATEMENT_MAX_LENGTH } from "./limits";
+import { GUIDANCE_MAX_LENGTH, NOTE_MAX_LENGTH, VALUE_STATEMENT_MAX_LENGTH } from "./limits";
 
 const openapi = JSON.parse(
   readFileSync(new URL("../../../schema/openapi.json", import.meta.url), "utf8"),
@@ -13,4 +13,5 @@ const maxLength = (schema: string, field: string) =>
 it("matches the API's limits in schema/openapi.json (CRL-83)", () => {
   expect(maxLength("CreateRun", "value_statement")).toBe(VALUE_STATEMENT_MAX_LENGTH);
   expect(maxLength("ReviewRequest", "note")).toBe(NOTE_MAX_LENGTH);
+  expect(maxLength("CreateRun", "extra_guidance")).toBe(GUIDANCE_MAX_LENGTH);
 });

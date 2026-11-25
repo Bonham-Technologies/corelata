@@ -22,6 +22,7 @@ from corelata.schema import (
     RunState,
     Source,
     SourceKind,
+    SourceStatement,
     Usage,
     Verdict,
     reliability_tier,
@@ -53,6 +54,12 @@ class SourceSummary(BaseModel):
     # units whose text reads as an instruction to an AI system (`meta.suspect`)
     hidden_units: int
     suspect_units: int
+    # CRL-138: what the analyst stated about the source when the run was queued. The report's
+    # entry carries each of these values as stated by the analyst; every other value of the
+    # entry the model inferred. Left out when nothing was stated.
+    stated: SourceStatement = Field(
+        default_factory=SourceStatement, exclude_if=lambda stated: not stated.values()
+    )
 
 
 class UnitCount(NamedTuple):
@@ -252,6 +259,7 @@ def summarize(record: RunRecord, units: Mapping[str, UnitCount] | None = None) -
                 ocr_pages=ocr_page_count(s),
                 hidden_units=units[s.id].hidden,
                 suspect_units=units[s.id].suspect,
+                stated=s.stated,
             )
             for s in record.sources
         ],
@@ -380,6 +388,8 @@ def format_summary(s: TraceSummary, degradations: Sequence[str] = ()) -> str:
         extra += f", {hidden_note(src.hidden_units)}" if src.hidden_units else ""
         extra += f", {suspect_note(src.suspect_units)}" if src.suspect_units else ""
         out.append(f"  {src.id} {src.name} ({src.format}, {src.units} units{extra})")
+        stated = src.stated.values().items()
+        out += [f"    {name}: {value} (stated by analyst)" for name, value in stated]
     if s.gate is not None:
         supported = "supported" if s.gate.supported else "not supported"
         out.append(f"gate: {supported}, {s.gate.substance.value}; {' '.join(s.gate.reasons)}")

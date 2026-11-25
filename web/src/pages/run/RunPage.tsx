@@ -79,6 +79,13 @@ export function RunPage() {
         <RevisionOf runId={runId} parentRunId={progress.parent_run_id} />
       ) : null}
       {rejected ? outcome : <StatementShown statement={progress.value_statement} />}
+      {progress.extra_guidance ? (
+        <StatementShown
+          statement={progress.extra_guidance}
+          label="Guidance for the writer"
+          more="Show all the guidance"
+        />
+      ) : null}
       <Steps progress={progress} />
       {done || (progress.worker_gone && progress.cancel_requested) ? null : (
         // CRL-69: no false reassurance while nothing is writing it. One live region whose text

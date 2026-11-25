@@ -325,6 +325,20 @@ def load_pack(
     return resolved
 
 
+def statement_lexicon(name: str, *, packs_dir: Path | None = None) -> Lexicon:
+    """The lexicon an analyst's statement about a source is checked against before a run picks
+    a profile (CRL-138): the pack's own, with every source descriptor one of its profiles adds,
+    so a descriptor a team profile allows is not refused. A run checks the statement again
+    against the lexicon it snapshots."""
+    chain = _chain(name, packs_dir)
+    base = resolve(chain, None).lexicon
+    added = [
+        d for pack in chain for p in pack.profiles.values() for d in p.lexicon.source_descriptors
+    ]
+    descriptors = list(dict.fromkeys([*base.source_descriptors, *added]))
+    return base.model_copy(update={"source_descriptors": descriptors})
+
+
 def resolve_profile(profile: Profile, *, packs_dir: Path | None = None) -> ResolvedPack:
     """Resolve a profile that is not (yet) in any pack directory against the pack it extends
     (`corelata profile extract` proves its draft loads before writing it)."""

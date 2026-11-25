@@ -905,6 +905,31 @@ DELETE FROM procrastinate_jobs WHERE id IN (SELECT id FROM old)"
 
 This removes only closed jobs older than 30 days; it never touches runs, reports or traces.
 
+### What the analyst knows about a source
+
+The writer fills in each source's descriptor, reliability note, date of information, origin and
+access from the text alone. An analyst who knows better can state any of them (CRL-138): on the
+new report page, **Details** next to a source; in the API, the optional form fields
+`descriptor`, `reliability_note`, `date_of_information`, `origin` and `access` of an upload, or
+`PATCH /api/projects/{id}/sources/{sid}` with any of them (an empty string clears one); on the
+command line:
+
+```sh
+docker compose exec api corelata ingest /data/files/port.pdf --project "Black Sea" --origin "Varna Port Authority"
+docker compose exec api corelata source set <source-id> --project "Black Sea" --access direct --date-of-information "August 2026"
+docker compose exec api corelata source set <source-id> --project "Black Sea" --origin ""   # back to the model
+```
+
+A stated descriptor must be one of the default pack's source descriptors (any of its profiles'
+count) and a stated access one of its `source_access` terms; a run checks them again against the
+lexicon it uses and is refused, naming the source, when its profile does not allow one. Every
+stated value goes into the report's source entry exactly as given, in place of what the writer or
+the reviewer wrote (the date, origin and access only when the pack asks for them); the trace
+records each value the engine wrote over (`stated_overrides`, `docs/trace-format.md`) and the
+review screen's Sources tab marks each value "stated by analyst" or "inferred by model". A run
+keeps the values it was queued with: an edit changes reports started after it, and a return. A
+check (`kind: check`) does not apply them: it audits the report as its author wrote it.
+
 ### Removing a source or a project
 
 A file uploaded by mistake, or a whole project that should not exist, is removed from the command

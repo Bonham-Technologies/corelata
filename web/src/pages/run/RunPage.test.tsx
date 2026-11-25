@@ -1,4 +1,4 @@
-import { act, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { setEventSourceFactory } from "../../api/events";
 import { POLL_MS, runKeys } from "../../api/runs";
@@ -580,4 +580,27 @@ it("calls a check of a finished report Checking the report (CRL-94)", async () =
   renderApp(`/runs/${RUN_ID}`);
   expect(await screen.findByRole("heading", { name: "Checking the report" })).toBeInTheDocument();
   expect(currentStep("Reading the report")).toBeInTheDocument();
+});
+
+it("shows the guidance the writer was given, only when there is some (CRL-132)", async () => {
+  const guidance = "Lead with capacity.\nReviewer note: Add the 2027 date";
+  server.use(
+    http.get(`*/api/runs/${RUN_ID}`, () =>
+      HttpResponse.json(runProgress({ state: "gating", extra_guidance: guidance })),
+    ),
+  );
+  const first = renderApp(`/runs/${RUN_ID}`);
+  const block = await screen.findByRole("region", { name: "Guidance for the writer" });
+  expect(block).toHaveTextContent("Lead with capacity.");
+  expect(block).toHaveTextContent("Reviewer note: Add the 2027 date");
+  first.queryClient.clear();
+  cleanup();
+  server.use(
+    http.get(`*/api/runs/${RUN_ID}`, () =>
+      HttpResponse.json(runProgress({ state: "gating", extra_guidance: "" })),
+    ),
+  );
+  renderApp(`/runs/${RUN_ID}`);
+  await screen.findByRole("heading", { name: "Writing the report" });
+  expect(screen.queryByRole("region", { name: "Guidance for the writer" })).toBeNull();
 });

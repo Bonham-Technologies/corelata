@@ -52,6 +52,27 @@ def _config_arg(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--config", type=Path, default=default_config_path())
 
 
+# CRL-138: what the analyst states about a source, one option per source entry field
+STATEMENT_OPTIONS = {
+    "descriptor": "a source descriptor phrase from the pack's lexicon",
+    "reliability_note": "the source's reliability, currency and completeness",
+    "date_of_information": "when the source's information was issued or current",
+    "origin": "who originated, authored or published the information",
+    "access": "the source's access to what it reports, a term from the lexicon's source_access",
+}
+
+
+def _statement_args(parser: argparse.ArgumentParser) -> None:
+    for name, help_ in STATEMENT_OPTIONS.items():
+        parser.add_argument(f"--{name.replace('_', '-')}", dest=name, help=help_)
+
+
+def _statement(args: argparse.Namespace) -> dict[str, str]:
+    """The statement options given; an empty value clears that field."""
+    values = {name: getattr(args, name) for name in STATEMENT_OPTIONS}
+    return {k: v for k, v in values.items() if v is not None}
+
+
 def add_commands(sub: argparse._SubParsersAction) -> None:
     _config_arg(sub.add_parser("migrate", help="create or upgrade the database schema"))
     worker = sub.add_parser("worker", help="process queued runs and discoveries")
@@ -63,6 +84,19 @@ def add_commands(sub: argparse._SubParsersAction) -> None:
     ingest.add_argument("inputs", nargs="*", type=Path)
     ingest.add_argument("--coglossa-export", action="append", default=[], type=Path)
     ingest.add_argument("--project", required=True)
+    _statement_args(ingest)  # set on each file ingested (CRL-138)
+
+    source = sub.add_parser("source", help="what the analyst states about a source (database)")
+    source_sub = source.add_subparsers(dest="source_command", required=True)
+    source_set = source_sub.add_parser(
+        "set",
+        help="set a source's descriptor, reliability note, date of information, origin or "
+        "access; an empty value clears one, and the model infers it again",
+    )
+    _config_arg(source_set)
+    source_set.add_argument("source_id")
+    source_set.add_argument("--project", required=True)
+    _statement_args(source_set)
 
     status = sub.add_parser("status", help="show a queued run or discovery")
     _config_arg(status)
@@ -198,13 +232,22 @@ async def _ingest_files(
     inputs: list[Path],
     exports: list[Path],
     ocr: OcrSettings | None = None,
+    statement: dict[str, str] | None = None,
 ) -> list[uuid.UUID]:
     ids: list[uuid.UUID] = []
     for path in inputs:
-        ids += await service.add_source(db, storage, project_id, path.name, _read(path), ocr=ocr)
+        ids += await service.add_source(
+            db, storage, project_id, path.name, _read(path), ocr=ocr, statement=statement
+        )
     for path in exports:
         ids += await service.add_source(
-            db, storage, project_id, path.name, _read(path), coglossa_export=True
+            db,
+            storage,
+            project_id,
+            path.name,
+            _read(path),
+            coglossa_export=True,
+            statement=statement,
         )
     return ids
 
@@ -224,14 +267,45 @@ def _ingest(args: argparse.Namespace) -> int:
         raise ConfigError("give at least one input file or --coglossa-export")
     storage = build_storage(cfg.storage)
 
+    given = _statement(args)
+
     async def go(db: Database) -> list[uuid.UUID]:
+        statement = await service.check_statement(cfg, given) if given else None
         pid = await service.create_project(db, args.project)
         return await _ingest_files(
-            db, storage, pid, args.inputs, args.coglossa_export, cfg.ingest.ocr_settings()
+            db,
+            storage,
+            pid,
+            args.inputs,
+            args.coglossa_export,
+            cfg.ingest.ocr_settings(),
+            statement,
         )
 
     for sid in _with_db(cfg, go):
         print(sid)
+    return EXIT_OK
+
+
+def _source(args: argparse.Namespace) -> int:
+    """`corelata source set` (CRL-138): what the analyst states about a source."""
+    cfg = _load(args)
+    source_id = _id(args.source_id, "source")
+    given = _statement(args)
+    if not given:
+        options = ", ".join(f"--{n.replace('_', '-')}" for n in STATEMENT_OPTIONS)
+        raise ConfigError(f"give at least one of {options}")
+
+    async def go(db: Database) -> dict[str, str]:
+        async with db.session() as s:
+            project = await runs.find_project(s, args.project)
+        row = await service.edit_source(db, cfg, project.id, source_id, given)
+        return dict(row.stated or {})
+
+    stated = _with_db(cfg, go)
+    print(f"source {source_id}: " + ("nothing stated" if not stated else "stated"))
+    for name, value in stated.items():
+        print(f"  {name}: {value}")
     return EXIT_OK
 
 
@@ -530,6 +604,7 @@ COMMANDS: dict[str, Callable[[argparse.Namespace], int]] = {
     "migrate": _migrate,
     "worker": _worker,
     "ingest": _ingest,
+    "source": _source,
     "status": _status,
     "cancel": _cancel,
     "review": _review,

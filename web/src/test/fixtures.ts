@@ -61,6 +61,7 @@ export function runProgress(overrides: Partial<RunProgress> = {}): RunProgress {
     state: "created",
     status: null,
     value_statement: "Varna port capacity expansion matters to shippers",
+    extra_guidance: "",
     profile: null,
     source_ids: [source.id],
     iteration: 0,
@@ -440,6 +441,16 @@ export const runTrace: RunTrace = {
 
 export const reportJson: ReportJson = {
   title: "Varna Port Expansion: Implications for Shippers",
+  sources: [
+    {
+      source_id: "src1",
+      descriptor: "official government publication",
+      reliability_note: "The authority's own figures.",
+      origin: "Varna Port Authority",
+      access: "direct",
+    },
+    { source_id: "src2", descriptor: "translated document", reliability_note: "" },
+  ],
   claims: [
     {
       id: "c1",
