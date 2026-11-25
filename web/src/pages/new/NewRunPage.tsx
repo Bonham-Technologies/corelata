@@ -9,7 +9,7 @@ import { ErrorMessage } from "../../components/ErrorMessage";
 import { useActiveProject, useDocumentTitle } from "../../components/frame";
 import { NotFound } from "../../components/NotFound";
 import { clearDraft, useDraft } from "../../lib/draft";
-import { VALUE_STATEMENT_MAX_LENGTH } from "../../lib/limits";
+import { GUIDANCE_MAX_LENGTH, VALUE_STATEMENT_MAX_LENGTH } from "../../lib/limits";
 import { SearchParamsWriterProvider, useSearchParamsWriter } from "../../lib/searchParams";
 import { decodeSelection, encodeSelection, SELECTION_PARAM, withAdded } from "../../lib/selection";
 import { FROM_PARAM, offeredStatement } from "../../lib/startFrom";
@@ -194,6 +194,7 @@ export function NewRunPage() {
     Boolean(projectId) &&
     statement.trim().length > 0 &&
     statement.length <= VALUE_STATEMENT_MAX_LENGTH &&
+    guidance.length <= GUIDANCE_MAX_LENGTH && // an earlier revision's can be longer (CRL-132)
     sourceIds.length > 0 &&
     !start.isPending;
 

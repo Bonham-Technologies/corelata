@@ -18,7 +18,7 @@ import {
   sources,
 } from "../../test/fixtures";
 import { expectNoEngineWords, visiblePrimaryButtons } from "../../test/engine-words";
-import { VALUE_STATEMENT_MAX_LENGTH } from "../../lib/limits";
+import { GUIDANCE_MAX_LENGTH, VALUE_STATEMENT_MAX_LENGTH } from "../../lib/limits";
 import { decodeSelection, SELECTION_PARAM, sourceToken } from "../../lib/selection";
 import { renderApp } from "../../test/render";
 import { server } from "../../test/server";
@@ -859,6 +859,27 @@ describe("starting from an earlier run (CRL-84)", () => {
     await waitFor(() =>
       expect(screen.getByRole("textbox", { name: "Guidance for the writer" })).toHaveValue(stored),
     );
+  });
+
+  it("a revision's guidance over the limit opens the fold, says to shorten it and holds Write (CRL-132)", async () => {
+    // a revision's stored guidance carries the reviewer notes, so it can pass the 8,000 a new
+    // run accepts; sending it would only earn a 422
+    const long = "g".repeat(GUIDANCE_MAX_LENGTH - 10) + "\nReviewer note: add the 2027 date";
+    serveEarlier(() => HttpResponse.json({ ...EARLIER, extra_guidance: long }));
+    renderApp(`/new?project=${project.id}&from=${RUN_ID}`);
+    const box = screen.getByRole("textbox", { name: "Guidance for the writer" });
+    await waitFor(() => expect(box).toHaveValue(long));
+    expect(screen.getByText("More options").closest("details")).toHaveAttribute("open");
+    expect(box).toBeInvalid();
+    expect(box).toHaveAccessibleDescription(
+      `${long.length.toLocaleString()} of 8,000 characters Shorten the guidance to write the report.`,
+    );
+    const start = screen.getByRole("button", { name: "Write the report" });
+    expect(start).toBeDisabled();
+    fireEvent.change(box, { target: { value: long.slice(0, GUIDANCE_MAX_LENGTH) } });
+    expect(screen.queryByText("Shorten the guidance to write the report.")).toBeNull();
+    expect(box).toBeValid();
+    expect(start).toBeEnabled();
   });
 
   it("prefills the statement, sources, profile and rounds, then drops `from` so a reload keeps the edits", async () => {

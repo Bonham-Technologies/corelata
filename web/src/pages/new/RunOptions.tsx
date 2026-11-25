@@ -33,7 +33,9 @@ export function RunOptions({
 }: {
   profile: string | null;
   onProfile: (profile: string | null) => void;
-  /** Guidance for the writer (CRL-132), at most GUIDANCE_MAX_LENGTH characters. */
+  /** Guidance for the writer (CRL-132), at most GUIDANCE_MAX_LENGTH characters. Guidance set by
+   * the page rather than typed (an earlier revision's, with its reviewer notes) can be longer,
+   * which maxLength does not trim: the field then says to shorten it, and the fold opens. */
   guidance: string;
   onGuidance: (guidance: string) => void;
   maxIterations: number;
@@ -49,6 +51,8 @@ export function RunOptions({
   const roundsId = useId();
   const guidanceId = useId();
   const countId = useId();
+  const tooLongId = useId();
+  const guidanceTooLong = guidance.length > GUIDANCE_MAX_LENGTH;
   const [typed, setTyped] = useState<string | null>(null); // null: show maxIterations
   const offered = pack?.profiles ?? [];
   const usable = profile === null || offered.some((p) => p.name === profile && !p.draft);
@@ -62,6 +66,9 @@ export function RunOptions({
     fold.current!.open = true; // the note is in the fold
     onProfile(null);
   }, [stale, onProfile]);
+  useEffect(() => {
+    if (guidanceTooLong) fold.current!.open = true; // the reason Write is held is in the fold
+  }, [guidanceTooLong]);
   return (
     <details ref={fold} className="card options">
       <summary>More options</summary>
@@ -113,10 +120,22 @@ export function RunOptions({
           value={guidance}
           dir="auto"
           maxLength={GUIDANCE_MAX_LENGTH}
-          aria-describedby={nearLimit(guidance, GUIDANCE_MAX_LENGTH) ? countId : undefined}
+          aria-describedby={
+            guidanceTooLong
+              ? `${countId} ${tooLongId}`
+              : nearLimit(guidance, GUIDANCE_MAX_LENGTH)
+                ? countId
+                : undefined
+          }
+          aria-invalid={guidanceTooLong || undefined}
           onChange={(e) => onGuidance(e.target.value)}
         />
         <CharCount id={countId} value={guidance} max={GUIDANCE_MAX_LENGTH} />
+        {guidanceTooLong ? (
+          <p id={tooLongId} className="error">
+            Shorten the guidance to write the report.
+          </p>
+        ) : null}
       </div>
       {dropped !== null ? (
         <p className="muted">
