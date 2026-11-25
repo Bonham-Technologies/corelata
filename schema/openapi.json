@@ -1713,6 +1713,12 @@
             ],
             "title": "Export Error"
           },
+          "extra_guidance": {
+            "default": "",
+            "description": "The guidance the writer was given: what the analyst wrote, and for a revision the reviewer notes appended to it (CRL-132).",
+            "title": "Extra Guidance",
+            "type": "string"
+          },
           "finished_at": {
             "anyOf": [
               {

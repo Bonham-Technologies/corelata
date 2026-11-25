@@ -61,6 +61,7 @@ export function runProgress(overrides: Partial<RunProgress> = {}): RunProgress {
     state: "created",
     status: null,
     value_statement: "Varna port capacity expansion matters to shippers",
+    extra_guidance: "",
     profile: null,
     source_ids: [source.id],
     iteration: 0,
