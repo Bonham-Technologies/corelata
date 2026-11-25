@@ -132,6 +132,7 @@ export function ReviewActions({
         busyLabel="Accepting…"
         cancelLabel="Cancel"
         busy={busy}
+        confirmDisabled={decided}
         onConfirm={accept}
         onCancel={() => {
           send.reset();

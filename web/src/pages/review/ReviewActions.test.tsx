@@ -420,6 +420,8 @@ it.each([409, 503])(
     expect(reads).toBeGreaterThan(1);
     expect(screen.getByRole("button", { name: "Accept" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Return with note…" })).toBeDisabled();
+    // the dialog stays open with the refusal, but cannot send the same accept again
+    expect(screen.getByRole("button", { name: "Accept report" })).toBeDisabled();
   },
 );
 
