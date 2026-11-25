@@ -1,6 +1,7 @@
 """CRL-138: what the analyst states about a source, set at upload or later, checked against the
 pack's lexicon and snapshot by each run when it is queued."""
 
+import asyncio
 import json
 
 import pytest
@@ -10,7 +11,7 @@ from corelata.schema import RunKind, SourceStatement
 from corelata.store import runs
 from tests.ingest.test_coglossa import export as coglossa_export
 from tests.standards.test_loader import write_pack
-from tests.test_service import PORT_TEXT, Svc
+from tests.test_service import PORT_TEXT, Svc, _waiting_on_a_lock
 
 
 @pytest.fixture
@@ -41,6 +42,28 @@ async def test_an_edit_sets_merges_and_clears_fields(svc):
     assert await _stated(svc, sid) == {"descriptor": "open-source report"}
     await service.edit_source(svc.db, svc.cfg, pid, sid, {"descriptor": ""})
     assert await _stated(svc, sid) is None  # nothing stated reads as before
+
+
+async def test_an_edit_waits_for_another_and_keeps_its_fields(svc):
+    """Two edits at once: the second waits at the source's row lock and merges into what the
+    first wrote, rather than writing over it from the statement it read before."""
+    pid = await svc.project()
+    sid = await svc.source(pid)
+    async with svc.db.session() as s, s.begin():
+        await runs.get_source(s, sid, lock=True)
+        second = asyncio.create_task(
+            service.edit_source(svc.db, svc.cfg, pid, sid, {"access": "direct"})
+        )
+        for _ in range(200):
+            if await _waiting_on_a_lock(svc.db):
+                break
+            assert not second.done(), "the second edit went past the source's lock"
+            await asyncio.sleep(0.05)
+        else:
+            pytest.fail("the second edit never waited on the source's lock")
+        await runs.set_source_statement(s, sid, SourceStatement(origin="Varna Daily"))
+    row = await second
+    assert row.stated == {"origin": "Varna Daily", "access": "direct"}
 
 
 async def test_an_edit_is_checked_against_the_lexicon_and_its_limits(svc):

@@ -318,7 +318,7 @@ async def edit_source(
     clearing one; the others stay. A run already queued keeps what it was queued with."""
     given = await check_statement(cfg, changes)
     async with db.session() as s, s.begin():
-        row = await runs.get_source(s, source_id)
+        row = await runs.get_source(s, source_id, lock=True)
         if row.project_id != project_id:
             raise runs.NotFoundError(f"source {source_id} not in project {project_id}")
         return await runs.set_source_statement(s, source_id, _restated(row, given))
@@ -465,7 +465,7 @@ async def _restate_existing(
     if not statement:
         return
     async with db.session() as s, s.begin():
-        row = await runs.get_source(s, source_id)
+        row = await runs.get_source(s, source_id, lock=True)
         await runs.set_source_statement(s, source_id, _restated(row, statement))
 
 

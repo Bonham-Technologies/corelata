@@ -7,6 +7,7 @@ from typing import Any
 from pydantic import BaseModel, Field, field_validator
 
 from corelata.schema.document import BlockKind
+from corelata.text import clean_text
 
 
 class SourceKind(StrEnum):
@@ -79,7 +80,9 @@ class SourceStatement(BaseModel):
     @field_validator(*STATED_FIELDS, mode="before")
     @classmethod
     def _strip(cls, value: object) -> object:
-        return value.strip() if isinstance(value, str) else value
+        # a pasted value may carry characters a DOCX export cannot hold (a vertical tab, other
+        # controls): they go, as ingest drops them from a source's text
+        return clean_text(value).strip() if isinstance(value, str) else value
 
     def values(self) -> dict[str, str]:
         """The stated fields and their values, in source entry order; empty when none is."""

@@ -326,8 +326,20 @@ async def lock_project(s: AsyncSession, project_id: uuid.UUID) -> None:
     )
 
 
-async def get_source(s: AsyncSession, source_id: uuid.UUID) -> SourceRow:
-    row = await s.get(SourceRow, source_id)
+async def get_source(s: AsyncSession, source_id: uuid.UUID, *, lock: bool = False) -> SourceRow:
+    """`lock`: hold the row until the transaction ends (FOR NO KEY UPDATE), so two edits of what
+    the analyst states about it cannot both read the old statement and the second drop the
+    first's fields (CRL-138); queueing a run over the source, which takes KEY SHARE, is not held
+    up."""
+    if lock:
+        row = await s.scalar(
+            select(SourceRow)
+            .where(SourceRow.id == source_id)
+            .with_for_update(key_share=True)
+            .execution_options(populate_existing=True)
+        )
+    else:
+        row = await s.get(SourceRow, source_id)
     if row is None:
         raise NotFoundError(f"source {source_id} not found")
     return row

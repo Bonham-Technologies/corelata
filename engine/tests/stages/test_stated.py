@@ -109,6 +109,9 @@ def test_statement_errors_check_the_lexicon(pack):
 def test_a_statement_strips_values_and_dumps_only_what_is_stated():
     stated = SourceStatement(origin="  Reuters  ", access=" ")
     assert stated.values() == {"origin": "Reuters"}
+    # a pasted vertical tab or control character would stop the DOCX export
+    pasted = SourceStatement(reliability_note="Checked.\x0bTwice.\x01", access="\x00")
+    assert pasted.values() == {"reliability_note": "Checked.\nTwice."}
     assert stated.model_dump() == {"origin": "Reuters"}
     source = text_source("src1", "x")
     assert "stated" not in source.model_dump()
