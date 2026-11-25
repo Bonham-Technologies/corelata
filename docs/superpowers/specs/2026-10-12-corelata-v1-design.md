@@ -679,7 +679,7 @@ child_state}`), computed by three statements for the whole list. `RunSummary` ca
 
 ### §10.2 CLI
 
-`corelata ingest`, `discover`, `run`, `report`, `trace`, `review`, `pack validate|show|diff`, `profile extract`, `doctor`, `fake-openai`, `migrate`, `worker`. `corelata run` can execute in-process without Postgres for M1 (results written to a directory), and against the database from M3. With `--project NAME` (M3) `run` and `discover` ingest their inputs into the project and queue the work; `ingest`, `status`, `cancel`, `review`, `export`, `migrate`, `worker` and `doctor` complete the queued surface.
+`corelata ingest`, `discover`, `run`, `report`, `trace`, `review`, `pack validate|show|diff`, `profile extract`, `doctor`, `fake-openai`, `migrate`, `worker`. `corelata run` can execute in-process without Postgres for M1 (results written to a directory), and against the database from M3. With `--project NAME` (M3) `run` and `discover` ingest their inputs into the project and queue the work; `ingest`, `status`, `cancel`, `review`, `export`, `migrate`, `worker` and `doctor` complete the queued surface. `sources`, `delete-source` and `delete-project` (CRL-125) let an operator remove a source added by mistake, or a project; the web app and the API have no delete.
 
 M12 amendment (CRL-27): `doctor`'s backend check reports how many models the server serves and,
 for each configured model on that backend, whether it is served; a missing model's fix names up

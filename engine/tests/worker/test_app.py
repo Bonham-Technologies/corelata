@@ -1,5 +1,6 @@
 import asyncio
 import dataclasses
+import logging
 import os
 import signal
 from types import SimpleNamespace
@@ -156,7 +157,7 @@ async def test_burst_does_not_spin_on_a_job_whose_lock_is_held(worker_env, pg_ur
     assert await _jobs(svc.db) == [("failed", "run:h", "run:h")]  # the stalled copy
 
 
-async def test_requeue_stalled_closes_a_copy_that_has_a_waiting_twin(db, pg_url):
+async def test_requeue_stalled_closes_a_copy_that_has_a_waiting_twin(db, pg_url, caplog):
     await _stalled_copy_with_a_waiting_copy(db, pg_url, "run:t", "t")
     async with open_app(pg_url) as opened:
         queue = ProcrastinateQueue(opened)
@@ -165,7 +166,9 @@ async def test_requeue_stalled_closes_a_copy_that_has_a_waiting_twin(db, pg_url)
             await conn.execute(
                 text("UPDATE procrastinate_jobs SET status = 'doing' WHERE lock = 'discovery:u'")
             )
-        assert await requeue_stalled(opened.job_manager, 60) == 1
+        with caplog.at_level(logging.WARNING, logger="corelata.worker"):
+            assert await requeue_stalled(opened.job_manager, 60) == 1
+    assert "a copy is waiting" in caplog.text
     assert sorted(await _jobs(db)) == [
         ("failed", "run:t", "run:t"),
         ("todo", "run:t", "run:t"),
@@ -271,20 +274,28 @@ async def test_cancelling_burst_mode_propagates(worker_env, pg_url, monkeypatch)
 
 
 async def test_requeue_stalled():
+    jobs = [SimpleNamespace(id=1), SimpleNamespace(id=2)]
+
+    class Connector:
+        async def execute_query_all_async(self, query, *, job_id):
+            return [{"status": "todo", "attempts": 1}]  # re-queued
+
     class Manager:
+        connector = Connector()
+
         def __init__(self):
             self.retried = []
 
         async def get_stalled_jobs(self, *, seconds_since_heartbeat):
             assert seconds_since_heartbeat == 60
-            return ["job-1", "job-2"]
+            return jobs
 
         async def retry_job(self, job):
             self.retried.append(job)
 
     manager = Manager()
     assert await requeue_stalled(manager, 60) == 2
-    assert manager.retried == ["job-1", "job-2"]
+    assert manager.retried == jobs
 
 
 async def test_requeue_stalled_task_uses_the_configured_threshold(make_config):

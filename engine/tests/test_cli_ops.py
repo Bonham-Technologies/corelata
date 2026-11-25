@@ -1,3 +1,4 @@
+import io
 import json
 import logging
 import re
@@ -53,7 +54,7 @@ def _cli(capsys, *argv) -> tuple[int, str, str]:
 def test_migrate_is_idempotent_and_redacts_the_url(setup, capsys):
     config, _ = setup
     code, out, _ = _cli(capsys, "migrate", "--config", str(config))
-    assert code == 0 and "at revision 0010" in out and "corelata:corelata@" not in out
+    assert code == 0 and "at revision 0011" in out and "corelata:corelata@" not in out
 
 
 def test_migrate_unreachable_database(setup, capsys, monkeypatch):
@@ -490,3 +491,95 @@ def test_a_bad_parent_run_creates_no_project(setup, capsys, pg_url):
     with psycopg.connect(pg_url) as conn:
         assert conn.execute("SELECT count(*) FROM project WHERE name = 'second'").fetchone() == (0,)
         assert conn.execute("SELECT count(*) FROM source").fetchone() == (1,)
+
+
+class _Terminal(io.StringIO):
+    """Standard input as an operator's terminal that types `answer`."""
+
+    def isatty(self) -> bool:
+        return True
+
+
+def _typing(monkeypatch, answer: str) -> None:
+    monkeypatch.setattr("sys.stdin", _Terminal(answer + "\n" if answer else ""))
+
+
+def test_delete_source_refuses_a_used_one_then_takes_its_runs_with_with_runs(
+    setup, capsys, tmp_path, pg_url
+):
+    """CRL-125: the operator finds the source's id, is refused while runs used it, and with
+    --with-runs it goes with its run, its rows and its files; the audit line is on stderr."""
+    config, doc = setup
+    args = ["--config", str(config)]
+    run_id = _run_id(
+        _cli(capsys, "run", str(doc), "--project", "p", "--statement", STATEMENT, *args)[1]
+    )
+    code, _, err = _cli(capsys, "delete-project", "p", "--yes", *args)
+    assert code == 2 and f"1 run not ended yet: {run_id}; cancel" in err
+    assert _cli(capsys, "worker", "--burst", *args)[0] == 0
+    code, out, _ = _cli(capsys, "sources", "--project", "p", *args)
+    [line] = out.splitlines()
+    source_id = line.split()[0]
+    assert code == 0 and line.endswith("used by 1 run     port.txt")
+    code, out, err = _cli(capsys, "delete-source", source_id, "--yes", *args)
+    assert code == 2 and out == ""
+    assert err.strip() == (
+        f"error: source {source_id} (port.txt) was used by 1 run: {run_id}; add --with-runs "
+        "to delete those runs and their reports too"
+    )
+    code, out, err = _cli(capsys, "delete-source", source_id, "--with-runs", "--yes", *args)
+    assert code == 0
+    assert f"  run {run_id}  completed" in out
+    assert out.splitlines()[-1] == (
+        f"deleted source {source_id} (port.txt) of project 'p': 1 source, 1 run, 0 discoveries"
+    )
+    audit = json.loads(err.strip().splitlines()[-1])
+    assert audit["logger"] == "corelata.removal" and run_id in audit["message"]
+    code, _, err = _cli(capsys, "status", run_id, *args)
+    assert code == 2 and f"no run or discovery {run_id}" in err
+    files = tmp_path / "files"
+    assert not (files / "runs").exists() and not list((files / "projects").rglob("port.txt"))
+    with psycopg.connect(pg_url) as conn:
+        for table in ("source", "source_unit", "run", "llm_call", "export", "stage_result"):
+            assert conn.execute(f"SELECT count(*) FROM {table}").fetchone() == (0,)
+        assert conn.execute("SELECT count(*) FROM project").fetchone() == (1,)
+    code, _, err = _cli(capsys, "delete-source", source_id, "--yes", *args)
+    assert code == 2 and f"source {source_id} not found" in err
+    code, _, err = _cli(capsys, "delete-source", "nope", "--yes", *args)
+    assert code == 2 and "'nope' is not a source id" in err
+
+
+def test_delete_asks_at_a_terminal_and_never_without_one(setup, capsys, monkeypatch, pg_url):
+    config, doc = setup
+    args = ["--config", str(config)]
+    assert _cli(capsys, "ingest", str(doc), "--project", "p", *args)[0] == 0
+    monkeypatch.setattr("sys.stdin", io.StringIO(""))  # not a terminal: a script or cron
+    code, _, err = _cli(capsys, "delete-project", "p", *args)
+    assert code == 2 and "needs a terminal to confirm; add --yes" in err
+    for answer in ("yes", ""):  # a wrong word, or end of input
+        _typing(monkeypatch, answer)
+        code, out, err = _cli(capsys, "delete-project", "p", *args)
+        assert code == 1 and err.strip() == "not confirmed; nothing was deleted"
+        assert "This deletes project 'p' (" in out and "Type 'p' to go on" in out
+    with psycopg.connect(pg_url) as conn:
+        assert conn.execute("SELECT count(*) FROM source").fetchone() == (1,)
+    _typing(monkeypatch, "p")
+    code, out, _ = _cli(capsys, "delete-project", "p", *args)
+    # the answer is not echoed here as a terminal would, so the result follows the prompt
+    assert code == 0 and "go on: deleted project 'p' (" in out.splitlines()[-1]
+    with psycopg.connect(pg_url) as conn:
+        assert conn.execute("SELECT count(*) FROM project").fetchone() == (0,)
+    code, _, err = _cli(capsys, "delete-project", "p", "--yes", *args)
+    assert code == 2 and "project 'p' not found" in err
+    code, _, err = _cli(capsys, "sources", "--project", "p", *args)
+    assert code == 2 and "project 'p' not found" in err
+
+
+def test_delete_source_asks_for_the_word_delete(setup, capsys, monkeypatch):
+    config, doc = setup
+    args = ["--config", str(config)]
+    [source_id] = _cli(capsys, "ingest", str(doc), "--project", "p", *args)[1].split()
+    _typing(monkeypatch, "delete")
+    code, out, _ = _cli(capsys, "delete-source", source_id, *args)
+    assert code == 0 and "Type 'delete' to go on" in out
+    assert _cli(capsys, "sources", "--project", "p", *args)[1] == ""

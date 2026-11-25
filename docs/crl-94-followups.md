@@ -73,5 +73,5 @@ later. The ticket's scope is in the spec; this file says how the open choices we
   structurer map it onto `sources` instead would need a verbatim rule for source entries.
 - **Queued `corelata check --project`.** The CLI's check runs in-process only; a queued check is
   started through the API.
-- **Migration number.** 0009 was written beside another branch's 0009; whichever merges second
-  renumbers.
+- **Migration number.** 0009 was written beside another branch's 0009; this one merged first,
+  and the procrastinate 3.12 upgrade became 0010, then 0011 after CRL-138 took 0010.
