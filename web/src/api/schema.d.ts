@@ -1114,6 +1114,12 @@ export interface components {
             error?: string | null;
             /** Export Error */
             export_error?: string | null;
+            /**
+             * Extra Guidance
+             * @description The guidance the writer was given: what the analyst wrote, and for a revision the reviewer notes appended to it (CRL-132).
+             * @default
+             */
+            extra_guidance: string;
             /** Finished At */
             finished_at?: string | null;
             /** Iteration */

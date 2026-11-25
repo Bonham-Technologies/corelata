@@ -781,6 +781,7 @@ def _progress(
         state=RunState(run.state),
         status=run.status,
         value_statement=run.value_statement,
+        extra_guidance=run.extra_guidance,
         profile=run.profile,
         source_ids=[str(i) for i in source_ids],
         iteration=run.iteration,
