@@ -272,6 +272,12 @@ class _Run:
         self.record.stages.append(result)
         await self.observer.stage_recorded(self.record, result)
 
+    def _overrides(self) -> dict[str, Any]:
+        """The stage output's `stated_overrides` (CRL-138): the source entry values the engine
+        wrote over with the analyst's; absent when there were none, so the output is unchanged."""
+        found = self.ctx.stated_overrides
+        return {"stated_overrides": list(found)} if found else {}
+
     def _degradation(self, what: str, state: RunState, iteration: int, error: Exception) -> str:
         """R-M11-2: the line the report carries for a stage it was delivered without, counting
         the attempts `stage()` recorded as failed for that stage and iteration."""
@@ -327,6 +333,7 @@ class _Run:
                             "title": b.title,
                             "claims": len(b.claims),
                             "withheld_units": len(self.ctx.withheld_refs),
+                            **self._overrides(),
                         },
                     )
                     rec.drafts.append(DraftRecord(role="writer", iteration=iteration, report=draft))
@@ -341,7 +348,7 @@ class _Run:
                             draft=d,
                             findings=[f for f in r if f.route_to == "conveyor"],
                         ),
-                        lambda b: {"title": b.title},
+                        lambda b: {"title": b.title, **self._overrides()},
                     )
                 except (*AGENT_FAILURES, StageError) as e:
                     # R-M11-2: the conveyor's input goes forward unedited and is audited

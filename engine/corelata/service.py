@@ -7,10 +7,12 @@ import contextlib
 import hashlib
 import logging
 import uuid
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, BinaryIO, Protocol
 
+from pydantic import ValidationError
 from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -40,10 +42,12 @@ from corelata.schema import (
     RunSummary,
     Source,
     SourceKind,
+    SourceStatement,
     Usage,
 )
-from corelata.standards.loader import pack_hash
-from corelata.standards.schema import ResolvedPack
+from corelata.stages.stated import statement_errors
+from corelata.standards.loader import pack_hash, statement_lexicon
+from corelata.standards.schema import Lexicon, ResolvedPack
 from corelata.storage import Storage, StorageError, display_name, safe_filename, storage_call
 from corelata.store import discoveries, records, runs
 from corelata.store.db import Database, error_reason
@@ -277,6 +281,49 @@ async def list_sources(db: Database, project_id: uuid.UUID) -> list[SourceRow]:
         return await runs.list_sources(s, project_id)
 
 
+def _statement_lexicon(cfg: CorelataConfig) -> Lexicon:
+    return statement_lexicon(cfg.standards.default_pack, packs_dir=cfg.standards.packs_dir)
+
+
+async def check_statement(cfg: CorelataConfig, changes: Mapping[str, str]) -> dict[str, str]:
+    """What an analyst states about a source (CRL-138), each value stripped and checked: within
+    its length, and a descriptor or access term from the default pack's lexicon (a descriptor any
+    of its profiles adds counts). An empty value clears that field. The pack is read off the
+    event loop."""
+    try:
+        cleaned = SourceStatement.model_validate(dict(changes))
+    except ValidationError as e:
+        first = e.errors()[0]
+        raise InvalidRequestError(f"{first['loc'][0]}: {first['msg']}") from None
+    given = {k: getattr(cleaned, k) for k in changes}
+    lexicon = await asyncio.to_thread(_statement_lexicon, cfg)
+    if errors := statement_errors(cleaned, lexicon, "source"):
+        raise InvalidRequestError("; ".join(errors))
+    return given
+
+
+def _restated(row: SourceRow, changes: Mapping[str, str]) -> SourceStatement:
+    return SourceStatement.model_validate({**(row.stated or {}), **changes})
+
+
+async def edit_source(
+    db: Database,
+    cfg: CorelataConfig,
+    project_id: uuid.UUID,
+    source_id: uuid.UUID,
+    changes: Mapping[str, str],
+) -> SourceRow:
+    """`PATCH /api/projects/{id}/sources/{sid}` and `corelata source set` (CRL-138): set the
+    fields of what the analyst states about the source that `changes` names, an empty value
+    clearing one; the others stay. A run already queued keeps what it was queued with."""
+    given = await check_statement(cfg, changes)
+    async with db.session() as s, s.begin():
+        row = await runs.get_source(s, source_id)
+        if row.project_id != project_id:
+            raise runs.NotFoundError(f"source {source_id} not in project {project_id}")
+        return await runs.set_source_statement(s, source_id, _restated(row, given))
+
+
 def _nothing_left(data: BinaryIO) -> bool:
     """Whether the file has nothing left to read; it is left where it stood."""
     start = data.tell()
@@ -335,6 +382,7 @@ async def store_source(
     *,
     coglossa_export: bool = False,
     ocr: OcrSettings | None = None,
+    statement: Mapping[str, str] | None = None,
 ) -> AddedSources:
     """Store an upload, parse it into units (spec §5) and record it. It gives the new source
     ids: one, or two for a Coglossa export that carries a translation guide. A file that cannot
@@ -346,7 +394,12 @@ async def store_source(
     A file the project has already, by sha256 and kind, whatever its name, is neither stored
     nor parsed again: the answer is that source, `existing` (CRL-126). Two identical uploads at
     once both store and parse; the second to insert finds the first under the project's lock
-    and removes its own file."""
+    and removes its own file.
+
+    `statement`: fields of what the analyst states about the source, checked by
+    `check_statement` (CRL-138). They are set on the upload's first source, the file itself
+    (not a Coglossa export's translation guide), and on that source when the project had the file
+    already, as an edit would set them."""
     name = display_name(filename)
     if not name:
         raise InvalidRequestError("the upload has no file name")
@@ -364,15 +417,19 @@ async def store_source(
     sha256 = await asyncio.to_thread(_sha256, data)
     async with db.session() as s:
         await runs.get_project(s, project_id)
-        if found := await runs.find_source(s, project_id, sha256, kind):
-            return AddedSources(found, existing=True)
+        found = await runs.find_source(s, project_id, sha256, kind)
+    if found:
+        await _restate_existing(db, found[0], statement)
+        return AddedSources(found, existing=True)
     source_id = uuid.uuid4()
     prefix = f"projects/{project_id}/sources/{source_id}/"
     key = prefix + safe_filename(name)
     try:
         await storage_call(storage.put, key, data)
         parsed = await asyncio.to_thread(_parse_stored, storage, key, coglossa_export, ocr)
-        parsed[0] = parsed[0].model_copy(update={"name": name})
+        parsed[0] = parsed[0].model_copy(
+            update={"name": name, "stated": SourceStatement.model_validate(statement or {})}
+        )
         ids: list[uuid.UUID] = []
         async with db.session() as s, s.begin():
             await runs.lock_project(s, project_id)
@@ -391,12 +448,25 @@ async def store_source(
     except _AlreadyThere as there:
         with contextlib.suppress(StorageError):
             await storage_call(storage.delete_prefix, prefix)
+        await _restate_existing(db, there.ids[0], statement)
         return AddedSources(there.ids, existing=True)
     except BaseException:
         with contextlib.suppress(StorageError):  # nothing points at the file
             await storage_call(storage.delete_prefix, prefix)
         raise
     return AddedSources(ids)
+
+
+async def _restate_existing(
+    db: Database, source_id: uuid.UUID, statement: Mapping[str, str] | None
+) -> None:
+    """An upload of a file the project has already sets the statement given with it on that
+    source (CRL-138), as an edit would."""
+    if not statement:
+        return
+    async with db.session() as s, s.begin():
+        row = await runs.get_source(s, source_id)
+        await runs.set_source_statement(s, source_id, _restated(row, statement))
 
 
 async def add_source(
@@ -408,10 +478,18 @@ async def add_source(
     *,
     coglossa_export: bool = False,
     ocr: OcrSettings | None = None,
+    statement: Mapping[str, str] | None = None,
 ) -> list[uuid.UUID]:
     """`store_source`'s ids: the new sources, or the ones the project has for this file."""
     added = await store_source(
-        db, storage, project_id, filename, data, coglossa_export=coglossa_export, ocr=ocr
+        db,
+        storage,
+        project_id,
+        filename,
+        data,
+        coglossa_export=coglossa_export,
+        ocr=ocr,
+        statement=statement,
     )
     return added.ids
 
@@ -447,6 +525,8 @@ async def _create_run(
                 raise InvalidRequestError(
                     f"parent run {req.parent_run_id} belongs to another project"
                 )
+        if req.kind is RunKind.REPORT:
+            await _check_statements(s, req, Lexicon.model_validate(pack_snapshot["lexicon"]))
         await runs.create_run(
             s,
             project_id=req.project_id,
@@ -491,6 +571,22 @@ async def _create_run(
                 await storage_call(storage.delete_prefix, f"runs/{run_id}/")
         raise
     return run_id
+
+
+async def _check_statements(s: AsyncSession, req: RunRequest, lexicon: Lexicon) -> None:
+    """What the analyst states about each of the run's sources must fit the lexicon the run
+    snapshots (CRL-138): a profile may allow a descriptor the run's profile does not."""
+    rows = {r.id: r for r in await runs.list_sources(s, req.project_id)}
+    errors = [
+        error
+        for sid in req.source_ids
+        if (row := rows.get(sid)) is not None and row.stated
+        for error in statement_errors(
+            SourceStatement.model_validate(row.stated), lexicon, f"source {row.name}"
+        )
+    ]
+    if errors:
+        raise InvalidRequestError("; ".join([*errors, "change the source or the profile"]))
 
 
 def _validate(req: RunRequest) -> None:

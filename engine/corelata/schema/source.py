@@ -4,7 +4,7 @@ from collections.abc import Iterable
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from corelata.schema.document import BlockKind
 
@@ -22,6 +22,74 @@ class SourceUnit(BaseModel):
     meta: dict[str, Any] = Field(default_factory=dict)
 
 
+def _blank(value: str) -> bool:
+    return not value
+
+
+# CRL-138: the source entry fields an analyst may state, in the order a source entry has them.
+STATED_FIELDS = ("descriptor", "reliability_note", "date_of_information", "origin", "access")
+# Lengths an analyst's statement may take: a descriptor or access term is a lexicon phrase, a
+# date a short phrase, an origin a name, a reliability note a few sentences.
+STATED_MAX_LENGTH = {
+    "descriptor": 200,
+    "reliability_note": 2000,
+    "date_of_information": 100,
+    "origin": 500,
+    "access": 200,
+}
+
+
+class SourceStatement(BaseModel):
+    """What the analyst states about a source for its entry in the report (CRL-138). A stated
+    value replaces whatever the writer or conveyor gives that field; a blank one is not stated
+    and is left out of every dump, so a source with nothing stated serialises as it did before."""
+
+    descriptor: str = Field(
+        "",
+        max_length=STATED_MAX_LENGTH["descriptor"],
+        description="A source descriptor phrase from the pack's lexicon",
+        exclude_if=_blank,
+    )
+    reliability_note: str = Field(
+        "",
+        max_length=STATED_MAX_LENGTH["reliability_note"],
+        description="The source's reliability, currency and completeness",
+        exclude_if=_blank,
+    )
+    date_of_information: str = Field(
+        "",
+        max_length=STATED_MAX_LENGTH["date_of_information"],
+        description="When the source's information was issued or current",
+        exclude_if=_blank,
+    )
+    origin: str = Field(
+        "",
+        max_length=STATED_MAX_LENGTH["origin"],
+        description="Who originated, authored or published the information",
+        exclude_if=_blank,
+    )
+    access: str = Field(
+        "",
+        max_length=STATED_MAX_LENGTH["access"],
+        description="The source's access to what it reports, a term from the lexicon's "
+        "source_access",
+        exclude_if=_blank,
+    )
+
+    @field_validator(*STATED_FIELDS, mode="before")
+    @classmethod
+    def _strip(cls, value: object) -> object:
+        return value.strip() if isinstance(value, str) else value
+
+    def values(self) -> dict[str, str]:
+        """The stated fields and their values, in source entry order; empty when none is."""
+        return {name: getattr(self, name) for name in STATED_FIELDS if getattr(self, name)}
+
+
+def _nothing_stated(stated: SourceStatement) -> bool:
+    return not stated.values()
+
+
 class Source(BaseModel):
     id: str  # "src1", "src2", … in upload order
     kind: SourceKind
@@ -30,6 +98,9 @@ class Source(BaseModel):
     sha256: str
     provenance: dict[str, Any] = Field(default_factory=dict)  # e.g. {"coglossa_run_id": ...}
     units: list[SourceUnit]
+    # CRL-138: what the analyst stated about the source when the run was queued; left out of the
+    # dump when nothing was, so such a source reads as it did before.
+    stated: SourceStatement = Field(default_factory=SourceStatement, exclude_if=_nothing_stated)
 
     def refs(self) -> list[str]:
         return [unit_ref(self.id, u.id) for u in self.units]

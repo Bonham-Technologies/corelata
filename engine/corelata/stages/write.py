@@ -8,6 +8,7 @@ from corelata.schema import Finding, ReportBody, Source, SourceEntry, reliabilit
 from corelata.stages.context import StageContext, estimate_tokens
 from corelata.stages.prior import prior_report_entry
 from corelata.stages.report_schema import report_output_type
+from corelata.stages.stated import apply_stated
 
 
 def report_schema(ctx: StageContext) -> dict[str, Any]:
@@ -240,7 +241,14 @@ async def run_writer(
         schema=report_schema(ctx),
         validate=check,
     )
-    return shape_reply(ctx, parsed)
+    return keep_stated(ctx, shape_reply(ctx, parsed))
+
+
+def keep_stated(ctx: StageContext, body: ReportBody) -> ReportBody:
+    """`body` with the analyst's stated source values written over the model's (CRL-138); what
+    was overwritten is left on `ctx.stated_overrides` for the stage's trace output."""
+    body, ctx.stated_overrides = apply_stated(ctx.sources, ctx.pack, body)
+    return body
 
 
 def prior_reports_payload(ctx: StageContext) -> dict[str, Any]:
