@@ -195,7 +195,7 @@ jobs:
       # allowed is Starlette's notice that its TestClient prefers httpx2 over httpx (fastapi's
       # testclient, imported by test_settings.py; httpx is what smoke.py and its tests use).
       - run: >-
-          CORELATA_FORBID_SKIP=1 uv run --with pyyaml==6.0.3 --with fastapi==0.162.0 --with httpx
+          CORELATA_FORBID_SKIP=1 uv run --with pyyaml==6.0.3 --with fastapi==0.165.0 --with httpx
           python -m pytest ../deploy/hosted/modal ../deploy/hosted/test_smoke.py
           -q -p no:cacheprovider --no-cov --rootdir ../deploy/hosted/modal
           -W error
