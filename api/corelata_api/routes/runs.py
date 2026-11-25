@@ -4,7 +4,7 @@ import uuid
 from typing import Annotated
 
 from corelata import service
-from corelata.schema import ReviewAction, RunProgress, RunSummary
+from corelata.schema import ReviewAction, RunKind, RunProgress, RunSummary
 from corelata.service import GUIDANCE_MAX_LENGTH, VALUE_STATEMENT_MAX_LENGTH
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
@@ -20,7 +20,17 @@ router = APIRouter(tags=["runs"])
 class CreateRun(BaseModel):
     project_id: uuid.UUID
     source_ids: list[uuid.UUID] = Field(min_length=1)
-    value_statement: str = Field(min_length=1, max_length=VALUE_STATEMENT_MAX_LENGTH)
+    # CRL-94: required for a report run (the service answers 422 without one), optional for a
+    # check.
+    value_statement: str = Field("", max_length=VALUE_STATEMENT_MAX_LENGTH)
+    kind: RunKind = Field(
+        RunKind.REPORT,
+        description="`report` writes a report from the sources; `check` audits the finished "
+        "report `report_source_id` against the standards pack, the sources as its evidence.",
+    )
+    report_source_id: uuid.UUID | None = Field(
+        None, description="With `kind: check`: the project source holding the report to check."
+    )
     profile: str | None = None
     max_iterations: int | None = Field(None, ge=0, le=10)
     extra_guidance: str = Field("", max_length=GUIDANCE_MAX_LENGTH)
@@ -48,7 +58,8 @@ class RunPage(BaseModel):
 
 @router.post("/runs", status_code=202)
 async def create_run(body: CreateRun, ctx: Ctx) -> RunProgress:
-    """Snapshot the pack, store the run and queue it; the worker does the rest unattended."""
+    """Snapshot the pack, store the run and queue it; the worker does the rest unattended. A
+    check (`kind: check`) audits an uploaded report without rewriting it."""
     req = service.RunRequest(
         project_id=body.project_id,
         source_ids=body.source_ids,
@@ -57,6 +68,8 @@ async def create_run(body: CreateRun, ctx: Ctx) -> RunProgress:
         max_iterations=body.max_iterations,
         extra_guidance=body.extra_guidance,
         parent_run_id=body.parent_run_id,
+        kind=body.kind,
+        report_source_id=body.report_source_id,
     )
     run_id = await service.start_run(ctx.db, ctx.storage, ctx.queue, ctx.cfg, ctx.prompts, req)
     return await service.run_progress(

@@ -94,11 +94,21 @@
       "title": "ReviewState",
       "type": "object"
     },
+    "RunKind": {
+      "description": "What a run does (CRL-94): `report` writes a report from the sources; `check` audits a\nfinished report someone else wrote against the pack, without rewriting it.",
+      "enum": [
+        "report",
+        "check"
+      ],
+      "title": "RunKind",
+      "type": "string"
+    },
     "RunState": {
       "enum": [
         "created",
         "ingesting",
         "gating",
+        "structuring",
         "drafting",
         "conveying",
         "auditing",
@@ -263,6 +273,11 @@
       "title": "Iteration",
       "type": "integer"
     },
+    "kind": {
+      "$ref": "#/$defs/RunKind",
+      "default": "report",
+      "description": "What the run does: `report` writes a report from the sources; `check` audits a finished report against the standards pack without rewriting it (CRL-94)."
+    },
     "max_iterations": {
       "title": "Max Iterations",
       "type": "integer"
@@ -295,6 +310,19 @@
     "project_id": {
       "title": "Project Id",
       "type": "string"
+    },
+    "report_source_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The project source a check run audits; null for a report run (CRL-94).",
+      "title": "Report Source Id"
     },
     "review": {
       "anyOf": [

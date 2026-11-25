@@ -10,10 +10,10 @@ It runs on one Linux host under Docker Compose, needs no internet access, and ta
 own OpenAI-compatible model servers (vLLM, Ollama, TGI, a llama.cpp server, LM Studio). ICD 203
 and ICD 206 ship as the base standards pack; you can tune it or replace it.
 
-[![The review screen: a finished report with each claim linked to its evidence](site/public/assets/walkthrough/04-claims-1280.webp)](https://corelata.com/#demo)
+[![The review screen: a finished report with each claim linked to its evidence](site/public/assets/walkthrough/04-claims-1280.webp)](https://corelata.tech/#demo)
 
-Watch the [30-second walkthrough](https://corelata.com/#demo) or read a
-[sample report](https://corelata.com/sample/) on [corelata.com](https://corelata.com).
+Watch the [30-second walkthrough](https://corelata.tech/#demo) or read a
+[sample report](https://corelata.tech/sample/) on [corelata.tech](https://corelata.tech).
 
 ## Requirements
 

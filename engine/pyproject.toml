@@ -48,6 +48,7 @@ packages = ["corelata"]
 artifacts = [
   "corelata/bench/scenarios/*.yaml",
   "corelata/bench/scenarios-real/*.yaml",
+  "corelata/bench/scenarios-check/*.yaml",
   "corelata/standards/packs/**/*.yaml",
   "corelata/prompts/templates/**/*.j2",
   "corelata/render/templates/**/*.j2",

@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { Link, useParams } from "react-router";
+import { isNotFound } from "../../api/client";
 import { liveUpdatesAvailable, useRunEvents } from "../../api/events";
 import { useProjects } from "../../api/projects";
 import { useReportJson } from "../../api/reports";
@@ -8,6 +9,7 @@ import type { RunProgress } from "../../api/types";
 import { ErrorMessage } from "../../components/ErrorMessage";
 import { useActiveProject, useDocumentTitle } from "../../components/frame";
 import { Loading } from "../../components/Loading";
+import { ReportNotFound } from "../../components/NotFound";
 import { RevisionOf } from "../../components/RevisionOf";
 import { StatementShown } from "../../components/StatementShown";
 import { isTerminal } from "../../lib/format";
@@ -39,7 +41,10 @@ export function RunPage() {
   const projects = useProjects();
   const project = (projects.data ?? []).find((p) => p.id === progress?.project_id);
   const report = useReportJson(runId, progress?.state === "completed");
-  useDocumentTitle(tabTitle(progress, project?.name ?? "Corelata", report.data?.title));
+  const missing = isNotFound(run.error, runId); // CRL-130: unknown, or deleted since; NotFound names the tab
+  useDocumentTitle(
+    missing ? null : tabTitle(progress, project?.name ?? "Corelata", report.data?.title),
+  );
   const onStreamFailed = useCallback(() => setFailedRun(runId), [runId]);
   useRunEvents(
     runId,
@@ -48,6 +53,7 @@ export function RunPage() {
   );
 
   if (run.isPending) return <Loading what="Loading the report's progress" />;
+  if (missing) return <ReportNotFound />;
   if (run.error) return <ErrorMessage error={run.error} />;
   if (!progress) return null;
   const done = isTerminal(progress.state);
@@ -62,7 +68,13 @@ export function RunPage() {
       <nav aria-label="Breadcrumb" className="breadcrumb">
         <Link to={`/new?project=${progress.project_id}`}>{project?.name ?? "Project"}</Link>
       </nav>
-      <h1>{done ? outcomeHeading(progress) : "Writing the report"}</h1>
+      <h1>
+        {done
+          ? outcomeHeading(progress)
+          : progress.kind === "check"
+            ? "Checking the report"
+            : "Writing the report"}
+      </h1>
       {progress.parent_run_id ? (
         <RevisionOf runId={runId} parentRunId={progress.parent_run_id} />
       ) : null}

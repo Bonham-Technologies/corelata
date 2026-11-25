@@ -219,6 +219,7 @@
         "created",
         "ingesting",
         "gating",
+        "structuring",
         "drafting",
         "conveying",
         "auditing",
@@ -260,6 +261,10 @@
           "title": "Format",
           "type": "string"
         },
+        "hidden_units": {
+          "title": "Hidden Units",
+          "type": "integer"
+        },
         "id": {
           "title": "Id",
           "type": "string"
@@ -291,6 +296,10 @@
           "title": "Sha256",
           "type": "string"
         },
+        "suspect_units": {
+          "title": "Suspect Units",
+          "type": "integer"
+        },
         "units": {
           "title": "Units",
           "type": "integer"
@@ -305,7 +314,9 @@
         "units",
         "digested",
         "coglossa_run_id",
-        "ocr_pages"
+        "ocr_pages",
+        "hidden_units",
+        "suspect_units"
       ],
       "title": "SourceSummary",
       "type": "object"

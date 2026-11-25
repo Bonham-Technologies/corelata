@@ -16,7 +16,7 @@ import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, "public");
-const ORIGIN = "https://corelata.com";
+const ORIGIN = "https://corelata.tech";
 const REPO_URL = "https://github.com/Bonham-Technologies/corelata";
 const MAX_BYTES = 6 * 1024 * 1024;
 // Product exports copied verbatim from a run: link-checked and audited, but they are not site

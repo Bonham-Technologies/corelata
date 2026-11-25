@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
+import { isNotFound } from "../../api/client";
 import { useProjects, useSources } from "../../api/projects";
 import { useEarlierRun, useStartRun } from "../../api/runs";
 import { useInfo } from "../../api/system";
 import type { SourceView } from "../../api/types";
 import { ErrorMessage } from "../../components/ErrorMessage";
 import { useActiveProject, useDocumentTitle } from "../../components/frame";
+import { NotFound } from "../../components/NotFound";
 import { clearDraft, useDraft } from "../../lib/draft";
 import { VALUE_STATEMENT_MAX_LENGTH } from "../../lib/limits";
 import { SearchParamsWriterProvider, useSearchParamsWriter } from "../../lib/searchParams";
@@ -34,10 +36,17 @@ export function NewRunPage() {
   useActiveProject(projectId);
   const projects = useProjects();
   const current = (projects.data ?? []).find((p) => p.id === projectId);
-  useDocumentTitle(
-    projectId === null ? "New report – Corelata" : current ? `${current.name} – Corelata` : null,
-  );
   const sources = useSources(projectId);
+  // CRL-130: the project's sources answer 404 when the project does not exist (or was deleted);
+  // the page then says so in place of the form, and NotFound names the tab.
+  const missing = isNotFound(sources.error, projectId ?? undefined);
+  useDocumentTitle(
+    projectId === null
+      ? "New report – Corelata"
+      : current && !missing
+        ? `${current.name} – Corelata`
+        : null,
+  );
   const allIds = useMemo(() => (sources.data ?? []).map((s) => s.id), [sources.data]);
   const selected = useMemo(() => chosenIn(params, allIds), [params, allIds]);
   // Sources uploaded here that the project's list does not show yet: a tick that lands before
@@ -193,6 +202,7 @@ export function NewRunPage() {
         profile,
         max_iterations: sentIterations,
         extra_guidance: "",
+        kind: "report",
       },
       {
         onSuccess: (run) => {
@@ -251,6 +261,13 @@ export function NewRunPage() {
         <h1>New report</h1>
         <ProjectPicker projectId={null} onChange={changeProject} />
       </article>
+    );
+  }
+  if (missing) {
+    return (
+      <NotFound heading="Project not found" action="Choose a project">
+        This project does not exist, or it was deleted.
+      </NotFound>
     );
   }
   return (

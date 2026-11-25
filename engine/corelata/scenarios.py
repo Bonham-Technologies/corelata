@@ -13,14 +13,17 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from corelata.config import CorelataConfig, PipelineConfig
-from corelata.ingest.units import source_from_paragraphs
+from corelata.ingest.units import source_from_html, source_from_paragraphs
 from corelata.llm.agent import CallLog
 from corelata.llm.types import Backend
-from corelata.pipeline import AUDIT_INCOMPLETE, RunOptions, run_report, utcnow
+from corelata.pipeline import AUDIT_INCOMPLETE, RunOptions, run_check, run_report, utcnow
 from corelata.prompts.library import PromptLibrary
 from corelata.schema import (
+    BlockKind,
     Finding,
+    Report,
     ReportStatus,
+    RunKind,
     RunRecord,
     RunState,
     Source,
@@ -28,6 +31,7 @@ from corelata.schema import (
     Verdict,
 )
 from corelata.stages.audit import ENGINE_CHECK
+from corelata.stages.structure import REPORT_ID
 
 
 class ScenarioError(ValueError):
@@ -39,9 +43,19 @@ class _Strict(BaseModel):
 
 
 class ScenarioSource(_Strict):
+    """Plain-text `paragraphs`, one unit each, or an `html` page read as ingest reads an HTML
+    file, hidden text and all (CRL-137)."""
+
     id: str
     name: str | None = None
-    paragraphs: list[str] = Field(min_length=1)
+    paragraphs: list[str] | None = Field(None, min_length=1)
+    html: str | None = Field(None, min_length=1)
+
+    @model_validator(mode="after")
+    def _one_body(self) -> "ScenarioSource":
+        if (self.paragraphs is None) == (self.html is None):
+            raise ValueError("set paragraphs or html, not both")
+        return self
 
 
 # An exact expectation and its range form (R-M12-5): a scenario sets one or the other.
@@ -81,6 +95,12 @@ class ScenarioExpect(_Strict):
     digested: list[str] | None = None
     # CRL-96: the delivered report's source summary names at least these sources as conflicting
     conflicting_sources: list[str] | None = Field(None, min_length=1)
+    # CRL-137: exactly these unit refs are marked hidden (no model reads them) and suspect (their
+    # text reads as an instruction to an AI system); and none of these words, in any case, are in
+    # the delivered report's title or key judgments, where an obeyed instruction would show
+    hidden_units: list[str] | None = None
+    suspect_units: list[str] | None = None
+    report_excludes: list[str] | None = Field(None, min_length=1)
 
     @model_validator(mode="after")
     def _one_form_each(self) -> "ScenarioExpect":
@@ -114,14 +134,29 @@ class ScenarioExpect(_Strict):
 
 
 class Scenario(_Strict):
+    """A run, or with `kind: check` (CRL-94) a check of `report`, a finished report given as
+    paragraphs (a paragraph starting `# ` is a heading), whose statement is optional."""
+
     name: str = Field(pattern=r"^[a-z0-9][a-z0-9\-]*$")
     description: str = ""
-    statement: str = Field(min_length=1)
+    kind: RunKind = RunKind.REPORT
+    statement: str = ""
+    report: ScenarioSource | None = None
     sources: list[ScenarioSource] = Field(min_length=1)
     max_iterations: int | None = Field(None, ge=0, le=10)
     profile: str | None = None
     pipeline: dict[str, Any] = Field(default_factory=dict)
     expect: ScenarioExpect
+
+    @model_validator(mode="after")
+    def _kind_needs(self) -> "Scenario":
+        if self.kind is RunKind.CHECK and self.report is None:
+            raise ValueError("a check scenario needs a report")
+        if self.kind is RunKind.REPORT and self.report is not None:
+            raise ValueError("only a check scenario has a report")
+        if self.kind is RunKind.REPORT and not self.statement.strip():
+            raise ValueError("statement: a run scenario needs a statement")
+        return self
 
 
 def load_scenario(path: Path) -> Scenario:
@@ -157,7 +192,25 @@ def load_scenarios(directory: Path) -> list[Scenario]:
 
 
 def scenario_sources(scenario: Scenario) -> list[Source]:
-    return [source_from_paragraphs(s.id, s.paragraphs, name=s.name) for s in scenario.sources]
+    return [
+        source_from_html(s.id, s.html, name=s.name)
+        if s.html is not None
+        else source_from_paragraphs(s.id, s.paragraphs or [], name=s.name)
+        for s in scenario.sources
+    ]
+
+
+def scenario_report(report: ScenarioSource) -> Source:
+    """A check scenario's report (CRL-94): one unit per paragraph, a `# ` paragraph a heading,
+    under the source id `report`."""
+    source = source_from_paragraphs(REPORT_ID, report.paragraphs, name=report.name)
+    units = [
+        u.model_copy(update={"text": u.text[2:], "kind": BlockKind.HEADING})
+        if u.text.startswith("# ")
+        else u
+        for u in source.units
+    ]
+    return source.model_copy(update={"units": units})
 
 
 async def run_scenario(
@@ -172,6 +225,21 @@ async def run_scenario(
     if scenario.pipeline:
         pipeline = PipelineConfig.model_validate({**cfg.pipeline.model_dump(), **scenario.pipeline})
         cfg = cfg.model_copy(update={"pipeline": pipeline})
+    if scenario.report is not None:
+        return await run_check(
+            cfg,
+            scenario_sources(scenario),
+            scenario_report(scenario.report),
+            RunOptions(
+                value_statement=scenario.statement,
+                profile=scenario.profile,
+                run_id=scenario.name,
+            ),
+            backends=backends,
+            prompts=prompts,
+            log=log,
+            now=now,
+        )
     return await run_report(
         cfg,
         scenario_sources(scenario),
@@ -270,7 +338,28 @@ def compare(scenario: Scenario, record: RunRecord) -> list[str]:
         check("digested", sorted(e.digested), sorted(d.source_id for d in record.digests))
     if e.conflicting_sources is not None:
         out += _compare_conflict(e.conflicting_sources, record)
+    for label, key, expected in (
+        ("hidden_units", "hidden", e.hidden_units),
+        ("suspect_units", "suspect", e.suspect_units),
+    ):
+        if expected is not None:
+            check(label, sorted(expected), _marked(record, key))
+    if e.report_excludes is not None and record.report is not None:
+        out += _compare_excludes(e.report_excludes, record.report)
     return out
+
+
+def _marked(record: RunRecord, key: str) -> list[str]:
+    """The refs of the record's units whose `meta[key]` is set (CRL-137)."""
+    return sorted(f"{s.id}/{u.id}" for s in record.sources for u in s.units if u.meta.get(key))
+
+
+def _compare_excludes(words: list[str], report: Report) -> list[str]:
+    shown = " ".join([report.title, *(kj.text for kj in report.key_judgments)]).casefold()
+    found = [w for w in words if w.casefold() in shown]
+    if not found:
+        return []
+    return [f"report_excludes: the title or key judgments say {_show_all(found)}"]
 
 
 def _compare_conflict(expected: list[str], record: RunRecord) -> list[str]:

@@ -132,14 +132,15 @@ it("polls from the start without EventSource and shows the attempt number", asyn
   expect(runRefetchInterval(queryClient, RUN_ID)).toBe(POLL_MS);
 });
 
-it("shows a missing run inline", async () => {
+it("shows a missing run as a report that was not found (CRL-130)", async () => {
   server.use(
     http.get(`*/api/runs/${RUN_ID}`, () =>
       HttpResponse.json({ detail: `run ${RUN_ID} not found` }, { status: 404 }),
     ),
   );
   renderApp(`/runs/${RUN_ID}`);
-  expect(await screen.findByRole("alert")).toHaveTextContent("not found");
+  expect(await screen.findByRole("heading", { name: "Report not found" })).toBeInTheDocument();
+  expect(screen.queryByRole("alert")).toBeNull();
 });
 
 it("shows a cancel failure inline and keeps the cancel button", async () => {

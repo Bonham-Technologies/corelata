@@ -15,12 +15,14 @@ from corelata.schema import (
     PriorReport,
     Report,
     ReportStatus,
+    RunKind,
     RunRecord,
     RunState,
     Source,
     SourceKind,
 )
 from corelata.schema.source import lowest_tier
+from corelata.stages.structure import REPORT_ID
 from corelata.store import runs
 from corelata.store.models import Run, RunSource, SourceRow, SourceUnitRow
 from corelata.trace import UnitCount
@@ -48,14 +50,30 @@ async def load_sources(
     ]
 
 
+async def load_checked_report(
+    s: AsyncSession, run: Run, *, with_units: bool = True
+) -> Source | None:
+    """A check run's report as the pipeline reads it (source id `report`, CRL-94); None for a
+    report run."""
+    if run.report_source_id is None:
+        return None
+    row = await runs.get_source(s, run.report_source_id)
+    return await runs.load_source(s, row, as_id=REPORT_ID, unit_ids=None if with_units else ())
+
+
 async def unit_counts(s: AsyncSession, run_id: uuid.UUID) -> dict[str, UnitCount]:
-    """Each of the run's sources' unit count and Coglossa reliability tier, counted in the
-    database without reading a unit's text (CRL-124): what the trace summary shows of them."""
+    """Each of the run's sources' unit count, Coglossa reliability tier and hidden and suspect
+    units (CRL-137), counted in the database without reading a unit's text (CRL-124): what the
+    trace summary shows of them."""
     tiers = func.array_agg(func.distinct(SourceUnitRow.meta["reliability"].astext)).filter(
         SourceRow.kind == SourceKind.COGLOSSA_EXPORT.value
     )
+    hidden = func.count(SourceUnitRow.ordinal).filter(SourceUnitRow.meta["hidden"].astext == "true")
+    suspect = func.count(SourceUnitRow.ordinal).filter(
+        SourceUnitRow.meta["suspect"].astext == "true"
+    )
     rows = await s.execute(
-        select(func.count(SourceUnitRow.ordinal), tiers)
+        select(func.count(SourceUnitRow.ordinal), tiers, hidden, suspect)
         .select_from(RunSource)
         .join(SourceRow, SourceRow.id == RunSource.source_id)
         .outerjoin(SourceUnitRow, SourceUnitRow.source_id == RunSource.source_id)
@@ -64,8 +82,13 @@ async def unit_counts(s: AsyncSession, run_id: uuid.UUID) -> dict[str, UnitCount
         .order_by(RunSource.ordinal)
     )
     return {
-        f"src{i}": UnitCount(units=count, reliability_tier=lowest_tier(found or ()))
-        for i, (count, found) in enumerate(rows, start=1)
+        f"src{i}": UnitCount(
+            units=count,
+            reliability_tier=lowest_tier(found or ()),
+            hidden=n_hidden,
+            suspect=n_suspect,
+        )
+        for i, (count, found, n_hidden, n_suspect) in enumerate(rows, start=1)
     }
 
 
@@ -88,6 +111,7 @@ async def load_record(
     return RunRecord(
         corelata_version=run.corelata_version,
         run_id=str(run.id),
+        kind=RunKind(run.kind),
         created_at=run.created_at,
         state=RunState(run.state),
         status=ReportStatus(run.status) if run.status else None,
@@ -101,6 +125,7 @@ async def load_record(
         config_hash=run.config_hash,
         prompt_versions=run.prompt_versions,
         sources=await load_sources(s, run_id, refs=None if with_units else ()),
+        checked_report=await load_checked_report(s, run, with_units=with_units),
         digests=[Digest.model_validate(d) for d in run.digests],
         prior_reports=[PriorReport.model_validate(p) for p in run.prior_reports or []],
         gate=GateVerdict.model_validate(run.gate) if run.gate else None,

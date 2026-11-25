@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://corelata.com/sitemap.xml
+Sitemap: https://corelata.tech/sitemap.xml

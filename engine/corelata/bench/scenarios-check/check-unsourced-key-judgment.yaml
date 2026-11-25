@@ -1,0 +1,28 @@
+name: check-unsourced-key-judgment
+description: A finished report whose second key judgment no source supports; the engine fails it and the check ends findings_open.
+kind: check
+report:
+  id: report
+  name: varna-outlook.md
+  paragraphs:
+    - "# Varna port outlook"
+    - UNCLASSIFIED
+    - "# Key judgments"
+    - It is likely that the Varna port capacity expansion matters to shippers.
+    - Shipping lines will very likely move their Black Sea hubs to Varna by 2027.
+    - "# Analysis"
+    - The port of Varna expanded its container capacity in 2025. Container traffic through Varna rose 40 percent.
+sources:
+  - id: src1
+    name: port.txt
+    paragraphs:
+      - The port of Varna expanded its container capacity in 2025.
+      - Capacity expansion was financed by a state bank.
+      - Container traffic through Varna rose 40 percent.
+expect:
+  state: completed
+  status: findings_open
+  iterations: 0
+  failing_rules:
+    0: [icd203.as.5, icd203.tc.8, icd206.src.2]
+  open_findings: [icd203.as.5@0, icd203.tc.8@0, icd206.src.2@0]

@@ -87,7 +87,7 @@ async def test_run_auditor_sends_the_by_rule_schema_and_returns_the_same_outcome
     assert defs["ClaimId"]["enum"] == [c.id for c in draft.claims]
     cited_units = defs["VerifiableFinding"]["properties"]["cited_units"]
     assert cited_units["items"] == {"$ref": "#/$defs/UnitRef"}
-    assert ctx.runner.log.records[-1].prompt_version == 5
+    assert ctx.runner.log.records[-1].prompt_version == 6
     expected = [
         Finding(
             rule_id=r.id,
