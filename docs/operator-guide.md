@@ -930,6 +930,80 @@ review screen's Sources tab marks each value "stated by analyst" or "inferred by
 keeps the values it was queued with: an edit changes reports started after it, and a return. A
 check (`kind: check`) does not apply them: it audits the report as its author wrote it.
 
+### Removing a source or a project
+
+A file uploaded by mistake, or a whole project that should not exist, is removed from the command
+line. The web app and the HTTP API have no delete; this is an operator's job. A removal cannot be
+undone, except by restoring a backup (section 9), and the backups you already have still hold what
+it removed: delete or age out those too if the data must be gone everywhere. A bucket with
+versioning turned on keeps the deleted objects' earlier versions; expire them with a lifecycle rule
+if they must go too.
+
+Find the source's id first. `corelata sources` lists a project's sources, oldest first, with how
+many runs used each:
+
+```sh
+docker compose exec api corelata sources --project "Port study"
+# 3f6c…-…  2026-11-20 09:14  used by 0 runs      wrong-file.pdf
+```
+
+Then delete it, or the whole project:
+
+```sh
+docker compose exec api corelata delete-source <source-id>
+docker compose exec api corelata delete-source <source-id> --with-runs
+docker compose exec api corelata delete-project "Port study"
+```
+
+Each command first lists what it will delete (every source, run and discovery by id, and the
+stored-file prefixes) and asks you to type `delete` (for a source) or the project's name (for a
+project). Without a terminal it stops with "this needs a terminal to confirm; add --yes to delete
+without asking": pass `--yes` from a script. Anything else typed, or Ctrl-D, answers "not
+confirmed; nothing was deleted" and exits with status 1. If what it would delete changed between
+the listing and your answer (someone started a run on the source meanwhile), it deletes nothing
+and says so; run it again.
+
+**What `delete-source` removes.** The source's row and its text units; every row that shares its
+stored file (a Coglossa export that carries a translation guide is two sources with one file, and
+they go together); the file itself (`projects/<project-id>/sources/<id>/` on the files volume or in
+the bucket); and every discovery that read it, since its suggested statements were drawn from it.
+
+**A source a run used is refused.** Its reports quote it, so the command stops with
+`error: source <id> (<name>) was used by N runs: <ids>; add --with-runs to delete those runs and
+their reports too` and exits with status 2. With `--with-runs` those runs go as well: each run's
+report, trace, drafts, claims, audit findings, model calls, review history and exports, and its
+files under `runs/<run-id>/` (the exports and the run's copy of the reference document). A run
+that only names a deleted run as its parent (a run queued with `--parent-run`) but did not use the
+source stays; it loses the link. A later run that was given a deleted report among its earlier
+accepted reports keeps, in its own trace, the title and key judgments it was given. A report uploaded to be checked ("Checking an existing report" below) counts as used by its
+check runs in the same way: deleting it is refused without `--with-runs`, and with it the check
+runs go.
+
+**What `delete-project` removes.** The project and everything in it: its sources and their files
+(`projects/<project-id>/`), its runs with everything above (`runs/<run-id>/` for each) and its
+discoveries. The name is free again afterwards.
+
+**Work in flight is refused, never stopped.** If a run the command would delete has not ended
+(queued or writing), it stops with `error: 1 run not ended yet: <id>; cancel (corelata cancel
+RUN_ID) and wait until it has ended, then try again` and exits with status 2. Cancel the run,
+wait for `corelata status <run-id>` to say `cancelled`, then delete. A discovery that has not
+ended is refused the same way; it ends by itself, at the latest by its deadline
+(`worker.discovery_deadline_s`).
+
+**While it runs** the project is locked: an upload or a new run in that project waits until the
+removal has finished. A progress page open on a deleted run shows that the report was deleted.
+The database rows are deleted first, then the stored files, in one transaction that commits only
+after both: if the database refuses (a review returning one of the runs at that moment, say),
+nothing is deleted; if the files volume or the bucket fails, no row is deleted and the command says
+what failed (`error: cannot delete …`, status 2), though some files may already be gone; if it
+stops after the files, run the same command again, and it finishes.
+
+**The record.** On success the command prints `deleted source <id> (<name>) of project '<name>':
+N sources, N runs, N discoveries` (or `deleted project '<name>' (<id>): …`) and writes one JSON
+log line on stderr (logger `corelata.removal`) that lists every removed id and storage prefix.
+`docker compose exec` shows it on your terminal, not in `docker compose logs`: keep it with your
+change records if you need an audit trail.
+
 ### Checking an existing report
 
 A standards team or an evaluation board can point Corelata at a finished report someone else

@@ -9,7 +9,7 @@ import uuid
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 
-from corelata import service
+from corelata import removal, service
 from corelata.config import ConfigError, CorelataConfig, default_config_path, load_config
 from corelata.exports import DocxExportError, dump_json, write_outputs
 from corelata.ingest.base import IngestError
@@ -21,7 +21,7 @@ from corelata.schema import TERMINAL_STATES, DiscoveryView, ReviewAction, RunPro
 from corelata.service import QueueUnavailableError
 from corelata.standards.loader import PackError
 from corelata.standards.schema import ResolvedPack
-from corelata.storage import StorageError, build_storage
+from corelata.storage import Storage, StorageError, build_storage
 from corelata.store import runs
 from corelata.store.db import Database, database_url, error_reason, redact
 from corelata.store.migrate import (
@@ -122,6 +122,30 @@ def add_commands(sub: argparse._SubParsersAction) -> None:
     _config_arg(export)
     export.add_argument("run_id")
     export.add_argument("--out", type=Path, required=True)
+
+    sources = sub.add_parser("sources", help="list a project's sources with their ids")
+    _config_arg(sources)
+    sources.add_argument("--project", required=True)
+
+    delete_source = sub.add_parser(
+        "delete-source", help="delete a source added by mistake (operators; cannot be undone)"
+    )
+    _config_arg(delete_source)
+    delete_source.add_argument("source_id")
+    delete_source.add_argument(
+        "--with-runs",
+        action="store_true",
+        help="also delete the runs that used it, with their reports and traces",
+    )
+    delete_source.add_argument("--yes", action="store_true", help="do not ask to confirm")
+
+    delete_project = sub.add_parser(
+        "delete-project",
+        help="delete a project and everything in it (operators; cannot be undone)",
+    )
+    _config_arg(delete_project)
+    delete_project.add_argument("project", help="the project's name")
+    delete_project.add_argument("--yes", action="store_true", help="do not ask to confirm")
 
     doctor = sub.add_parser("doctor", help="check the installation")
     _config_arg(doctor)
@@ -481,6 +505,86 @@ def _export(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _sources(args: argparse.Namespace) -> int:
+    cfg = _load(args)
+    for item in _with_db(cfg, lambda db: removal.list_sources(db, args.project)):
+        used = f"used by {item.runs} run{'' if item.runs == 1 else 's'}"
+        print(f"{item.id}  {item.created_at:%Y-%m-%d %H:%M}  {used:<16}  {item.name}")
+    return EXIT_OK
+
+
+def _show_removal(r: removal.Removal) -> None:
+    print(f"This deletes {removal.summary(r)}:")
+    for items, what in zip(r.groups(), ("source", "run", "discovery"), strict=True):
+        for item in items:
+            print(f"  {what} {item.id}  {item.label}")
+    print(f"  stored files under {', '.join(r.prefixes)}")
+
+
+def _confirmed(args: argparse.Namespace, word: str) -> bool:
+    """`--yes`, or the operator typed `word` at a terminal (as restore.sh asks)."""
+    if args.yes:
+        return True
+    if not sys.stdin.isatty():
+        raise ConfigError("this needs a terminal to confirm; add --yes to delete without asking")
+    try:
+        answer = input(f"This cannot be undone. Type '{word}' to go on: ")
+    except EOFError:
+        return False
+    return answer.strip() == word
+
+
+def _delete(
+    args: argparse.Namespace,
+    plan: Callable[[Database], Awaitable[removal.Removal]],
+    go: Callable[[Database, Storage, removal.Removal], Awaitable[removal.Removal]],
+    word: Callable[[removal.Removal], str],
+    *,
+    with_runs: bool = True,
+) -> int:
+    """Show what goes, refuse what may not, ask, delete what was shown (or nothing, should it
+    have changed meanwhile) and log the audit line."""
+    cfg = _load(args)
+    storage = build_storage(cfg.storage)
+    found = _with_db(cfg, plan)
+    removal.check(found, with_runs=with_runs)  # refused before asking; checked again under lock
+    _show_removal(found)
+    if not _confirmed(args, word(found)):
+        print("not confirmed; nothing was deleted", file=sys.stderr)
+        return EXIT_FAILED
+    handler = configure_json_logging()  # the audit line, as JSON on stderr
+    try:
+        done = _with_db(cfg, lambda db: go(db, storage, found))
+    finally:
+        remove_json_logging(handler)
+    print(f"deleted {removal.summary(done)}")
+    return EXIT_OK
+
+
+def _delete_source(args: argparse.Namespace) -> int:
+    source_id = _id(args.source_id, "source")
+    return _delete(
+        args,
+        lambda db: removal.plan_source(db, source_id),
+        lambda db, storage, found: removal.delete_source(
+            db, storage, source_id, with_runs=args.with_runs, expected=found
+        ),
+        lambda _: "delete",
+        with_runs=args.with_runs,
+    )
+
+
+def _delete_project(args: argparse.Namespace) -> int:
+    return _delete(
+        args,
+        lambda db: removal.plan_project(db, args.project),
+        lambda db, storage, found: removal.delete_project(
+            db, storage, args.project, expected=found
+        ),
+        lambda found: found.project,
+    )
+
+
 def _doctor(args: argparse.Namespace) -> int:
     from corelata.doctor import run_doctor
     from corelata.schema import CheckStatus
@@ -506,6 +610,9 @@ COMMANDS: dict[str, Callable[[argparse.Namespace], int]] = {
     "review": _review,
     "export": _export,
     "doctor": _doctor,
+    "sources": _sources,
+    "delete-source": _delete_source,
+    "delete-project": _delete_project,
     "queue-run": _queue_run,  # `corelata run --project`, dispatched by cli.py
     "queue-discover": _queue_discover,  # `corelata discover --project`
 }
