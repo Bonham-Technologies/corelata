@@ -162,6 +162,11 @@
   margin-inline-start: var(--space-1);
 }
 
+/* CRL-138: one line per value of a source's reference, labelled by who gave it */
+.reference-line + .reference-line {
+  margin-block-start: var(--space-1);
+}
+
 @media (max-width: 1099px) {
   .review-body {
     grid-template-columns: minmax(0, 1fr);

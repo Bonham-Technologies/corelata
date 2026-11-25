@@ -102,6 +102,9 @@ class SourceRow(Base):
     sha256: Mapped[str]
     storage_key: Mapped[str]
     provenance: Mapped[Json] = mapped_column(default=dict)
+    # SourceStatement (CRL-138, migration 0010): what the analyst states about the source; NULL
+    # when nothing is stated, as for every source made before it
+    stated: Mapped[Json | None]
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
 
 
@@ -179,6 +182,9 @@ class RunSource(Base):
     run_id: Mapped[uuid.UUID] = _cascade("run.id", primary_key=True)
     ordinal: Mapped[int] = mapped_column(primary_key=True)
     source_id: Mapped[uuid.UUID] = _cascade("source.id", index=True)
+    # the source's `stated` when the run was queued (CRL-138, migration 0010), so a later edit
+    # does not change the run; NULL when nothing was stated
+    stated: Mapped[Json | None]
 
 
 class StageResultRow(Base):

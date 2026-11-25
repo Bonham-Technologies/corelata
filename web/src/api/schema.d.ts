@@ -163,7 +163,9 @@ export interface paths {
          *     carries a translation guide. Nothing is kept when the file cannot be parsed. With
          *     `ingest.ocr: auto` a PDF's scanned pages are read by OCR before the answer (CRL-95). A file
          *     the project has already (same sha256 and kind) is not added again: 200 with that source
-         *     (CRL-126).
+         *     (CRL-126). The optional `descriptor`, `reliability_note`, `date_of_information`, `origin`
+         *     and `access` are what the analyst states about the source, as `PATCH` sets them (CRL-138);
+         *     for a file the project has already they are set on that source.
          */
         post: operations["upload_source_api_projects__project_id__sources_post"];
         delete?: never;
@@ -192,6 +194,28 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{project_id}/sources/{source_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Edit Source
+         * @description Set what the analyst states about a source (CRL-138): its descriptor and access are
+         *     checked against the default pack's lexicon, and a run checks them again against its own. A
+         *     run already queued keeps the values it was queued with.
+         */
+        patch: operations["edit_source_api_projects__project_id__sources__source_id__patch"];
         trace?: never;
     };
     "/api/runs": {
@@ -446,10 +470,20 @@ export interface components {
     schemas: {
         /** Body_upload_source_api_projects__project_id__sources_post */
         Body_upload_source_api_projects__project_id__sources_post: {
+            /** Access */
+            access?: string | null;
+            /** Date Of Information */
+            date_of_information?: string | null;
+            /** Descriptor */
+            descriptor?: string | null;
             /** File */
             file: string;
             /** @default file */
             kind: components["schemas"]["SourceKind"];
+            /** Origin */
+            origin?: string | null;
+            /** Reliability Note */
+            reliability_note?: string | null;
         };
         /**
          * CallSummary
@@ -1233,10 +1267,80 @@ export interface components {
          */
         Severity: "blocking" | "major" | "minor";
         /**
+         * SourceEdit
+         * @description What the analyst states about a source (CRL-138). A field left out stays as it is; an
+         *     empty string clears it, and the model infers it again.
+         */
+        SourceEdit: {
+            /**
+             * Access
+             * @description The source's access to what it reports, a term from the lexicon's source_access
+             */
+            access?: string | null;
+            /**
+             * Date Of Information
+             * @description When the source's information was issued or current
+             */
+            date_of_information?: string | null;
+            /**
+             * Descriptor
+             * @description A source descriptor phrase from the pack's lexicon
+             */
+            descriptor?: string | null;
+            /**
+             * Origin
+             * @description Who originated, authored or published the information
+             */
+            origin?: string | null;
+            /**
+             * Reliability Note
+             * @description The source's reliability, currency and completeness
+             */
+            reliability_note?: string | null;
+        };
+        /**
          * SourceKind
          * @enum {string}
          */
         SourceKind: "file" | "coglossa_export";
+        /**
+         * SourceStatement
+         * @description What the analyst states about a source for its entry in the report (CRL-138). A stated
+         *     value replaces whatever the writer or conveyor gives that field; a blank one is not stated
+         *     and is left out of every dump, so a source with nothing stated serialises as it did before.
+         */
+        SourceStatement: {
+            /**
+             * Access
+             * @description The source's access to what it reports, a term from the lexicon's source_access
+             * @default
+             */
+            access: string;
+            /**
+             * Date Of Information
+             * @description When the source's information was issued or current
+             * @default
+             */
+            date_of_information: string;
+            /**
+             * Descriptor
+             * @description A source descriptor phrase from the pack's lexicon
+             * @default
+             */
+            descriptor: string;
+            /**
+             * Origin
+             * @description Who originated, authored or published the information
+             * @default
+             */
+            origin: string;
+            /**
+             * Reliability Note
+             * @description The source's reliability, currency and completeness
+             * @default
+             */
+            reliability_note: string;
+        };
         /** SourceSummary */
         SourceSummary: {
             /** Coglossa Run Id */
@@ -1258,6 +1362,7 @@ export interface components {
             reliability_tier?: string | null;
             /** Sha256 */
             sha256: string;
+            stated?: components["schemas"]["SourceStatement"];
             /** Suspect Units */
             suspect_units: number;
             /** Units */
@@ -1291,6 +1396,8 @@ export interface components {
             };
             /** Sha256 */
             sha256: string;
+            /** @description What the analyst states about the source for its entry in a report (CRL-138); a run writes each stated value over the model's. Left out when nothing is stated. */
+            stated?: components["schemas"]["SourceStatement"];
         };
         /** StageLine */
         StageLine: {
@@ -2251,6 +2358,85 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SourceView"][];
+                };
+            };
+            /** @description missing trusted header */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description conflicts with the current data */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description upload too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description invalid request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description the database or job queue is unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    edit_source_api_projects__project_id__sources__source_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+                source_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SourceEdit"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceView"];
                 };
             };
             /** @description missing trusted header */

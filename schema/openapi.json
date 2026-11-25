@@ -3,6 +3,42 @@
     "schemas": {
       "Body_upload_source_api_projects__project_id__sources_post": {
         "properties": {
+          "access": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Access"
+          },
+          "date_of_information": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date Of Information"
+          },
+          "descriptor": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Descriptor"
+          },
           "file": {
             "contentMediaType": "application/octet-stream",
             "title": "File",
@@ -11,6 +47,30 @@
           "kind": {
             "$ref": "#/components/schemas/SourceKind",
             "default": "file"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin"
+          },
+          "reliability_note": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reliability Note"
           }
         },
         "required": [
@@ -1983,6 +2043,78 @@
         "title": "Severity",
         "type": "string"
       },
+      "SourceEdit": {
+        "description": "What the analyst states about a source (CRL-138). A field left out stays as it is; an\nempty string clears it, and the model infers it again.",
+        "properties": {
+          "access": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The source's access to what it reports, a term from the lexicon's source_access",
+            "title": "Access"
+          },
+          "date_of_information": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the source's information was issued or current",
+            "title": "Date Of Information"
+          },
+          "descriptor": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A source descriptor phrase from the pack's lexicon",
+            "title": "Descriptor"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Who originated, authored or published the information",
+            "title": "Origin"
+          },
+          "reliability_note": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The source's reliability, currency and completeness",
+            "title": "Reliability Note"
+          }
+        },
+        "title": "SourceEdit",
+        "type": "object"
+      },
       "SourceKind": {
         "enum": [
           "file",
@@ -1990,6 +2122,48 @@
         ],
         "title": "SourceKind",
         "type": "string"
+      },
+      "SourceStatement": {
+        "description": "What the analyst states about a source for its entry in the report (CRL-138). A stated\nvalue replaces whatever the writer or conveyor gives that field; a blank one is not stated\nand is left out of every dump, so a source with nothing stated serialises as it did before.",
+        "properties": {
+          "access": {
+            "default": "",
+            "description": "The source's access to what it reports, a term from the lexicon's source_access",
+            "maxLength": 200,
+            "title": "Access",
+            "type": "string"
+          },
+          "date_of_information": {
+            "default": "",
+            "description": "When the source's information was issued or current",
+            "maxLength": 100,
+            "title": "Date Of Information",
+            "type": "string"
+          },
+          "descriptor": {
+            "default": "",
+            "description": "A source descriptor phrase from the pack's lexicon",
+            "maxLength": 200,
+            "title": "Descriptor",
+            "type": "string"
+          },
+          "origin": {
+            "default": "",
+            "description": "Who originated, authored or published the information",
+            "maxLength": 500,
+            "title": "Origin",
+            "type": "string"
+          },
+          "reliability_note": {
+            "default": "",
+            "description": "The source's reliability, currency and completeness",
+            "maxLength": 2000,
+            "title": "Reliability Note",
+            "type": "string"
+          }
+        },
+        "title": "SourceStatement",
+        "type": "object"
       },
       "SourceSummary": {
         "properties": {
@@ -2045,6 +2219,9 @@
           "sha256": {
             "title": "Sha256",
             "type": "string"
+          },
+          "stated": {
+            "$ref": "#/components/schemas/SourceStatement"
           },
           "suspect_units": {
             "title": "Suspect Units",
@@ -2111,6 +2288,10 @@
           "sha256": {
             "title": "Sha256",
             "type": "string"
+          },
+          "stated": {
+            "$ref": "#/components/schemas/SourceStatement",
+            "description": "What the analyst states about the source for its entry in a report (CRL-138); a run writes each stated value over the model's. Left out when nothing is stated."
           }
         },
         "required": [
@@ -3342,7 +3523,7 @@
         ]
       },
       "post": {
-        "description": "Store and parse one upload (spec §5): one source, or two for a Coglossa export that\ncarries a translation guide. Nothing is kept when the file cannot be parsed. With\n`ingest.ocr: auto` a PDF's scanned pages are read by OCR before the answer (CRL-95). A file\nthe project has already (same sha256 and kind) is not added again: 200 with that source\n(CRL-126).",
+        "description": "Store and parse one upload (spec §5): one source, or two for a Coglossa export that\ncarries a translation guide. Nothing is kept when the file cannot be parsed. With\n`ingest.ocr: auto` a PDF's scanned pages are read by OCR before the answer (CRL-95). A file\nthe project has already (same sha256 and kind) is not added again: 200 with that source\n(CRL-126). The optional `descriptor`, `reliability_note`, `date_of_information`, `origin`\nand `access` are what the analyst states about the source, as `PATCH` sets them (CRL-138);\nfor a file the project has already they are set on that source.",
         "operationId": "upload_source_api_projects__project_id__sources_post",
         "parameters": [
           {
@@ -3565,6 +3746,113 @@
           }
         },
         "summary": "Source From Coglossa",
+        "tags": [
+          "projects"
+        ]
+      }
+    },
+    "/api/projects/{project_id}/sources/{source_id}": {
+      "patch": {
+        "description": "Set what the analyst states about a source (CRL-138): its descriptor and access are\nchecked against the default pack's lexicon, and a run checks them again against its own. A\nrun already queued keeps the values it was queued with.",
+        "operationId": "edit_source_api_projects__project_id__sources__source_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "source_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Source Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SourceEdit"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "missing trusted header"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "conflicts with the current data"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "upload too large"
+          },
+          "422": {
+            "description": "invalid request"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "the database or job queue is unavailable"
+          }
+        },
+        "summary": "Edit Source",
         "tags": [
           "projects"
         ]

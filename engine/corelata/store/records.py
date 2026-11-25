@@ -38,15 +38,15 @@ async def load_sources(
     for ref in refs or ():
         source_id, _, unit_id = ref.partition("/")
         wanted.setdefault(source_id, set()).add(unit_id)
-    ids = await runs.run_source_ids(s, run_id)
     return [
         await runs.load_source(
             s,
             await runs.get_source(s, sid),
             as_id=f"src{i}",
             unit_ids=None if refs is None else wanted.get(f"src{i}", set()),
+            stated=stated,  # as the run was queued with it (CRL-138)
         )
-        for i, sid in enumerate(ids, start=1)
+        for i, (sid, stated) in enumerate(await runs.run_sources(s, run_id), start=1)
     ]
 
 
