@@ -46,6 +46,7 @@ from corelata.schema import (
     RunState,
     Source,
     SourceKind,
+    SourceStatement,
     SourceUnit,
     StageResult,
     Verdict,
@@ -158,10 +159,15 @@ _LATEST_RUN = (
 
 
 def _to_review() -> Any:
-    """A completed run nobody decided on, or whose return's revision ended without a report."""
+    """A completed run nobody decided on, or whose return's revision ended without a report. A
+    check run (CRL-94) is never to review: it takes no decision (R-CRL94-6)."""
     decision = _review_field("decision")
     freed = and_(decision == "returned", _review_field("child_state").in_(_FREED))
-    return and_(Run.state == RunState.COMPLETED.value, or_(decision.is_(None), freed))
+    return and_(
+        Run.state == RunState.COMPLETED.value,
+        Run.kind == "report",
+        or_(decision.is_(None), freed),
+    )
 
 
 async def project_summaries(
@@ -249,7 +255,8 @@ async def add_source(
     source_id: uuid.UUID | None = None,
 ) -> SourceRow:
     """Store a parsed source and its units. `source.id` (the in-run name) is not kept: a run
-    names its sources src1, src2, … by position (see RunSource)."""
+    names its sources src1, src2, … by position (see RunSource). `source.stated` is kept
+    (CRL-138), NULL when nothing is stated."""
     row = SourceRow(
         id=source_id or uuid.uuid4(),
         project_id=project_id,
@@ -259,6 +266,7 @@ async def add_source(
         sha256=source.sha256,
         storage_key=storage_key,
         provenance=dict(source.provenance),
+        stated=stated_json(source.stated),
     )
     s.add(row)
     await s.flush()
@@ -318,8 +326,20 @@ async def lock_project(s: AsyncSession, project_id: uuid.UUID) -> None:
     )
 
 
-async def get_source(s: AsyncSession, source_id: uuid.UUID) -> SourceRow:
-    row = await s.get(SourceRow, source_id)
+async def get_source(s: AsyncSession, source_id: uuid.UUID, *, lock: bool = False) -> SourceRow:
+    """`lock`: hold the row until the transaction ends (FOR NO KEY UPDATE), so two edits of what
+    the analyst states about it cannot both read the old statement and the second drop the
+    first's fields (CRL-138); queueing a run over the source, which takes KEY SHARE, is not held
+    up."""
+    if lock:
+        row = await s.scalar(
+            select(SourceRow)
+            .where(SourceRow.id == source_id)
+            .with_for_update(key_share=True)
+            .execution_options(populate_existing=True)
+        )
+    else:
+        row = await s.get(SourceRow, source_id)
     if row is None:
         raise NotFoundError(f"source {source_id} not found")
     return row
@@ -335,13 +355,35 @@ async def list_sources(s: AsyncSession, project_id: uuid.UUID) -> list[SourceRow
     )
 
 
+def stated_json(stated: SourceStatement) -> dict[str, str] | None:
+    """A statement as its column holds it: NULL when nothing is stated (CRL-138)."""
+    return stated.values() or None
+
+
+async def set_source_statement(
+    s: AsyncSession, source_id: uuid.UUID, stated: SourceStatement
+) -> SourceRow:
+    """Replace what the analyst states about a source (CRL-138); a run already queued keeps the
+    statement it was queued with (`RunSource.stated`)."""
+    row = await get_source(s, source_id)
+    row.stated = stated_json(stated)
+    await s.flush()
+    return row
+
+
 async def load_source(
-    s: AsyncSession, row: SourceRow, *, as_id: str, unit_ids: Collection[str] | None = None
+    s: AsyncSession,
+    row: SourceRow,
+    *,
+    as_id: str,
+    unit_ids: Collection[str] | None = None,
+    stated: dict[str, Any] | None = None,
 ) -> Source:
     """`unit_ids`: only the units with those ids, and none (nor a query) when it is empty
-    (CRL-124). The units are read as plain rows, their `meta` as JSON text, and parsed and
-    validated off the event loop, which a source of tens of thousands of units would otherwise
-    hold for most of a second."""
+    (CRL-124). `stated`: what the analyst stated about the source as a run snapshot it
+    (`RunSource.stated`, CRL-138); nothing stated when None. The units are read as plain rows,
+    their `meta` as JSON text, and parsed and validated off the event loop, which a source of
+    tens of thousands of units would otherwise hold for most of a second."""
     rows: Sequence[Row[Any]] = ()
     if unit_ids is None or unit_ids:
         query = select(
@@ -361,6 +403,7 @@ async def load_source(
         "format": row.format,
         "sha256": row.sha256,
         "provenance": dict(row.provenance),
+        "stated": SourceStatement.model_validate(stated or {}),
     }
     return await asyncio.to_thread(_source, head, rows)
 
@@ -406,15 +449,21 @@ async def create_run(
     source_ids: list[uuid.UUID],
     run_id: uuid.UUID | None = None,
     created_at: datetime | None = None,
+    kind: str = "report",
+    report_source_id: uuid.UUID | None = None,
 ) -> Run:
-    """A run row plus its ordered sources; every source must belong to the project."""
+    """A run row plus its ordered sources; every source, and a check run's report (CRL-94),
+    must belong to the project. Each source's statement is copied as it stands now (CRL-138),
+    so a later edit does not change the run."""
     rows = {r.id: r for r in await list_sources(s, project_id)}
-    for sid in source_ids:
+    for sid in [*source_ids, *([report_source_id] if report_source_id else [])]:
         if sid not in rows:
             raise NotFoundError(f"source {sid} not in project {project_id}")
     run = Run(
         id=run_id or uuid.uuid4(),
         project_id=project_id,
+        kind=kind,
+        report_source_id=report_source_id,
         parent_run_id=parent_run_id,
         value_statement=value_statement,
         extra_guidance=extra_guidance,
@@ -435,7 +484,13 @@ async def create_run(
     s.add(run)
     await s.flush()
     s.add_all(
-        RunSource(run_id=run.id, ordinal=i, source_id=sid)
+        RunSource(
+            run_id=run.id,
+            ordinal=i,
+            source_id=sid,
+            # a check run audits a report as its author wrote it: nothing is written over it
+            stated=rows[sid].stated if kind == "report" else None,
+        )
         for i, sid in enumerate(source_ids, start=1)
     )
     await s.flush()
@@ -530,6 +585,18 @@ async def accepted_reports(
         )
         for row in await s.execute(query)
     ]
+
+
+async def run_sources(
+    s: AsyncSession, run_id: uuid.UUID
+) -> list[tuple[uuid.UUID, dict[str, Any] | None]]:
+    """The run's sources in order, each with the statement it was queued with (CRL-138)."""
+    rows = await s.execute(
+        select(RunSource.source_id, RunSource.stated)
+        .where(RunSource.run_id == run_id)
+        .order_by(RunSource.ordinal)
+    )
+    return [(sid, stated) for sid, stated in rows]
 
 
 async def run_source_ids(s: AsyncSession, run_id: uuid.UUID) -> list[uuid.UUID]:

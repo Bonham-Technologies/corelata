@@ -3,6 +3,42 @@
     "schemas": {
       "Body_upload_source_api_projects__project_id__sources_post": {
         "properties": {
+          "access": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Access"
+          },
+          "date_of_information": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date Of Information"
+          },
+          "descriptor": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Descriptor"
+          },
           "file": {
             "contentMediaType": "application/octet-stream",
             "title": "File",
@@ -11,6 +47,30 @@
           "kind": {
             "$ref": "#/components/schemas/SourceKind",
             "default": "file"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin"
+          },
+          "reliability_note": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reliability Note"
           }
         },
         "required": [
@@ -323,6 +383,11 @@
             "title": "Extra Guidance",
             "type": "string"
           },
+          "kind": {
+            "$ref": "#/components/schemas/RunKind",
+            "default": "report",
+            "description": "`report` writes a report from the sources; `check` audits the finished report `report_source_id` against the standards pack, the sources as its evidence."
+          },
           "max_iterations": {
             "anyOf": [
               {
@@ -364,6 +429,19 @@
             "title": "Project Id",
             "type": "string"
           },
+          "report_source_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "With `kind: check`: the project source holding the report to check.",
+            "title": "Report Source Id"
+          },
           "source_ids": {
             "items": {
               "format": "uuid",
@@ -374,16 +452,15 @@
             "type": "array"
           },
           "value_statement": {
+            "default": "",
             "maxLength": 4000,
-            "minLength": 1,
             "title": "Value Statement",
             "type": "string"
           }
         },
         "required": [
           "project_id",
-          "source_ids",
-          "value_statement"
+          "source_ids"
         ],
         "title": "CreateRun",
         "type": "object"
@@ -914,6 +991,13 @@
             "title": "Confidence Definitions",
             "type": "object"
           },
+          "confidence_phrases": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Confidence Phrases",
+            "type": "array"
+          },
           "handling_markings": {
             "items": {
               "type": "string"
@@ -929,6 +1013,13 @@
             "title": "Likelihood",
             "type": "array"
           },
+          "likelihood_alternates": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Likelihood Alternates",
+            "type": "array"
+          },
           "source_access": {
             "items": {
               "type": "string"
@@ -941,6 +1032,13 @@
               "type": "string"
             },
             "title": "Source Descriptors",
+            "type": "array"
+          },
+          "unlisted_probability_words": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Unlisted Probability Words",
             "type": "array"
           }
         },
@@ -1537,6 +1635,15 @@
         "title": "Rule",
         "type": "object"
       },
+      "RunKind": {
+        "description": "What a run does (CRL-94): `report` writes a report from the sources; `check` audits a\nfinished report someone else wrote against the pack, without rewriting it.",
+        "enum": [
+          "report",
+          "check"
+        ],
+        "title": "RunKind",
+        "type": "string"
+      },
       "RunPage": {
         "description": "One page of a project's runs, newest first (keyset paging on created_at and id).",
         "properties": {
@@ -1606,6 +1713,12 @@
             ],
             "title": "Export Error"
           },
+          "extra_guidance": {
+            "default": "",
+            "description": "The guidance the writer was given: what the analyst wrote, and for a revision the reviewer notes appended to it (CRL-132).",
+            "title": "Extra Guidance",
+            "type": "string"
+          },
           "finished_at": {
             "anyOf": [
               {
@@ -1621,6 +1734,11 @@
           "iteration": {
             "title": "Iteration",
             "type": "integer"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/RunKind",
+            "default": "report",
+            "description": "What the run does: `report` writes a report from the sources; `check` audits a finished report against the standards pack without rewriting it (CRL-94)."
           },
           "max_iterations": {
             "title": "Max Iterations",
@@ -1652,6 +1770,18 @@
           "project_id": {
             "title": "Project Id",
             "type": "string"
+          },
+          "report_source_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The project source a check run audits; null for a report run (CRL-94).",
+            "title": "Report Source Id"
           },
           "review": {
             "anyOf": [
@@ -1747,6 +1877,7 @@
           "created",
           "ingesting",
           "gating",
+          "structuring",
           "drafting",
           "conveying",
           "auditing",
@@ -1782,6 +1913,11 @@
           "iteration": {
             "title": "Iteration",
             "type": "integer"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/RunKind",
+            "default": "report",
+            "description": "`report` or `check` (`RunProgress.kind`, CRL-94)."
           },
           "max_iterations": {
             "title": "Max Iterations",
@@ -1907,6 +2043,78 @@
         "title": "Severity",
         "type": "string"
       },
+      "SourceEdit": {
+        "description": "What the analyst states about a source (CRL-138). A field left out stays as it is; an\nempty string clears it, and the model infers it again.",
+        "properties": {
+          "access": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The source's access to what it reports, a term from the lexicon's source_access",
+            "title": "Access"
+          },
+          "date_of_information": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the source's information was issued or current",
+            "title": "Date Of Information"
+          },
+          "descriptor": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A source descriptor phrase from the pack's lexicon",
+            "title": "Descriptor"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Who originated, authored or published the information",
+            "title": "Origin"
+          },
+          "reliability_note": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The source's reliability, currency and completeness",
+            "title": "Reliability Note"
+          }
+        },
+        "title": "SourceEdit",
+        "type": "object"
+      },
       "SourceKind": {
         "enum": [
           "file",
@@ -1914,6 +2122,48 @@
         ],
         "title": "SourceKind",
         "type": "string"
+      },
+      "SourceStatement": {
+        "description": "What the analyst states about a source for its entry in the report (CRL-138). A stated\nvalue replaces whatever the writer or conveyor gives that field; a blank one is not stated\nand is left out of every dump, so a source with nothing stated serialises as it did before.",
+        "properties": {
+          "access": {
+            "default": "",
+            "description": "The source's access to what it reports, a term from the lexicon's source_access",
+            "maxLength": 200,
+            "title": "Access",
+            "type": "string"
+          },
+          "date_of_information": {
+            "default": "",
+            "description": "When the source's information was issued or current",
+            "maxLength": 100,
+            "title": "Date Of Information",
+            "type": "string"
+          },
+          "descriptor": {
+            "default": "",
+            "description": "A source descriptor phrase from the pack's lexicon",
+            "maxLength": 200,
+            "title": "Descriptor",
+            "type": "string"
+          },
+          "origin": {
+            "default": "",
+            "description": "Who originated, authored or published the information",
+            "maxLength": 500,
+            "title": "Origin",
+            "type": "string"
+          },
+          "reliability_note": {
+            "default": "",
+            "description": "The source's reliability, currency and completeness",
+            "maxLength": 2000,
+            "title": "Reliability Note",
+            "type": "string"
+          }
+        },
+        "title": "SourceStatement",
+        "type": "object"
       },
       "SourceSummary": {
         "properties": {
@@ -1935,6 +2185,10 @@
           "format": {
             "title": "Format",
             "type": "string"
+          },
+          "hidden_units": {
+            "title": "Hidden Units",
+            "type": "integer"
           },
           "id": {
             "title": "Id",
@@ -1966,6 +2220,13 @@
             "title": "Sha256",
             "type": "string"
           },
+          "stated": {
+            "$ref": "#/components/schemas/SourceStatement"
+          },
+          "suspect_units": {
+            "title": "Suspect Units",
+            "type": "integer"
+          },
           "units": {
             "title": "Units",
             "type": "integer"
@@ -1980,7 +2241,9 @@
           "units",
           "digested",
           "coglossa_run_id",
-          "ocr_pages"
+          "ocr_pages",
+          "hidden_units",
+          "suspect_units"
         ],
         "title": "SourceSummary",
         "type": "object"
@@ -2025,6 +2288,10 @@
           "sha256": {
             "title": "Sha256",
             "type": "string"
+          },
+          "stated": {
+            "$ref": "#/components/schemas/SourceStatement",
+            "description": "What the analyst states about the source for its entry in a report (CRL-138); a run writes each stated value over the model's. Left out when nothing is stated."
           }
         },
         "required": [
@@ -3256,7 +3523,7 @@
         ]
       },
       "post": {
-        "description": "Store and parse one upload (spec §5): one source, or two for a Coglossa export that\ncarries a translation guide. Nothing is kept when the file cannot be parsed. With\n`ingest.ocr: auto` a PDF's scanned pages are read by OCR before the answer (CRL-95). A file\nthe project has already (same sha256 and kind) is not added again: 200 with that source\n(CRL-126).",
+        "description": "Store and parse one upload (spec §5): one source, or two for a Coglossa export that\ncarries a translation guide. Nothing is kept when the file cannot be parsed. With\n`ingest.ocr: auto` a PDF's scanned pages are read by OCR before the answer (CRL-95). A file\nthe project has already (same sha256 and kind) is not added again: 200 with that source\n(CRL-126). The optional `descriptor`, `reliability_note`, `date_of_information`, `origin`\nand `access` are what the analyst states about the source, as `PATCH` sets them (CRL-138);\nfor a file the project has already they are set on that source.",
         "operationId": "upload_source_api_projects__project_id__sources_post",
         "parameters": [
           {
@@ -3484,6 +3751,113 @@
         ]
       }
     },
+    "/api/projects/{project_id}/sources/{source_id}": {
+      "patch": {
+        "description": "Set what the analyst states about a source (CRL-138): its descriptor and access are\nchecked against the default pack's lexicon, and a run checks them again against its own. A\nrun already queued keeps the values it was queued with.",
+        "operationId": "edit_source_api_projects__project_id__sources__source_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "source_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Source Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SourceEdit"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "missing trusted header"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "conflicts with the current data"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "upload too large"
+          },
+          "422": {
+            "description": "invalid request"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "the database or job queue is unavailable"
+          }
+        },
+        "summary": "Edit Source",
+        "tags": [
+          "projects"
+        ]
+      }
+    },
     "/api/runs": {
       "get": {
         "description": "A project's runs, newest first, `limit` at a time; `before` is the previous page's\n`next_before`.",
@@ -3600,7 +3974,7 @@
         ]
       },
       "post": {
-        "description": "Snapshot the pack, store the run and queue it; the worker does the rest unattended.",
+        "description": "Snapshot the pack, store the run and queue it; the worker does the rest unattended. A\ncheck (`kind: check`) audits an uploaded report without rewriting it.",
         "operationId": "create_run_api_runs_post",
         "requestBody": {
           "content": {
@@ -4060,7 +4434,8 @@
                 "report.json",
                 "report.md",
                 "report.html",
-                "report.docx"
+                "report.docx",
+                "findings.csv"
               ],
               "title": "Name",
               "type": "string"
@@ -4072,6 +4447,7 @@
             "content": {
               "application/json": {},
               "application/vnd.openxmlformats-officedocument.wordprocessingml.document": {},
+              "text/csv; charset=utf-8": {},
               "text/html; charset=utf-8": {},
               "text/markdown; charset=utf-8": {}
             },

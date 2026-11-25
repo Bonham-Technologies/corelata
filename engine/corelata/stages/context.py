@@ -6,6 +6,7 @@ from typing import Any
 
 from corelata.config import CorelataConfig, EvidenceQuotes
 from corelata.ingest.base import HINT_KEYS
+from corelata.ingest.injection import suspect_flag
 from corelata.ingest.units import UnitIndex
 from corelata.llm.agent import AgentRunner
 from corelata.quotes import QuoteCheck
@@ -25,6 +26,12 @@ def ocr_flag(unit: SourceUnit) -> dict[str, Any]:
     if not unit.meta.get("ocr"):
         return {}
     return {"ocr": True, "ocr_confidence": unit.meta.get("ocr_confidence")}
+
+
+def unit_flags(unit: SourceUnit) -> dict[str, Any]:
+    """What a model's input says about a unit beyond its text: the OCR flag (CRL-95) and
+    `"suspect": true` for text that reads as an instruction to an AI system (CRL-137)."""
+    return ocr_flag(unit) | suspect_flag(unit.meta)
 
 
 def estimate_tokens(text: str, bytes_per_token: float) -> int:
@@ -54,6 +61,9 @@ class StageContext:
     # Rules the engine records `not_applicable` (initial coverage) after the audit: the rules
     # with `with_prior_reports` when the project has no earlier accepted report.
     initial_coverage: list[str] = field(default_factory=list)
+    # CRL-138: the source entry values the engine wrote over in the last writer or conveyor
+    # reply because the analyst stated them (`stages.stated.apply_stated`); empty when none.
+    stated_overrides: list[dict[str, Any]] = field(default_factory=list)
 
     def source(self, source_id: str) -> Source:
         return next(s for s in self.sources if s.id == source_id)
@@ -70,7 +80,7 @@ class StageContext:
             source, unit = self.index.get(ref)
             out.append(
                 {"ref": ref, "text": unit.text, "locator": unit.locator, "source": source.name}
-                | ocr_flag(unit)
+                | unit_flags(unit)
             )
         return out
 

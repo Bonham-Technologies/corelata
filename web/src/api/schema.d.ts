@@ -163,7 +163,9 @@ export interface paths {
          *     carries a translation guide. Nothing is kept when the file cannot be parsed. With
          *     `ingest.ocr: auto` a PDF's scanned pages are read by OCR before the answer (CRL-95). A file
          *     the project has already (same sha256 and kind) is not added again: 200 with that source
-         *     (CRL-126).
+         *     (CRL-126). The optional `descriptor`, `reliability_note`, `date_of_information`, `origin`
+         *     and `access` are what the analyst states about the source, as `PATCH` sets them (CRL-138);
+         *     for a file the project has already they are set on that source.
          */
         post: operations["upload_source_api_projects__project_id__sources_post"];
         delete?: never;
@@ -194,6 +196,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{project_id}/sources/{source_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Edit Source
+         * @description Set what the analyst states about a source (CRL-138): its descriptor and access are
+         *     checked against the default pack's lexicon, and a run checks them again against its own. A
+         *     run already queued keeps the values it was queued with.
+         */
+        patch: operations["edit_source_api_projects__project_id__sources__source_id__patch"];
+        trace?: never;
+    };
     "/api/runs": {
         parameters: {
             query?: never;
@@ -210,7 +234,8 @@ export interface paths {
         put?: never;
         /**
          * Create Run
-         * @description Snapshot the pack, store the run and queue it; the worker does the rest unattended.
+         * @description Snapshot the pack, store the run and queue it; the worker does the rest unattended. A
+         *     check (`kind: check`) audits an uploaded report without rewriting it.
          */
         post: operations["create_run_api_runs_post"];
         delete?: never;
@@ -445,10 +470,20 @@ export interface components {
     schemas: {
         /** Body_upload_source_api_projects__project_id__sources_post */
         Body_upload_source_api_projects__project_id__sources_post: {
+            /** Access */
+            access?: string | null;
+            /** Date Of Information */
+            date_of_information?: string | null;
+            /** Descriptor */
+            descriptor?: string | null;
             /** File */
             file: string;
             /** @default file */
             kind: components["schemas"]["SourceKind"];
+            /** Origin */
+            origin?: string | null;
+            /** Reliability Note */
+            reliability_note?: string | null;
         };
         /**
          * CallSummary
@@ -583,6 +618,11 @@ export interface components {
              * @default
              */
             extra_guidance: string;
+            /**
+             * @description `report` writes a report from the sources; `check` audits the finished report `report_source_id` against the standards pack, the sources as its evidence.
+             * @default report
+             */
+            kind: components["schemas"]["RunKind"];
             /** Max Iterations */
             max_iterations?: number | null;
             /** Parent Run Id */
@@ -594,9 +634,17 @@ export interface components {
              * Format: uuid
              */
             project_id: string;
+            /**
+             * Report Source Id
+             * @description With `kind: check`: the project source holding the report to check.
+             */
+            report_source_id?: string | null;
             /** Source Ids */
             source_ids: string[];
-            /** Value Statement */
+            /**
+             * Value Statement
+             * @default
+             */
             value_statement: string;
         };
         /**
@@ -800,14 +848,20 @@ export interface components {
             confidence_definitions: {
                 [key: string]: string;
             };
+            /** Confidence Phrases */
+            confidence_phrases?: string[];
             /** Handling Markings */
             handling_markings: string[];
             /** Likelihood */
             likelihood: components["schemas"]["LikelihoodTerm"][];
+            /** Likelihood Alternates */
+            likelihood_alternates?: string[];
             /** Source Access */
             source_access?: string[];
             /** Source Descriptors */
             source_descriptors: string[];
+            /** Unlisted Probability Words */
+            unlisted_probability_words?: string[];
         };
         /** LikelihoodTerm */
         LikelihoodTerm: {
@@ -1054,6 +1108,13 @@ export interface components {
             with_prior_reports?: components["schemas"]["PriorReportsRule"] | null;
         };
         /**
+         * RunKind
+         * @description What a run does (CRL-94): `report` writes a report from the sources; `check` audits a
+         *     finished report someone else wrote against the pack, without rewriting it.
+         * @enum {string}
+         */
+        RunKind: "report" | "check";
+        /**
          * RunPage
          * @description One page of a project's runs, newest first (keyset paging on created_at and id).
          */
@@ -1087,10 +1148,21 @@ export interface components {
             error?: string | null;
             /** Export Error */
             export_error?: string | null;
+            /**
+             * Extra Guidance
+             * @description The guidance the writer was given: what the analyst wrote, and for a revision the reviewer notes appended to it (CRL-132).
+             * @default
+             */
+            extra_guidance: string;
             /** Finished At */
             finished_at?: string | null;
             /** Iteration */
             iteration: number;
+            /**
+             * @description What the run does: `report` writes a report from the sources; `check` audits a finished report against the standards pack without rewriting it (CRL-94).
+             * @default report
+             */
+            kind: components["schemas"]["RunKind"];
             /** Max Iterations */
             max_iterations: number;
             /** Parent Run Id */
@@ -1102,6 +1174,11 @@ export interface components {
             profile?: string | null;
             /** Project Id */
             project_id: string;
+            /**
+             * Report Source Id
+             * @description The project source a check run audits; null for a report run (CRL-94).
+             */
+            report_source_id?: string | null;
             review?: components["schemas"]["ReviewState"] | null;
             /** Run Id */
             run_id: string;
@@ -1133,7 +1210,7 @@ export interface components {
          * RunState
          * @enum {string}
          */
-        RunState: "created" | "ingesting" | "gating" | "drafting" | "conveying" | "auditing" | "rendering" | "completed" | "gate_rejected" | "failed" | "cancelled";
+        RunState: "created" | "ingesting" | "gating" | "structuring" | "drafting" | "conveying" | "auditing" | "rendering" | "completed" | "gate_rejected" | "failed" | "cancelled";
         /**
          * RunSummary
          * @description One row of `GET /api/runs?project_id=`: enough to list a project's runs and open one.
@@ -1148,6 +1225,11 @@ export interface components {
             finished_at?: string | null;
             /** Iteration */
             iteration: number;
+            /**
+             * @description `report` or `check` (`RunProgress.kind`, CRL-94).
+             * @default report
+             */
+            kind: components["schemas"]["RunKind"];
             /** Max Iterations */
             max_iterations: number;
             /** Parent Run Id */
@@ -1185,10 +1267,80 @@ export interface components {
          */
         Severity: "blocking" | "major" | "minor";
         /**
+         * SourceEdit
+         * @description What the analyst states about a source (CRL-138). A field left out stays as it is; an
+         *     empty string clears it, and the model infers it again.
+         */
+        SourceEdit: {
+            /**
+             * Access
+             * @description The source's access to what it reports, a term from the lexicon's source_access
+             */
+            access?: string | null;
+            /**
+             * Date Of Information
+             * @description When the source's information was issued or current
+             */
+            date_of_information?: string | null;
+            /**
+             * Descriptor
+             * @description A source descriptor phrase from the pack's lexicon
+             */
+            descriptor?: string | null;
+            /**
+             * Origin
+             * @description Who originated, authored or published the information
+             */
+            origin?: string | null;
+            /**
+             * Reliability Note
+             * @description The source's reliability, currency and completeness
+             */
+            reliability_note?: string | null;
+        };
+        /**
          * SourceKind
          * @enum {string}
          */
         SourceKind: "file" | "coglossa_export";
+        /**
+         * SourceStatement
+         * @description What the analyst states about a source for its entry in the report (CRL-138). A stated
+         *     value replaces whatever the writer or conveyor gives that field; a blank one is not stated
+         *     and is left out of every dump, so a source with nothing stated serialises as it did before.
+         */
+        SourceStatement: {
+            /**
+             * Access
+             * @description The source's access to what it reports, a term from the lexicon's source_access
+             * @default
+             */
+            access: string;
+            /**
+             * Date Of Information
+             * @description When the source's information was issued or current
+             * @default
+             */
+            date_of_information: string;
+            /**
+             * Descriptor
+             * @description A source descriptor phrase from the pack's lexicon
+             * @default
+             */
+            descriptor: string;
+            /**
+             * Origin
+             * @description Who originated, authored or published the information
+             * @default
+             */
+            origin: string;
+            /**
+             * Reliability Note
+             * @description The source's reliability, currency and completeness
+             * @default
+             */
+            reliability_note: string;
+        };
         /** SourceSummary */
         SourceSummary: {
             /** Coglossa Run Id */
@@ -1197,6 +1349,8 @@ export interface components {
             digested: boolean;
             /** Format */
             format: string;
+            /** Hidden Units */
+            hidden_units: number;
             /** Id */
             id: string;
             kind: components["schemas"]["SourceKind"];
@@ -1208,6 +1362,9 @@ export interface components {
             reliability_tier?: string | null;
             /** Sha256 */
             sha256: string;
+            stated?: components["schemas"]["SourceStatement"];
+            /** Suspect Units */
+            suspect_units: number;
             /** Units */
             units: number;
         };
@@ -1239,6 +1396,8 @@ export interface components {
             };
             /** Sha256 */
             sha256: string;
+            /** @description What the analyst states about the source for its entry in a report (CRL-138); a run writes each stated value over the model's. Left out when nothing is stated. */
+            stated?: components["schemas"]["SourceStatement"];
         };
         /** StageLine */
         StageLine: {
@@ -2255,6 +2414,85 @@ export interface operations {
             };
         };
     };
+    edit_source_api_projects__project_id__sources__source_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+                source_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SourceEdit"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceView"];
+                };
+            };
+            /** @description missing trusted header */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description conflicts with the current data */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description upload too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description invalid request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description the database or job queue is unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     list_runs_api_runs_get: {
         parameters: {
             query: {
@@ -2710,7 +2948,7 @@ export interface operations {
             header?: never;
             path: {
                 run_id: string;
-                name: "trace.json" | "gate.json" | "report.json" | "report.md" | "report.html" | "report.docx";
+                name: "trace.json" | "gate.json" | "report.json" | "report.md" | "report.html" | "report.docx" | "findings.csv";
             };
             cookie?: never;
         };
@@ -2724,6 +2962,7 @@ export interface operations {
                 content: {
                     "application/json": unknown;
                     "application/vnd.openxmlformats-officedocument.wordprocessingml.document": unknown;
+                    "text/csv; charset=utf-8": unknown;
                     "text/html; charset=utf-8": unknown;
                     "text/markdown; charset=utf-8": unknown;
                 };

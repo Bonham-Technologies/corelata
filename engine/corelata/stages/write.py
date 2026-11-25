@@ -8,6 +8,7 @@ from corelata.schema import Finding, ReportBody, Source, SourceEntry, reliabilit
 from corelata.stages.context import StageContext, estimate_tokens
 from corelata.stages.prior import prior_report_entry
 from corelata.stages.report_schema import report_output_type
+from corelata.stages.stated import apply_stated
 
 
 def report_schema(ctx: StageContext) -> dict[str, Any]:
@@ -224,7 +225,7 @@ async def run_writer(
             "value_statement": ctx.value_statement,
             "template": ctx.pack.template.model_dump(),
             "rules": [r.model_dump() for r in ctx.pack.rules_for("writer")],
-            "lexicon": ctx.pack.lexicon.model_dump(),
+            "lexicon": ctx.pack.lexicon.model_view(),
             "digests": ctx.digest_payload(),
             "units": ctx.unit_payload(select_writer_units(ctx)),
             "gate_evidence": list(ctx.gate_evidence),
@@ -234,13 +235,20 @@ async def run_writer(
             "findings": [f.model_dump() for f in findings],
             "extra_guidance": ctx.extra_guidance,
             "iteration": iteration,
-            **_quotes_mode(ctx),
+            **quotes_mode(ctx),
         },
         output_type=ReportBody,
         schema=report_schema(ctx),
         validate=check,
     )
-    return shape_reply(ctx, parsed)
+    return keep_stated(ctx, shape_reply(ctx, parsed))
+
+
+def keep_stated(ctx: StageContext, body: ReportBody) -> ReportBody:
+    """`body` with the analyst's stated source values written over the model's (CRL-138); what
+    was overwritten is left on `ctx.stated_overrides` for the stage's trace output."""
+    body, ctx.stated_overrides = apply_stated(ctx.sources, ctx.pack, body)
+    return body
 
 
 def prior_reports_payload(ctx: StageContext) -> dict[str, Any]:
@@ -251,7 +259,7 @@ def prior_reports_payload(ctx: StageContext) -> dict[str, Any]:
     return {"prior_reports": [prior_report_entry(r) for r in ctx.prior_reports]}
 
 
-def _quotes_mode(ctx: StageContext) -> dict[str, str]:
+def quotes_mode(ctx: StageContext) -> dict[str, str]:
     """The payload's `evidence_quotes` key, absent with `off` so that payload is unchanged."""
     if ctx.evidence_quotes is EvidenceQuotes.OFF:
         return {}

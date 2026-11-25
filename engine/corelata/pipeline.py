@@ -4,16 +4,16 @@ recorded as a degradation and the report is still delivered (R-M11-2). Nothing r
 
 import secrets
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from typing import Any, Protocol
 
 from corelata import __version__
 from corelata.config import CorelataConfig, config_hash
-from corelata.ingest.units import UnitIndex
+from corelata.ingest.units import UnitIndex, model_view
 from corelata.llm.agent import AGENT_FAILURES, AgentRunner, CallLog
 from corelata.llm.types import OVERSIZE_ERRORS, Backend
-from corelata.prompts.check import run_prompt_ids
+from corelata.prompts.check import check_prompt_ids, run_prompt_ids
 from corelata.prompts.library import PromptLibrary
 from corelata.schema import (
     DiscoveryResult,
@@ -25,6 +25,7 @@ from corelata.schema import (
     ReportBody,
     ReportMetadata,
     ReportStatus,
+    RunKind,
     RunRecord,
     RunState,
     Source,
@@ -44,6 +45,7 @@ from corelata.stages.convey import run_conveyor
 from corelata.stages.digest import run_digests, writer_overflow
 from corelata.stages.gate import run_discovery, run_gate
 from corelata.stages.prior import select_prior_reports
+from corelata.stages.structure import REPORT_ID, run_structurer, suspect_claims
 from corelata.stages.write import run_writer
 from corelata.standards.loader import load_pack, pack_hash
 from corelata.standards.schema import ResolvedPack
@@ -71,6 +73,9 @@ class RunOptions:
     # worker reads them for a queued run); None when the host has no project memory (`corelata
     # run`, the bench) or `pipeline.prior_judgments.max_reports` is 0.
     prior_reports: list[PriorReport] | None = None
+    # CRL-94: the finished report a check run audits (its source id `report`); None for a run
+    # that writes its own report.
+    checked_report: Source | None = None
 
 
 class RunObserver(Protocol):
@@ -127,12 +132,13 @@ class _Run:
         self.now = now
         self.observer = observer
         self.log = log
+        visible = model_view(sources)  # CRL-137: hidden text stays in the record only
         self.ctx = StageContext(
             cfg=cfg,
             runner=AgentRunner(cfg, backends, prompts, log),
             pack=pack,
-            sources=sources,
-            index=UnitIndex.from_sources(sources),
+            sources=visible,
+            index=UnitIndex.from_sources(visible),
             value_statement=options.value_statement.strip(),
             extra_guidance=options.extra_guidance,
         )
@@ -146,9 +152,12 @@ class _Run:
             if options.max_iterations is None
             else options.max_iterations
         )
+        self.checked = options.checked_report
         self.record = RunRecord(
             corelata_version=__version__,
             run_id=options.run_id or secrets.token_hex(6),
+            kind=RunKind.REPORT if self.checked is None else RunKind.CHECK,
+            checked_report=self.checked,
             created_at=options.created_at or now(),
             value_statement=self.ctx.value_statement,
             profile=pack.profile,
@@ -158,7 +167,9 @@ class _Run:
             pack_hash=pack_hash(pack),
             pack_snapshot=pack.model_dump(mode="json"),
             config_hash=config_hash(cfg),
-            prompt_versions=prompts.versions(run_prompt_ids()),
+            prompt_versions=prompts.versions(
+                run_prompt_ids() if self.checked is None else check_prompt_ids()
+            ),
             sources=sources,
             prior_reports=given or [],
             max_iterations=self.max_iterations,
@@ -261,6 +272,12 @@ class _Run:
         self.record.stages.append(result)
         await self.observer.stage_recorded(self.record, result)
 
+    def _overrides(self) -> dict[str, Any]:
+        """The stage output's `stated_overrides` (CRL-138): the source entry values the engine
+        wrote over with the analyst's; absent when there were none, so the output is unchanged."""
+        found = self.ctx.stated_overrides
+        return {"stated_overrides": list(found)} if found else {}
+
     def _degradation(self, what: str, state: RunState, iteration: int, error: Exception) -> str:
         """R-M11-2: the line the report carries for a stage it was delivered without, counting
         the attempts `stage()` recorded as failed for that stage and iteration."""
@@ -276,6 +293,8 @@ class _Run:
         return f"{what} after {n} attempt{'' if n == 1 else 's'}: {first}"
 
     async def execute(self) -> RunRecord:
+        if self.checked is not None:
+            return await self._execute_check(self.checked)
         rec = self.record
         try:
             await self.stage(RunState.INGESTING, 0, self._ingest, lambda d: {"digested": sorted(d)})
@@ -314,6 +333,7 @@ class _Run:
                             "title": b.title,
                             "claims": len(b.claims),
                             "withheld_units": len(self.ctx.withheld_refs),
+                            **self._overrides(),
                         },
                     )
                     rec.drafts.append(DraftRecord(role="writer", iteration=iteration, report=draft))
@@ -328,7 +348,7 @@ class _Run:
                             draft=d,
                             findings=[f for f in r if f.route_to == "conveyor"],
                         ),
-                        lambda b: {"title": b.title},
+                        lambda b: {"title": b.title, **self._overrides()},
                     )
                 except (*AGENT_FAILURES, StageError) as e:
                     # R-M11-2: the conveyor's input goes forward unedited and is audited
@@ -371,34 +391,89 @@ class _Run:
                 iteration += 1
                 prior = draft
             rec.iterations = iteration
-            still_open = open_findings(findings)
-            degraded = still_open or degradations
-            status = ReportStatus.FINDINGS_OPEN if degraded else ReportStatus.CLEAN
-            rec.state = RunState.RENDERING
-            await self.observer.state_changed(rec)
-            started = self.now()
-            rec.report = Report(
-                **draft.model_dump(),
-                metadata=ReportMetadata(
-                    run_id=rec.run_id,
-                    pack_name=rec.pack_name,
-                    pack_hash=rec.pack_hash,
-                    profile=rec.profile,
-                    iteration=iteration,
-                    status=status,
-                    open_findings=[f.id for f in still_open],
-                    degradations=degradations,
-                    prior_reports=[
-                        PriorReportRef(run_id=r.run_id, title=r.title, accepted_at=r.accepted_at)
-                        for r in self.ctx.prior_reports
-                    ],
-                ),
+            await self._deliver(draft, findings, degradations, iteration)
+        except RunCancelled:
+            rec.state = RunState.CANCELLED
+        except (*AGENT_FAILURES, StageError) as e:
+            rec.state = RunState.FAILED
+            rec.error = str(e)
+        return self._finish()
+
+    async def _deliver(
+        self, draft: ReportBody, findings: list[Finding], degradations: list[str], iteration: int
+    ) -> None:
+        """`rendering`: the delivered report with the engine's metadata, then `completed`."""
+        rec = self.record
+        still_open = open_findings(findings)
+        degraded = still_open or degradations
+        status = ReportStatus.FINDINGS_OPEN if degraded else ReportStatus.CLEAN
+        rec.state = RunState.RENDERING
+        await self.observer.state_changed(rec)
+        started = self.now()
+        rec.report = Report(
+            **draft.model_dump(),
+            metadata=ReportMetadata(
+                run_id=rec.run_id,
+                pack_name=rec.pack_name,
+                pack_hash=rec.pack_hash,
+                profile=rec.profile,
+                iteration=iteration,
+                status=status,
+                open_findings=[f.id for f in still_open],
+                degradations=degradations,
+                prior_reports=[
+                    PriorReportRef(run_id=r.run_id, title=r.title, accepted_at=r.accepted_at)
+                    for r in self.ctx.prior_reports
+                ],
+            ),
+        )
+        await self._record_stage(
+            RunState.RENDERING, iteration, started, output={"status": status.value}
+        )
+        rec.status = status
+        rec.state = RunState.COMPLETED
+
+    async def _execute_check(self, report: Source) -> RunRecord:
+        """A check run (CRL-94): ingest → structuring → auditing → rendering, with no gate,
+        writer, conveyor or loop. The structurer maps the report word for word; a structurer
+        failure fails the run, as a writer's does, and an auditor failure degrades it, as in a
+        run (R-M11-2). The delivered report is the checked one, with the audit's findings."""
+        rec = self.record
+        try:
+            await self.stage(RunState.INGESTING, 0, self._ingest, lambda d: {"digested": sorted(d)})
+            draft = await self.stage(
+                RunState.STRUCTURING,
+                0,
+                lambda: run_structurer(self.ctx, report),
+                lambda b: {
+                    "title": b.title,
+                    "claims": len(b.claims),
+                    "unsourced": len(b.unsourced_claims()),
+                },
             )
-            await self._record_stage(
-                RunState.RENDERING, iteration, started, output={"status": status.value}
-            )
-            rec.status = status
-            rec.state = RunState.COMPLETED
+            rec.drafts.append(DraftRecord(role="structurer", iteration=0, report=draft))
+            degradations: list[str] = []
+            try:
+                outcome: AuditOutcome = await self.stage(
+                    RunState.AUDITING,
+                    0,
+                    lambda: run_auditor(
+                        self.ctx,
+                        iteration=0,
+                        draft=draft,
+                        suspect_claims=suspect_claims(report, draft),
+                    ),
+                    lambda o: {
+                        "open": [f.id for f in open_findings(o.findings)],
+                        "summary": o.summary,
+                    },
+                )
+                findings = outcome.findings
+            except (*AGENT_FAILURES, StageError) as e:
+                degradations.append(self._degradation(AUDIT_INCOMPLETE, RunState.AUDITING, 0, e))
+                findings = engine_only_findings(draft, self.ctx.pack, 0, self.ctx.quote_check())
+            rec.findings.extend(findings)
+            await self._deliver(draft, findings, degradations, 0)
         except RunCancelled:
             rec.state = RunState.CANCELLED
         except (*AGENT_FAILURES, StageError) as e:
@@ -462,7 +537,44 @@ async def run_report(
         raise ValueError("a run needs a value statement")
     if options.max_iterations is not None and not 0 <= options.max_iterations <= 10:
         raise ValueError("max_iterations must be between 0 and 10")
+    if options.checked_report is not None:
+        raise ValueError("a report run checks no report; use run_check")
     pack = pack or load_run_pack(cfg, options.profile)
+    return await _Run(
+        cfg,
+        sources,
+        options,
+        backends=backends,
+        prompts=prompts,
+        log=log,
+        pack=pack,
+        now=now,
+        observer=observer or NullObserver(),
+    ).execute()
+
+
+async def run_check(
+    cfg: CorelataConfig,
+    sources: list[Source],
+    report: Source,
+    options: RunOptions,
+    *,
+    backends: dict[str, Backend],
+    prompts: PromptLibrary,
+    log: CallLog,
+    pack: ResolvedPack | None = None,
+    now: Callable[[], datetime] = utcnow,
+    observer: RunObserver | None = None,
+) -> RunRecord:
+    """A check run (CRL-94): audit `report`, a finished report someone else wrote, against the
+    pack with `sources` as its evidence. The value statement is optional; there is no project
+    memory, no writer and no revision loop."""
+    if not sources:
+        raise ValueError("a check needs at least one source")
+    if report.id != REPORT_ID:
+        raise ValueError(f"the checked report's source id must be '{REPORT_ID}'")
+    pack = pack or load_run_pack(cfg, options.profile)
+    options = replace(options, checked_report=report, prior_reports=None, max_iterations=0)
     return await _Run(
         cfg,
         sources,
@@ -489,12 +601,13 @@ async def discover(
     if not sources:
         raise ValueError("discovery needs at least one source")
     pack = pack or load_run_pack(cfg, None)
+    visible = model_view(sources)  # CRL-137: no model reads hidden text
     ctx = StageContext(
         cfg=cfg,
         runner=AgentRunner(cfg, backends, prompts, log),
         pack=pack,
-        sources=sources,
-        index=UnitIndex.from_sources(sources),
+        sources=visible,
+        index=UnitIndex.from_sources(visible),
         value_statement="",
     )
     ctx.digests = await run_digests(ctx)

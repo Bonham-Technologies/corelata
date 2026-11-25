@@ -18,7 +18,7 @@ import {
   sources,
 } from "../../test/fixtures";
 import { expectNoEngineWords, visiblePrimaryButtons } from "../../test/engine-words";
-import { VALUE_STATEMENT_MAX_LENGTH } from "../../lib/limits";
+import { GUIDANCE_MAX_LENGTH, VALUE_STATEMENT_MAX_LENGTH } from "../../lib/limits";
 import { decodeSelection, SELECTION_PARAM, sourceToken } from "../../lib/selection";
 import { renderApp } from "../../test/render";
 import { server } from "../../test/server";
@@ -60,6 +60,10 @@ it("starts a run with the chosen sources, statement, profile and iterations, the
   await user.selectOptions(profile, "team-east");
   await user.clear(screen.getByRole("spinbutton", { name: "Revision rounds" }));
   await user.type(screen.getByRole("spinbutton", { name: "Revision rounds" }), "1");
+  await user.type(
+    screen.getByRole("textbox", { name: "Guidance for the writer" }),
+    "Lead with capacity",
+  );
   await user.click(start);
   await waitFor(() => expect(router.state.location.pathname).toBe(`/runs/${runProgress().run_id}`));
   expect(body).toEqual({
@@ -68,7 +72,8 @@ it("starts a run with the chosen sources, statement, profile and iterations, the
     value_statement: "Varna matters to shippers",
     profile: "team-east",
     max_iterations: 1,
-    extra_guidance: "",
+    extra_guidance: "Lead with capacity",
+    kind: "report",
   });
 });
 
@@ -338,6 +343,46 @@ it("New report without a project asks which project, and names the tab (M18 spec
   expect(document.title).toBe("New report – Corelata");
   expect(screen.queryByRole("region", { name: "Sources" })).toBeNull();
   expectNoEngineWords(screen.getByRole("main"));
+});
+
+it("a project that does not exist says so instead of showing its form, and names the tab (CRL-130)", async () => {
+  serve();
+  const unknown = "99999999-9999-9999-9999-999999999999";
+  server.use(
+    http.get(`*/api/projects/${unknown}/sources`, () =>
+      HttpResponse.json({ detail: `project ${unknown} not found` }, { status: 404 }),
+    ),
+  );
+  renderApp(`/new?project=${unknown}`);
+  const main = screen.getByRole("main");
+  expect(
+    await within(main).findByRole("heading", { name: "Project not found" }),
+  ).toBeInTheDocument();
+  expect(within(main).getByText(/does not exist, or it was deleted/)).toBeInTheDocument();
+  expect(within(main).getByRole("link", { name: "Choose a project" })).toHaveAttribute(
+    "href",
+    "/new",
+  );
+  expect(within(main).queryByRole("button", { name: "Write the report" })).toBeNull();
+  expect(within(main).queryByRole("textbox", { name: "Value statement" })).toBeNull();
+  expect(within(main).queryByRole("region", { name: "Sources" })).toBeNull();
+  expect(within(main).queryByRole("alert")).toBeNull();
+  await waitFor(() => expect(document.title).toBe("Project not found – Corelata"));
+});
+
+it("keeps the project's form when its sources cannot be read for another reason (CRL-130)", async () => {
+  serve();
+  server.use(
+    http.get(`*/api/projects/${project.id}/sources`, () =>
+      HttpResponse.json({ detail: "the database is unavailable" }, { status: 503 }),
+    ),
+  );
+  renderApp(`/new?project=${project.id}`);
+  const main = screen.getByRole("main");
+  expect(await within(main).findByRole("alert")).toHaveTextContent("the database is unavailable");
+  expect(within(main).getByRole("heading", { name: project.name })).toBeInTheDocument();
+  expect(within(main).getByRole("button", { name: "Write the report" })).toBeInTheDocument();
+  expect(within(main).queryByRole("heading", { name: "Project not found" })).toBeNull();
 });
 
 it("the project page names the project, has no picker, folds the options and has one primary button", async () => {
@@ -652,6 +697,7 @@ describe("the draft (CRL-74)", () => {
         statement: "Varna matters to shippers",
         profile: "team-east",
         maxIterations: 1,
+        guidance: "",
       }),
     );
     cleanup(); // the reload: a new page in the same tab
@@ -664,6 +710,28 @@ describe("the draft (CRL-74)", () => {
       expect(screen.getByRole("combobox", { name: "Team profile" })).toHaveValue("team-east"),
     );
     expect(screen.getByRole("spinbutton", { name: "Revision rounds" })).toHaveValue(1);
+  });
+
+  it("keeps the writer guidance across a reload, and loads a draft saved without it (CRL-132)", async () => {
+    serve();
+    sessionStorage.setItem(
+      key,
+      JSON.stringify({ statement: "Old", profile: null, maxIterations: null }),
+    );
+    const { user } = renderApp(`/new?project=${project.id}`);
+    const guidance = await screen.findByRole("textbox", { name: "Guidance for the writer" });
+    expect(guidance).toHaveValue("");
+    await user.type(guidance, "Lead with capacity");
+    await waitFor(() =>
+      expect(JSON.parse(sessionStorage.getItem(key) ?? "null")).toMatchObject({
+        guidance: "Lead with capacity",
+      }),
+    );
+    cleanup(); // the reload
+    renderApp(`/new?project=${project.id}`);
+    expect(await screen.findByRole("textbox", { name: "Guidance for the writer" })).toHaveValue(
+      "Lead with capacity",
+    );
   });
 
   it("clears the draft once the run starts", async () => {
@@ -705,6 +773,7 @@ describe("the draft (CRL-74)", () => {
       statement: "Riga",
       profile: null,
       maxIterations: null,
+      guidance: "",
     });
     await user.click(inSidebar().getByRole("link", { name: /^Black Sea/ }));
     await waitFor(() => expect(router.state.location.search).toBe(`?project=${project.id}`));
@@ -732,6 +801,7 @@ describe("the draft (CRL-74)", () => {
         statement: "Varna",
         profile: null,
         maxIterations: null,
+        guidance: "",
       }),
     );
   });
@@ -781,6 +851,36 @@ describe("starting from an earlier run (CRL-84)", () => {
     serve();
     server.use(http.get(`*/api/runs/${RUN_ID}`, answer));
   }
+
+  it("prefills the writer guidance from the earlier run as stored, reviewer notes included (CRL-132)", async () => {
+    const stored = "Lead with capacity.\nReviewer note: Add the 2027 date";
+    serveEarlier(() => HttpResponse.json({ ...EARLIER, extra_guidance: stored }));
+    renderApp(`/new?project=${project.id}&from=${RUN_ID}`);
+    await waitFor(() =>
+      expect(screen.getByRole("textbox", { name: "Guidance for the writer" })).toHaveValue(stored),
+    );
+  });
+
+  it("a revision's guidance over the limit opens the fold, says to shorten it and holds Write (CRL-132)", async () => {
+    // a revision's stored guidance carries the reviewer notes, so it can pass the 8,000 a new
+    // run accepts; sending it would only earn a 422
+    const long = "g".repeat(GUIDANCE_MAX_LENGTH - 10) + "\nReviewer note: add the 2027 date";
+    serveEarlier(() => HttpResponse.json({ ...EARLIER, extra_guidance: long }));
+    renderApp(`/new?project=${project.id}&from=${RUN_ID}`);
+    const box = screen.getByRole("textbox", { name: "Guidance for the writer" });
+    await waitFor(() => expect(box).toHaveValue(long));
+    expect(screen.getByText("More options").closest("details")).toHaveAttribute("open");
+    expect(box).toBeInvalid();
+    expect(box).toHaveAccessibleDescription(
+      `${long.length.toLocaleString()} of 8,000 characters Shorten the guidance to write the report.`,
+    );
+    const start = screen.getByRole("button", { name: "Write the report" });
+    expect(start).toBeDisabled();
+    fireEvent.change(box, { target: { value: long.slice(0, GUIDANCE_MAX_LENGTH) } });
+    expect(screen.queryByText("Shorten the guidance to write the report.")).toBeNull();
+    expect(box).toBeValid();
+    expect(start).toBeEnabled();
+  });
 
   it("prefills the statement, sources, profile and rounds, then drops `from` so a reload keeps the edits", async () => {
     serveEarlier();

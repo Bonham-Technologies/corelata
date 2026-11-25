@@ -6,6 +6,7 @@ import { ErrorMessage } from "../../components/ErrorMessage";
 import { Loading } from "../../components/Loading";
 import { AddSources } from "./AddSources";
 import { FetchFromCoglossa } from "./FetchFromCoglossa";
+import { SourceDetails, statedText } from "./SourceDetails";
 
 /** A source's kind in words: "TXT", or "Coglossa run 1234…" (M18 spec §5.2). */
 export function kindText(source: SourceView): string {
@@ -49,7 +50,7 @@ export function SourcesPanel({
       {list.length > 0 ? (
         <ul className="source-list">
           {list.map((s) => (
-            <li key={s.id}>
+            <li key={s.id} className="row between">
               <label className="row">
                 <input
                   type="checkbox"
@@ -59,7 +60,9 @@ export function SourcesPanel({
                 />
                 <span dir="auto">{s.name}</span>
                 <span className="badge">{kindText(s)}</span>
+                {statedText(s) ? <span className="muted">{statedText(s)}</span> : null}
               </label>
+              <SourceDetails projectId={projectId} source={s} />
             </li>
           ))}
         </ul>

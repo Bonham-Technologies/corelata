@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { exportUrl, reportUrl } from "../../api/client";
 import { rerunFreed, useReview } from "../../api/runs";
@@ -9,12 +9,16 @@ import { ErrorMessage } from "../../components/ErrorMessage";
 import { Menu } from "../../components/Menu";
 import { NOTE_MAX_LENGTH } from "../../lib/limits";
 
-/** The Download menu's items (M18 spec §5.4): today's four URLs, with plain names. */
-export function downloads(runId: string): [string, string][] {
+/** The Download menu's items (M18 spec §5.4): today's four URLs, with plain names, and for a
+ * checked report its standards sheet (CRL-94). */
+export function downloads(runId: string, checked = false): [string, string][] {
   return [
     ["Word document (DOCX)", reportUrl(runId, "docx", { download: true })],
     ["Markdown", reportUrl(runId, "md", { download: true })],
     ["Web page (HTML)", reportUrl(runId, "html", { download: true })],
+    ...(checked
+      ? [["Standards sheet (CSV)", exportUrl(runId, "findings.csv")] as [string, string]]
+      : []),
     ["Trace (JSON)", exportUrl(runId, "trace.json")],
   ];
 }
@@ -26,26 +30,49 @@ export function ReviewActions({
   runId,
   review,
   onAccepted,
+  checked = false,
 }: {
   runId: string;
   review: ReviewState | null;
+  /** A finished report written elsewhere and checked as it is (CRL-94): nothing to accept or
+   * return, so only Download shows. */
+  checked?: boolean;
   /** Called once the server has taken an Accept, so the page can move focus to its banner. */
   onAccepted?: () => void;
 }) {
   const send = useReview(runId);
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const acceptedHere = useRef(false);
   const [note, setNote] = useState("");
   const noteId = useId();
   const countId = useId();
   const busy = send.isPending;
-  const accepting = busy && send.variables?.action === "accept";
   const freed = rerunFreed(review); // R-M15-4: Return and Accept are offered again
   const decided = review !== null && !freed;
 
+  /** Accept is final (CRL-127), so the button only asks; this sends it once confirmed. On success
+   * the dialog closes, and only then does the page move focus to the banner: while a modal dialog
+   * is open the page behind it is inert and cannot take focus. */
   function accept() {
-    send.mutate({ action: "accept", note: "" }, { onSuccess: () => onAccepted?.() });
+    send.mutate(
+      { action: "accept", note: "" },
+      {
+        onSuccess: () => {
+          acceptedHere.current = true;
+          setConfirming(false);
+        },
+      },
+    );
   }
+
+  // The dialog is a child, so its effect (which closes it) has run by the time this one does.
+  useEffect(() => {
+    if (confirming || !acceptedHere.current) return;
+    acceptedHere.current = false;
+    onAccepted?.();
+  });
 
   function sendReturn() {
     send.mutate(
@@ -62,30 +89,62 @@ export function ReviewActions({
 
   return (
     <div className="row review-actions">
-      <button type="button" className="primary" onClick={accept} disabled={busy || decided}>
-        {accepting ? "Accepting…" : "Accept"}
-      </button>
-      <button
-        type="button"
-        onClick={() => {
-          send.reset();
-          if (freed && !note) setNote(review?.note ?? "");
-          setOpen(true);
-        }}
-        disabled={busy || decided}
-      >
-        Return with note…
-      </button>
+      {checked ? null : (
+        <>
+          <button
+            type="button"
+            className="primary"
+            onClick={() => {
+              send.reset();
+              setConfirming(true);
+            }}
+            disabled={busy || decided}
+          >
+            Accept
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              send.reset();
+              if (freed && !note) setNote(review?.note ?? "");
+              setOpen(true);
+            }}
+            disabled={busy || decided}
+          >
+            Return with note…
+          </button>
+        </>
+      )}
       <Menu label="Download" button="Download ▾">
         {(close) =>
-          downloads(runId).map(([name, href]) => (
+          downloads(runId, checked).map(([name, href]) => (
             <a key={href} role="menuitem" href={href} onClick={close}>
               {name}
             </a>
           ))
         }
       </Menu>
-      {send.error && !open ? <ErrorMessage error={send.error} /> : null}
+      {send.error && !open && !confirming ? <ErrorMessage error={send.error} /> : null}
+      <ConfirmDialog
+        open={confirming}
+        title="Accept this report?"
+        confirmLabel="Accept report"
+        busyLabel="Accepting…"
+        cancelLabel="Cancel"
+        busy={busy}
+        confirmDisabled={decided}
+        onConfirm={accept}
+        onCancel={() => {
+          send.reset();
+          setConfirming(false);
+        }}
+      >
+        {confirming && send.error ? <ErrorMessage error={send.error} /> : null}
+        <p>
+          This is final. The report can't be returned afterwards, and it will be used as project
+          memory.
+        </p>
+      </ConfirmDialog>
       <ConfirmDialog
         open={open}
         title="Return the report to the writer"

@@ -11,7 +11,15 @@ import {
 it("knows the terminal states and the stages in order", () => {
   expect(isTerminal("completed")).toBe(true);
   expect(isTerminal("drafting")).toBe(false);
-  expect(STAGES).toEqual(["ingesting", "gating", "drafting", "conveying", "auditing", "rendering"]);
+  expect(STAGES).toEqual([
+    "ingesting",
+    "gating",
+    "structuring",
+    "drafting",
+    "conveying",
+    "auditing",
+    "rendering",
+  ]);
 });
 
 it("formats durations for people", () => {

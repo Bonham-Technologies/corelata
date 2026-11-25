@@ -29,7 +29,7 @@ OUR_TABLES = {
     "discovery_source",
     "discovery_candidate",
 }
-HEAD = "0008"
+HEAD = "0010"
 
 
 def _tables(url):
@@ -550,6 +550,94 @@ def test_0008_adds_a_nullable_prior_reports_column_and_the_downgrade_drops_it(pg
         with engine.connect() as conn:
             assert "prior_reports" not in _run_columns(conn)
             assert conn.execute(text("SELECT count(*) FROM run")).scalar_one() == 1
+    finally:
+        engine.dispose()
+        drop_test_database(pg_admin, url)
+
+
+def test_0009_adds_run_kind_and_report_source_id_and_the_downgrade_drops_them(pg_admin):
+    """A 0008 database with a run in it: the upgrade adds `run.kind`, NOT NULL with the server
+    default 'report', so the existing run reads as a report run, and the nullable
+    `run.report_source_id` (CRL-94); the downgrade drops both and keeps the run."""
+    url = create_test_database(pg_admin)
+    engine = create_engine(to_sqlalchemy_url(url), poolclass=NullPool)
+    try:
+        upgrade(url, "0008")
+        project = uuid.uuid4()
+        at = datetime(2026, 11, 24, 9, tzinfo=UTC)
+        with engine.begin() as conn:
+            conn.execute(
+                text("INSERT INTO project (id, name, created_at) VALUES (:id, 'p', :at)"),
+                {"id": project, "at": at},
+            )
+            conn.execute(text(_RUN_AT_0003), {"id": uuid.uuid4(), "project": project, "at": at})
+            assert "kind" not in _run_columns(conn)
+        upgrade(url, "0009")
+        with engine.connect() as conn:
+            columns = _run_columns(conn)
+            assert columns["kind"] == "NO" and columns["report_source_id"] == "YES"
+            row = conn.execute(text("SELECT kind, report_source_id FROM run")).one()
+            assert tuple(row) == ("report", None)
+        downgrade(url, "0008")
+        with engine.connect() as conn:
+            assert not {"kind", "report_source_id"} & set(_run_columns(conn))
+            assert conn.execute(text("SELECT count(*) FROM run")).scalar_one() == 1
+    finally:
+        engine.dispose()
+        drop_test_database(pg_admin, url)
+
+
+def _columns(conn, table):
+    rows = conn.execute(
+        text(
+            "SELECT column_name, is_nullable FROM information_schema.columns "
+            "WHERE table_name = :table"
+        ),
+        {"table": table},
+    )
+    return {name: nullable for name, nullable in rows}
+
+
+def test_0010_adds_nullable_stated_columns_and_the_downgrade_drops_them(pg_admin):
+    """A 0009 database with a source and a run over it: the upgrade adds `source.stated` and
+    `run_source.stated` (CRL-138), NULL on every existing row, which reads as nothing stated; the
+    downgrade drops both and keeps the rows."""
+    url = create_test_database(pg_admin)
+    engine = create_engine(to_sqlalchemy_url(url), poolclass=NullPool)
+    try:
+        upgrade(url, "0009")
+        project, source, run = uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
+        at = datetime(2026, 11, 25, 9, tzinfo=UTC)
+        with engine.begin() as conn:
+            conn.execute(
+                text("INSERT INTO project (id, name, created_at) VALUES (:id, 'p', :at)"),
+                {"id": project, "at": at},
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO source (id, project_id, kind, name, format, sha256, storage_key, "
+                    "provenance, created_at) VALUES (:id, :project, 'file', 'a.txt', 'txt', 's', "
+                    "'k', '{}', :at)"
+                ),
+                {"id": source, "project": project, "at": at},
+            )
+            conn.execute(text(_RUN_AT_0003), {"id": run, "project": project, "at": at})
+            conn.execute(
+                text("INSERT INTO run_source (run_id, ordinal, source_id) VALUES (:r, 1, :s)"),
+                {"r": run, "s": source},
+            )
+            assert "stated" not in _columns(conn, "source")
+        upgrade(url, "0010")
+        with engine.connect() as conn:
+            assert _columns(conn, "source")["stated"] == "YES"
+            assert _columns(conn, "run_source")["stated"] == "YES"
+            assert conn.execute(text("SELECT stated FROM source")).scalar_one() is None
+            assert conn.execute(text("SELECT stated FROM run_source")).scalar_one() is None
+        downgrade(url, "0009")
+        with engine.connect() as conn:
+            assert "stated" not in _columns(conn, "source")
+            assert "stated" not in _columns(conn, "run_source")
+            assert conn.execute(text("SELECT count(*) FROM run_source")).scalar_one() == 1
     finally:
         engine.dispose()
         drop_test_database(pg_admin, url)

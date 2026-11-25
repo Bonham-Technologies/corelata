@@ -56,9 +56,12 @@ export function runProgress(overrides: Partial<RunProgress> = {}): RunProgress {
     run_id: RUN_ID,
     project_id: project.id,
     parent_run_id: null,
+    kind: "report",
+    report_source_id: null,
     state: "created",
     status: null,
     value_statement: "Varna port capacity expansion matters to shippers",
+    extra_guidance: "",
     profile: null,
     source_ids: [source.id],
     iteration: 0,
@@ -105,6 +108,7 @@ export const runSummary: RunSummary = {
   run_id: RUN_ID,
   project_id: project.id,
   parent_run_id: null,
+  kind: "report",
   state: "completed",
   status: "clean",
   value_statement: "Varna port capacity expansion matters to shippers",
@@ -305,6 +309,8 @@ export const runTrace: RunTrace = {
         digested: false,
         coglossa_run_id: null,
         ocr_pages: 0,
+        hidden_units: 0,
+        suspect_units: 0,
       },
       {
         id: "src2",
@@ -317,6 +323,8 @@ export const runTrace: RunTrace = {
         coglossa_run_id: "run-42",
         reliability_tier: "B",
         ocr_pages: 0,
+        hidden_units: 0,
+        suspect_units: 0,
       },
     ],
     gate: {
@@ -433,6 +441,16 @@ export const runTrace: RunTrace = {
 
 export const reportJson: ReportJson = {
   title: "Varna Port Expansion: Implications for Shippers",
+  sources: [
+    {
+      source_id: "src1",
+      descriptor: "official government publication",
+      reliability_note: "The authority's own figures.",
+      origin: "Varna Port Authority",
+      access: "direct",
+    },
+    { source_id: "src2", descriptor: "translated document", reliability_note: "" },
+  ],
   claims: [
     {
       id: "c1",

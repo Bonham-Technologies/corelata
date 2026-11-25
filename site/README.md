@@ -1,4 +1,4 @@
-# corelata.com
+# corelata.tech
 
 The public site for Corelata (CRL-81): one static page with a writeup and a recorded walkthrough,
 a sample report page, and a 404 page. Plain HTML and CSS on the Bonham Technologies design system (below), with no
@@ -57,7 +57,7 @@ on any of these:
 
 - an internal link, fragment, image, `srcset` candidate, poster, track, video, stylesheet or font
   reference that does not resolve;
-- a page without `lang`, `<title>`, a meta description, a canonical URL on https://corelata.com/
+- a page without `lang`, `<title>`, a meta description, a canonical URL on https://corelata.tech/
   or exactly one `<h1>` (the verbatim export `sample/files/report.html` needs only `lang`, a
   title and a canonical tag, the one line added to the copy);
 - a request that leaves the site, a Content-Security-Policy violation, a console error or an
@@ -66,7 +66,7 @@ on any of these:
   page at 1280 px and at 360 px;
 - a home page without exactly one `application/ld+json` block that parses and holds an
   `Organization` (name, `url` https://bonham.tech/, an https `logo`) and a `SoftwareApplication`
-  (name, `url` https://corelata.com/, description, category, operating system, the Apache-2.0
+  (name, `url` https://corelata.tech/, description, category, operating system, the Apache-2.0
   `license` URL and the Organization as `publisher`; an `offers`, if present, needs a price and a
   currency);
 - anything that keeps the site out of search results: an `X-Robots-Tag` header in `vercel.json`,
@@ -101,9 +101,10 @@ changed `report.css`, update the hash in `vercel.json`; `check.mjs` reports the 
    preset "Other", and **production branch `main` only**. Do not add environment variables.
 2. Keep **Git Fork Protection** on (Project Settings → Git), so a pull request from a fork never
    deploys without approval.
-3. Add **corelata.com** to the project, and **www.corelata.com** as a redirect to corelata.com.
+3. Add **corelata.tech** to the project, and **www.corelata.tech**, **corelata.com** and
+   **www.corelata.com** as redirects (308) to corelata.tech.
 4. DNS is at **Porkbun**: add the records Vercel shows for the apex and `www`.
-5. Turn on the **registrar lock** (transfer lock) for corelata.com at Porkbun.
+5. Turn on the **registrar lock** (transfer lock) for corelata.tech and corelata.com at Porkbun.
 6. Use **passkeys or 2FA** on the GitHub, Vercel and Porkbun accounts that control the site.
 7. Confirm whether the Vercel team needs **Pro** for a commercial site (Hobby is for
    non-commercial use).

@@ -91,6 +91,31 @@ it("shows a report fetch failure inline", async () => {
   expect(await screen.findByRole("alert")).toHaveTextContent("database is unavailable");
 });
 
+it("a run that does not exist says the report was not found and offers a new one (CRL-130)", async () => {
+  server.use(
+    http.get(`*/api/runs/${RUN_ID}`, () =>
+      HttpResponse.json({ detail: `run ${RUN_ID} not found` }, { status: 404 }),
+    ),
+  );
+  renderApp(`/runs/${RUN_ID}/review`);
+  expect(await screen.findByRole("heading", { name: "Report not found" })).toBeInTheDocument();
+  expect(screen.getByText(/does not exist, or it was deleted/)).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Start a new report" })).toHaveAttribute("href", "/new");
+  expect(screen.queryByRole("alert")).toBeNull();
+  await waitFor(() => expect(document.title).toBe("Report not found – Corelata"));
+});
+
+it("keeps the error line when the run cannot be read for another reason (CRL-130)", async () => {
+  server.use(
+    http.get(`*/api/runs/${RUN_ID}`, () =>
+      HttpResponse.json({ detail: "the database is unavailable" }, { status: 503 }),
+    ),
+  );
+  renderApp(`/runs/${RUN_ID}/review`);
+  expect(await screen.findByRole("alert")).toHaveTextContent("the database is unavailable");
+  expect(screen.queryByRole("heading", { name: "Report not found" })).toBeNull();
+});
+
 it("selects a claim from the report, opens provenance, and pluralises open findings", async () => {
   server.use(
     http.get(`*/api/runs/${RUN_ID}`, () =>
@@ -230,6 +255,63 @@ it("leads back to the project, names the tab, and has Accept as its one primary 
       .map((tab) => tab.textContent),
   ).toEqual(["Claims", "Standards", "Process", "Sources"]);
   await waitFor(() => expect(document.title).toBe(`${reportJson.title} – Corelata`));
+});
+
+describe("a checked report (CRL-94)", () => {
+  function serveCheck() {
+    serveReview();
+    server.use(
+      http.get(`*/api/runs/${RUN_ID}`, () =>
+        HttpResponse.json(
+          runProgress({
+            state: "completed",
+            status: "clean",
+            kind: "check",
+            report_source_id: "s-report",
+            value_statement: "",
+            max_iterations: 0,
+          }),
+        ),
+      ),
+    );
+  }
+
+  it("hides Accept, Return and the writing timeline, and offers the standards sheet", async () => {
+    serveCheck();
+    const { user } = renderApp(`/runs/${RUN_ID}/review?tab=process`);
+    const main = screen.getByRole("main");
+    await within(main).findByRole("heading", { name: reportJson.title });
+    expect(within(main).queryByRole("button", { name: "Accept" })).toBeNull();
+    expect(within(main).queryByRole("button", { name: "Return with note…" })).toBeNull();
+    expect(
+      within(main)
+        .getAllByRole("tab")
+        .map((tab) => tab.textContent),
+    ).toEqual(["Claims", "Standards", "Sources"]);
+    // a Process link falls back to Claims
+    expect(screen.getByRole("tab", { name: "Claims" })).toHaveAttribute("aria-selected", "true");
+    expect(
+      within(main).getByText(/written outside Corelata, checked against the standards/),
+    ).toBeInTheDocument();
+    await user.click(within(main).getByRole("button", { name: "Download" }));
+    expect(screen.getByRole("menuitem", { name: "Standards sheet (CSV)" })).toHaveAttribute(
+      "href",
+      `/api/runs/${RUN_ID}/exports/findings.csv`,
+    );
+  });
+
+  it("keeps the Claims, Standards and Sources tabs working, in plain words", async () => {
+    serveCheck();
+    const { user } = renderApp(`/runs/${RUN_ID}/review?claim=c3`);
+    const main = screen.getByRole("main");
+    await within(main).findByRole("list", { name: "Evidence for claim c3" });
+    expectNoEngineWords(main);
+    await user.click(screen.getByRole("tab", { name: "Standards" }));
+    await within(main).findByRole("list", { name: "Met and not applicable" });
+    expectNoEngineWords(main);
+    await user.click(screen.getByRole("tab", { name: "Sources" }));
+    expect(screen.getByRole("tab", { name: "Sources" })).toHaveAttribute("aria-selected", "true");
+  }, 15_000);
 });
 
 it("opens the standards not met from the banner", async () => {

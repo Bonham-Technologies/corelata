@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
+import { isNotFound } from "../../api/client";
 import { useProjects, useSources } from "../../api/projects";
 import { useEarlierRun, useStartRun } from "../../api/runs";
 import { useInfo } from "../../api/system";
 import type { SourceView } from "../../api/types";
 import { ErrorMessage } from "../../components/ErrorMessage";
 import { useActiveProject, useDocumentTitle } from "../../components/frame";
+import { NotFound } from "../../components/NotFound";
 import { clearDraft, useDraft } from "../../lib/draft";
-import { VALUE_STATEMENT_MAX_LENGTH } from "../../lib/limits";
+import { GUIDANCE_MAX_LENGTH, VALUE_STATEMENT_MAX_LENGTH } from "../../lib/limits";
 import { SearchParamsWriterProvider, useSearchParamsWriter } from "../../lib/searchParams";
 import { decodeSelection, encodeSelection, SELECTION_PARAM, withAdded } from "../../lib/selection";
 import { FROM_PARAM, offeredStatement } from "../../lib/startFrom";
@@ -34,10 +36,17 @@ export function NewRunPage() {
   useActiveProject(projectId);
   const projects = useProjects();
   const current = (projects.data ?? []).find((p) => p.id === projectId);
-  useDocumentTitle(
-    projectId === null ? "New report – Corelata" : current ? `${current.name} – Corelata` : null,
-  );
   const sources = useSources(projectId);
+  // CRL-130: the project's sources answer 404 when the project does not exist (or was deleted);
+  // the page then says so in place of the form, and NotFound names the tab.
+  const missing = isNotFound(sources.error, projectId ?? undefined);
+  useDocumentTitle(
+    projectId === null
+      ? "New report – Corelata"
+      : current && !missing
+        ? `${current.name} – Corelata`
+        : null,
+  );
   const allIds = useMemo(() => (sources.data ?? []).map((s) => s.id), [sources.data]);
   const selected = useMemo(() => chosenIn(params, allIds), [params, allIds]);
   // Sources uploaded here that the project's list does not show yet: a tick that lands before
@@ -68,13 +77,17 @@ export function NewRunPage() {
   // The statement and the options are the project's draft, kept in sessionStorage so a reload
   // or a sign-in redirect does not lose them, and cleared once the run starts (CRL-74).
   const [draft, changeDraft] = useDraft(projectId);
-  const { statement, profile } = draft; // profile null: the deployment's default
+  const { statement, profile, guidance } = draft; // profile null: the deployment's default
   const setStatement = useCallback(
     (value: string) => changeDraft((d) => ({ ...d, statement: value })),
     [changeDraft],
   );
   const setProfile = useCallback(
     (value: string | null) => changeDraft((d) => ({ ...d, profile: value })),
+    [changeDraft],
+  );
+  const setGuidance = useCallback(
+    (value: string) => changeDraft((d) => ({ ...d, guidance: value })),
     [changeDraft],
   );
   const setMaxIterations = useCallback(
@@ -140,6 +153,7 @@ export function NewRunPage() {
       statement: offered ?? run.value_statement,
       profile: run.profile ?? null,
       maxIterations: run.max_iterations,
+      guidance: run.extra_guidance,
     };
     changeDraft((now) => (now === untouched ? filled : now));
     update(
@@ -180,6 +194,7 @@ export function NewRunPage() {
     Boolean(projectId) &&
     statement.trim().length > 0 &&
     statement.length <= VALUE_STATEMENT_MAX_LENGTH &&
+    guidance.length <= GUIDANCE_MAX_LENGTH && // an earlier revision's can be longer (CRL-132)
     sourceIds.length > 0 &&
     !start.isPending;
 
@@ -192,7 +207,8 @@ export function NewRunPage() {
         value_statement: statement.trim(),
         profile,
         max_iterations: sentIterations,
-        extra_guidance: "",
+        extra_guidance: guidance,
+        kind: "report",
       },
       {
         onSuccess: (run) => {
@@ -253,6 +269,13 @@ export function NewRunPage() {
       </article>
     );
   }
+  if (missing) {
+    return (
+      <NotFound heading="Project not found" action="Choose a project">
+        This project does not exist, or it was deleted.
+      </NotFound>
+    );
+  }
   return (
     <SearchParamsWriterProvider value={update}>
       <article className="project-page">
@@ -275,6 +298,8 @@ export function NewRunPage() {
           settled={fromId === null}
           profile={profile}
           onProfile={setProfile}
+          guidance={guidance}
+          onGuidance={setGuidance}
           maxIterations={maxIterations}
           onMaxIterations={setMaxIterations}
         />

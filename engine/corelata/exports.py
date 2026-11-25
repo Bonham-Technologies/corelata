@@ -1,6 +1,8 @@
 """A run's files (spec §7.2 rendering, §8.4 invariant 5): the same functions write a run
 directory for `corelata run` and the worker's stored exports."""
 
+import csv
+import io
 import json
 from collections.abc import Iterable
 from pathlib import Path
@@ -8,12 +10,63 @@ from pathlib import Path
 from corelata.render.docx import render_docx
 from corelata.render.html import render_html
 from corelata.render.markdown import render_markdown
-from corelata.schema import RunRecord
+from corelata.schema import RunKind, RunRecord
 from corelata.standards.schema import ResolvedPack
 from corelata.trace import delivered_open_findings
 
-OUTPUT_FILES = ("trace.json", "gate.json", "report.json", "report.md", "report.html", "report.docx")
+OUTPUT_FILES = (
+    "trace.json",
+    "gate.json",
+    "report.json",
+    "report.md",
+    "report.html",
+    "report.docx",
+    "findings.csv",
+)
 REPORT_FORMATS = ("json", "md", "html", "docx")
+FINDINGS_SHEET = "findings.csv"
+FINDINGS_COLUMNS = (
+    "rule_id",
+    "title",
+    "verdict",
+    "severity",
+    "claim_ids",
+    "cited_units",
+    "evidence",
+    "recommendation",
+)
+# A spreadsheet runs a cell that starts with one of these as a formula; the sheet's cells hold
+# model text, so such a cell is written with a leading apostrophe.
+_FORMULA = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _cell(value: str) -> str:
+    return f"'{value}" if value.startswith(_FORMULA) else value
+
+
+def findings_sheet(record: RunRecord, pack: ResolvedPack) -> str:
+    """A check run's findings sheet (CRL-94): one row per rule of its audit, in pack order, with
+    the rule's title; the claim ids and unit refs space-separated. CSV, UTF-8."""
+    titles = {r.id: r.title for r in pack.rules}
+    last = max((f.iteration for f in record.findings), default=0)
+    out = io.StringIO()
+    writer = csv.writer(out)
+    writer.writerow(FINDINGS_COLUMNS)
+    for f in record.findings:
+        if f.iteration != last:
+            continue
+        row = (
+            f.rule_id,
+            titles.get(f.rule_id, ""),
+            f.verdict.value,
+            f.severity,
+            " ".join(f.claim_ids),
+            " ".join(f.cited_units),
+            f.evidence,
+            f.recommendation,
+        )
+        writer.writerow([_cell(v) for v in row])
+    return out.getvalue()
 
 
 def _report_file(
@@ -62,6 +115,8 @@ def render_outputs(
     plus report.<fmt> for each requested format when there is a report. Pure: the same record
     renders the same bytes."""
     out = _trace_files(record)
+    if record.report is not None and record.kind is RunKind.CHECK:
+        out[FINDINGS_SHEET] = findings_sheet(record, pack)
     if record.report is not None:
         for fmt in formats:
             out[f"report.{fmt}"] = _report_file(
@@ -118,6 +173,8 @@ def write_outputs(
             docx_reference=pack.docx_reference_path,
         )
 
+    if record.kind is RunKind.CHECK:
+        put(FINDINGS_SHEET, findings_sheet(record, pack))
     for fmt in ("json", "md", "html"):
         put(f"report.{fmt}", render(fmt))
     try:

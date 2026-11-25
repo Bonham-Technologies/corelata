@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from corelata.schema.common import Usage
 from corelata.schema.gate import CandidateStatement
 from corelata.schema.report import ReportStatus
-from corelata.schema.run import RunState, StageResult
+from corelata.schema.run import RunKind, RunState, StageResult
 
 
 class ReviewAction(StrEnum):
@@ -41,10 +41,28 @@ class RunProgress(BaseModel):
     run_id: str
     project_id: str
     parent_run_id: str | None = None
+    kind: RunKind = Field(
+        RunKind.REPORT,
+        description=(
+            "What the run does: `report` writes a report from the sources; `check` audits a "
+            "finished report against the standards pack without rewriting it (CRL-94)."
+        ),
+    )
+    report_source_id: str | None = Field(
+        None,
+        description="The project source a check run audits; null for a report run (CRL-94).",
+    )
     state: RunState
     status: ReportStatus | None = None
     # What the run was asked, so a new report can start from it (CRL-84).
     value_statement: str = Field(description="The value statement the run was given.")
+    extra_guidance: str = Field(
+        "",
+        description=(
+            "The guidance the writer was given: what the analyst wrote, and for a revision the "
+            "reviewer notes appended to it (CRL-132)."
+        ),
+    )
     profile: str | None = Field(
         None, description="The team profile the run used; null for the deployment's default."
     )
@@ -83,6 +101,9 @@ class RunSummary(BaseModel):
     run_id: str
     project_id: str
     parent_run_id: str | None = None
+    kind: RunKind = Field(
+        RunKind.REPORT, description="`report` or `check` (`RunProgress.kind`, CRL-94)."
+    )
     state: RunState
     status: ReportStatus | None = None
     value_statement: str

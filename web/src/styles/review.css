@@ -156,6 +156,17 @@
   font-size: var(--text-sm);
 }
 
+/* CRL-137: a source's flags, after its notes; spaced when they wrap */
+.source-flag {
+  margin-block-start: var(--space-1);
+  margin-inline-start: var(--space-1);
+}
+
+/* CRL-138: one line per value of a source's reference, labelled by who gave it */
+.reference-line + .reference-line {
+  margin-block-start: var(--space-1);
+}
+
 @media (max-width: 1099px) {
   .review-body {
     grid-template-columns: minmax(0, 1fr);

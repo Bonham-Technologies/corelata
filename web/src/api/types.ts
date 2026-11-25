@@ -7,7 +7,8 @@ export type DoctorReport = S["DoctorReport"];
 export type DoctorCheck = S["DoctorCheck"];
 export type ProjectView = S["ProjectView"];
 export type LatestRun = S["LatestRun"];
-export type SourceView = S["SourceView"];
+/** `stated` (CRL-138) as the server sends it: absent, or only the fields stated. */
+export type SourceView = Omit<S["SourceView"], "stated"> & { stated?: SourceStatement };
 export type SourceKind = S["SourceKind"];
 export type RunProgress = S["RunProgress"];
 export type RunSummary = S["RunSummary"];
@@ -50,13 +51,35 @@ export type ErrorBody = S["ErrorBody"];
 
 export type ReportFormat = "json" | "md" | "html" | "docx";
 export type ExportName =
-  "trace.json" | "gate.json" | "report.json" | "report.md" | "report.html" | "report.docx";
+  | "trace.json"
+  | "gate.json"
+  | "report.json"
+  | "report.md"
+  | "report.html"
+  | "report.docx"
+  | "findings.csv";
+
+/** A source's entry in the delivered report (the engine's `SourceEntry`). */
+export type ReportSourceEntry = {
+  source_id: string;
+  descriptor: string;
+  reliability_note: string;
+  date_of_information?: string;
+  origin?: string;
+  access?: string;
+};
+
+/** What the analyst states about a source (CRL-138). The server leaves out a field that is not
+ * stated, which the generated type, read from the model's defaults, does not say. */
+export type SourceStatement = Partial<S["SourceStatement"]>;
 
 /** The delivered report as `report.json` serves it (the engine's `Report`; not in the OpenAPI
  * document because the route returns bytes). Only the fields the review screen reads. */
 export type ReportJson = {
   title: string;
   claims: Claim[];
+  /** Each source's entry; the details are absent when blank (CRL-96). */
+  sources?: ReportSourceEntry[];
   metadata: {
     run_id: string;
     pack_name: string;

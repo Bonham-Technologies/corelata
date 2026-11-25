@@ -3,7 +3,8 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy import event, select
+from sqlalchemy import delete, event, select
+from sqlalchemy.exc import IntegrityError
 
 from corelata import service
 from corelata.schema import (
@@ -21,7 +22,7 @@ from corelata.schema import (
 )
 from corelata.storage import LocalStorage
 from corelata.store import runs
-from corelata.store.models import ClaimEvidenceRow, ClaimRow, Run, utcnow
+from corelata.store.models import ClaimEvidenceRow, ClaimRow, Run, SourceRow, utcnow
 from corelata.testing.queue import RecordingQueue
 from corelata.testing.sources import text_source
 from tests.conftest import build_config
@@ -276,6 +277,31 @@ async def test_delete_project_removes_its_runs(db):
     async with db.session() as s, s.begin():
         project, src = await _project_with_source(s)
         run = await _run(s, project, [src])
+    async with db.session() as s, s.begin():
+        await runs.delete_project(s, project.id)
+    async with db.session() as s:
+        with pytest.raises(runs.NotFoundError):
+            await runs.get_run(s, run.id)
+
+
+async def test_a_check_runs_report_source_cannot_be_deleted_alone(db):
+    """CRL-94: `run.report_source_id` has no ON DELETE action, so deleting the report a check
+    run audits is refused instead of silently deleting the run; deleting the project removes
+    the run and the source together."""
+    async with db.session() as s, s.begin():
+        project, src = await _project_with_source(s)
+        report = await runs.add_source(
+            s,
+            project.id,
+            text_source("report", "The port expanded.", name="report.txt"),
+            storage_key=f"projects/{project.id}/r",
+        )
+        run = await _run(s, project, [src], kind="check", report_source_id=report.id)
+    with pytest.raises(IntegrityError, match="run_report_source_id_fkey"):
+        async with db.session() as s, s.begin():
+            await s.execute(delete(SourceRow).where(SourceRow.id == report.id))
+    async with db.session() as s:
+        assert (await runs.get_run(s, run.id)).report_source_id == report.id
     async with db.session() as s, s.begin():
         await runs.delete_project(s, project.id)
     async with db.session() as s:

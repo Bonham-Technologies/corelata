@@ -67,13 +67,16 @@ from corelata.schema.report import (
 from corelata.schema.run import (
     TERMINAL_STATES,
     DraftRecord,
+    RunKind,
     RunRecord,
     RunState,
     StageResult,
 )
 from corelata.schema.source import (
+    STATED_FIELDS,
     Source,
     SourceKind,
+    SourceStatement,
     SourceUnit,
     reliability_tier,
     split_ref,
@@ -88,6 +91,8 @@ __all__ = [
     "SourceKind",
     "SourceUnit",
     "Source",
+    "SourceStatement",
+    "STATED_FIELDS",
     "unit_ref",
     "split_ref",
     "reliability_tier",
@@ -124,6 +129,7 @@ __all__ = [
     "FindingOut",
     "AuditOutput",
     "Finding",
+    "RunKind",
     "RunState",
     "TERMINAL_STATES",
     "StageResult",

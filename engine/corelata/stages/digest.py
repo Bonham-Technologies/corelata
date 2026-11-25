@@ -6,6 +6,7 @@ non-digested source in full (writer_overflow, spec §7.4)."""
 
 from collections.abc import Callable, Collection
 
+from corelata.ingest.injection import suspect_flag
 from corelata.schema import Digest, DigestOutput, DigestSection, Source
 from corelata.stages.context import StageContext, StageError, estimate_tokens
 
@@ -119,7 +120,11 @@ async def digest_source(ctx: StageContext, source: Source) -> Digest:
                 "task": "digest",
                 "source": {"id": source.id, "name": source.name},
                 "part": {"index": n, "of": len(chunks)},
-                "units": [{"ref": refs[i], "text": source.units[i].text} for i in chunk],
+                "units": [
+                    {"ref": refs[i], "text": source.units[i].text}
+                    | suspect_flag(source.units[i].meta)
+                    for i in chunk
+                ],
             },
             output_type=DigestOutput,
             validate=_validator(source, expected),

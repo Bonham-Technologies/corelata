@@ -843,11 +843,21 @@
       "title": "ReportStatus",
       "type": "string"
     },
+    "RunKind": {
+      "description": "What a run does (CRL-94): `report` writes a report from the sources; `check` audits a\nfinished report someone else wrote against the pack, without rewriting it.",
+      "enum": [
+        "report",
+        "check"
+      ],
+      "title": "RunKind",
+      "type": "string"
+    },
     "RunState": {
       "enum": [
         "created",
         "ingesting",
         "gating",
+        "structuring",
         "drafting",
         "conveying",
         "auditing",
@@ -906,6 +916,9 @@
         "sha256": {
           "title": "Sha256",
           "type": "string"
+        },
+        "stated": {
+          "$ref": "#/$defs/SourceStatement"
         },
         "units": {
           "items": {
@@ -975,6 +988,48 @@
       ],
       "title": "SourceKind",
       "type": "string"
+    },
+    "SourceStatement": {
+      "description": "What the analyst states about a source for its entry in the report (CRL-138). A stated\nvalue replaces whatever the writer or conveyor gives that field; a blank one is not stated\nand is left out of every dump, so a source with nothing stated serialises as it did before.",
+      "properties": {
+        "access": {
+          "default": "",
+          "description": "The source's access to what it reports, a term from the lexicon's source_access",
+          "maxLength": 200,
+          "title": "Access",
+          "type": "string"
+        },
+        "date_of_information": {
+          "default": "",
+          "description": "When the source's information was issued or current",
+          "maxLength": 100,
+          "title": "Date Of Information",
+          "type": "string"
+        },
+        "descriptor": {
+          "default": "",
+          "description": "A source descriptor phrase from the pack's lexicon",
+          "maxLength": 200,
+          "title": "Descriptor",
+          "type": "string"
+        },
+        "origin": {
+          "default": "",
+          "description": "Who originated, authored or published the information",
+          "maxLength": 500,
+          "title": "Origin",
+          "type": "string"
+        },
+        "reliability_note": {
+          "default": "",
+          "description": "The source's reliability, currency and completeness",
+          "maxLength": 2000,
+          "title": "Reliability Note",
+          "type": "string"
+        }
+      },
+      "title": "SourceStatement",
+      "type": "object"
     },
     "SourceSummaryStatement": {
       "description": "ICD 206 D.3.d: the sources considered together (CRL-96).",
@@ -1160,6 +1215,17 @@
     }
   },
   "properties": {
+    "checked_report": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Source"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
     "config_hash": {
       "title": "Config Hash",
       "type": "string"
@@ -1226,6 +1292,10 @@
       "default": 0,
       "title": "Iterations",
       "type": "integer"
+    },
+    "kind": {
+      "$ref": "#/$defs/RunKind",
+      "default": "report"
     },
     "llm_calls": {
       "items": {
