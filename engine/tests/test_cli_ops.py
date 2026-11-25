@@ -54,7 +54,7 @@ def _cli(capsys, *argv) -> tuple[int, str, str]:
 def test_migrate_is_idempotent_and_redacts_the_url(setup, capsys):
     config, _ = setup
     code, out, _ = _cli(capsys, "migrate", "--config", str(config))
-    assert code == 0 and "at revision 0010" in out and "corelata:corelata@" not in out
+    assert code == 0 and "at revision 0011" in out and "corelata:corelata@" not in out
 
 
 def test_migrate_unreachable_database(setup, capsys, monkeypatch):

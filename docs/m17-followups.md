@@ -97,8 +97,8 @@
 - A run flagged for cancel whose worker dies afterwards still waits for a second cancel or a
   worker; the read-time expiry discoveries have (R-M17-10) has no run counterpart.
 - The requeue skips a job a cancel closed by matching procrastinate's error text "invalid status
-  to retry" (`worker.app._RETRY_REFUSED`, procrastinate 3.10). A procrastinate upgrade must keep
-  `engine/tests/worker/test_orphan_cancel.py::test_the_requeue_skips_a_job_a_cancel_closed_after_it_looked`
+  to retry" (`worker.app._RETRY_REFUSED`, procrastinate 3.10 to 3.12). A procrastinate upgrade
+  must keep `engine/tests/worker/test_orphan_cancel.py::test_the_requeue_skips_a_job_a_cancel_closed_after_it_looked`
   green; if the text changes, the requeue raises again.
 - ~~A live worker that was taken for dead stops at its next write, but its job acknowledgement then
   fails (the cancel closed the job) and procrastinate and asyncio log an error ("Task exception
