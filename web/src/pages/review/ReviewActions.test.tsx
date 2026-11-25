@@ -13,6 +13,13 @@ const banner = () => screen.getByRole("status", { name: BANNER });
 /** The banner's sentence once it says `text` (it is on the page from the first render). */
 const expectBanner = (text: string) => waitFor(() => expect(banner()).toHaveTextContent(text));
 
+/** Accept is final (CRL-127): the button opens a dialog, and this confirms it. */
+async function confirmAccept(user: ReturnType<typeof renderApp>["user"]) {
+  await user.click(await screen.findByRole("button", { name: "Accept" }));
+  const dialog = await screen.findByRole("dialog", { name: "Accept this report?" });
+  await user.click(within(dialog).getByRole("button", { name: "Accept report" }));
+}
+
 function serveCompleted(overrides: Parameters<typeof runProgress>[0] = {}) {
   server.use(
     http.get(`*/api/runs/${RUN_ID}`, () =>
@@ -82,7 +89,7 @@ it("accepts, then shows the server's decision and disables both actions (test_ac
     }),
   );
   const { user } = renderApp(`/runs/${RUN_ID}/review`);
-  await user.click(await screen.findByRole("button", { name: "Accept" }));
+  await confirmAccept(user);
   await expectBanner("Accepted");
   expect(posted).toEqual({ action: "accept", note: "" });
   expect(screen.getByRole("button", { name: "Accept" })).toBeDisabled();
@@ -127,7 +134,7 @@ it("shows a conflict when the run can no longer be reviewed", async () => {
     ),
   );
   const again = renderApp(`/runs/${RUN_ID}/review`);
-  await again.user.click(await screen.findByRole("button", { name: "Accept" }));
+  await confirmAccept(again.user);
   expect(await screen.findByRole("alert")).toHaveTextContent(
     "only a completed run can be reviewed",
   );
@@ -407,7 +414,7 @@ it.each([409, 503])(
       }),
     );
     const { user } = renderApp(`/runs/${RUN_ID}/review`);
-    await user.click(await screen.findByRole("button", { name: "Accept" }));
+    await confirmAccept(user);
     expect(await screen.findByRole("alert")).toHaveTextContent("was returned already");
     await waitFor(() => expect(banner()).not.toHaveTextContent("again"));
     expect(reads).toBeGreaterThan(1);
@@ -469,7 +476,7 @@ it("moves focus to the banner after Accept (M18 polish F1)", async () => {
     }),
   );
   const { user } = renderApp(`/runs/${RUN_ID}/review`);
-  await user.click(await screen.findByRole("button", { name: "Accept" }));
+  await confirmAccept(user);
   await expectBanner("Accepted");
   await waitFor(() => expect(banner()).toHaveFocus());
   expect(banner()).toHaveAttribute("tabindex", "-1");
@@ -506,7 +513,7 @@ it("says Returning… on the dialog's button while the return is out (CRL-43)", 
   await waitFor(() => expect(router.state.location.pathname).toBe(`/runs/${child.run_id}`));
 });
 
-it("says Accepting… on the Accept button while the accept is out (CRL-43)", async () => {
+it("says Accepting… on the dialog's button while the accept is out (CRL-43, CRL-127)", async () => {
   serveCompleted();
   const held = deferred();
   server.use(
@@ -516,11 +523,12 @@ it("says Accepting… on the Accept button while the accept is out (CRL-43)", as
     }),
   );
   const { user } = renderApp(`/runs/${RUN_ID}/review`);
-  await user.click(await screen.findByRole("button", { name: "Accept" }));
+  await confirmAccept(user);
   expect(await screen.findByRole("button", { name: "Accepting…" })).toBeDisabled();
   expect(screen.getByRole("button", { name: "Return with note…" })).toBeDisabled();
   held.resolve();
-  expect(await screen.findByRole("button", { name: "Accept" })).toBeInTheDocument();
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  expect(screen.getByRole("button", { name: "Accept" })).toBeInTheDocument();
 });
 
 it("bounds the return note at the API's 8,000 characters and counts near the limit (CRL-83)", async () => {
@@ -550,4 +558,66 @@ it("shows the server's refusal of a return past the guidance cap in the dialog (
   expect(await within(dialog).findByRole("alert")).toHaveTextContent(detail);
   expect(dialog).toHaveAttribute("open");
   expect(screen.getByRole("textbox", { name: "Note for the writer" })).toHaveValue("One more pass");
+});
+
+it("asks before accepting and says the decision is final (CRL-127)", async () => {
+  serveCompleted();
+  let posts = 0;
+  server.use(
+    http.post(`*/api/runs/${RUN_ID}/review`, () => {
+      posts += 1;
+      return HttpResponse.json({ action: "accept", child: null });
+    }),
+  );
+  const { user } = renderApp(`/runs/${RUN_ID}/review`);
+  await user.click(await screen.findByRole("button", { name: "Accept" }));
+  const dialog = await screen.findByRole("dialog", { name: "Accept this report?" });
+  expect(dialog).toHaveTextContent("can't be returned");
+  expect(dialog).toHaveTextContent("project memory");
+  expect(posts).toBe(0);
+});
+
+it("cancelling the Accept dialog records nothing and returns focus to Accept (CRL-127)", async () => {
+  serveCompleted();
+  let posts = 0;
+  server.use(
+    http.post(`*/api/runs/${RUN_ID}/review`, () => {
+      posts += 1;
+      return HttpResponse.json({ action: "accept", child: null });
+    }),
+  );
+  const { user } = renderApp(`/runs/${RUN_ID}/review`);
+  const accept = await screen.findByRole("button", { name: "Accept" });
+  await user.click(accept);
+  await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Cancel" }));
+  expect(screen.queryByRole("dialog", { name: "Accept this report?" })).not.toBeInTheDocument();
+  expect(accept).toHaveFocus();
+  expect(posts).toBe(0);
+  expect(banner()).toHaveTextContent(/./);
+  expect(banner()).not.toHaveTextContent("Accepted");
+});
+
+it("Escape closes the Accept dialog without accepting (CRL-127)", async () => {
+  serveCompleted();
+  const { user } = renderApp(`/runs/${RUN_ID}/review`);
+  const accept = await screen.findByRole("button", { name: "Accept" });
+  await user.click(accept);
+  fireEvent(screen.getByRole("dialog"), new Event("cancel", { cancelable: true }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  expect(accept).toHaveFocus();
+});
+
+it("keeps the Accept dialog open with the refusal when the accept fails (CRL-127)", async () => {
+  serveCompleted();
+  server.use(
+    http.post(`*/api/runs/${RUN_ID}/review`, () =>
+      HttpResponse.json({ detail: "the database is unavailable" }, { status: 503 }),
+    ),
+  );
+  const { user } = renderApp(`/runs/${RUN_ID}/review`);
+  await confirmAccept(user);
+  const dialog = screen.getByRole("dialog", { name: "Accept this report?" });
+  expect(await within(dialog).findByRole("alert")).toHaveTextContent("the database is unavailable");
+  await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
 });
