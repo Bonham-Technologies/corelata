@@ -56,6 +56,13 @@ class RunProgress(BaseModel):
     status: ReportStatus | None = None
     # What the run was asked, so a new report can start from it (CRL-84).
     value_statement: str = Field(description="The value statement the run was given.")
+    extra_guidance: str = Field(
+        "",
+        description=(
+            "The guidance the writer was given: what the analyst wrote, and for a revision the "
+            "reviewer notes appended to it (CRL-132)."
+        ),
+    )
     profile: str | None = Field(
         None, description="The team profile the run used; null for the deployment's default."
     )

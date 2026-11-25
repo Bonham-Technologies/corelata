@@ -5,7 +5,7 @@ from collections.abc import Callable
 from corelata.config import EvidenceQuotes
 from corelata.schema import Finding, ReportBody
 from corelata.stages.context import StageContext
-from corelata.stages.write import report_schema, report_validator, shape_reply
+from corelata.stages.write import keep_stated, report_schema, report_validator, shape_reply
 
 
 def conveyor_validator(ctx: StageContext, draft: ReportBody) -> Callable[[ReportBody], list[str]]:
@@ -100,4 +100,4 @@ async def run_conveyor(
         schema=report_schema(ctx),
         validate=check,
     )
-    return shape_reply(ctx, parsed)
+    return keep_stated(ctx, shape_reply(ctx, parsed))

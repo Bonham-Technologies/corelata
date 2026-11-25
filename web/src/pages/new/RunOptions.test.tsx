@@ -1,4 +1,4 @@
-import { cleanup, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { useState } from "react";
 import { info, packs } from "../../test/fixtures";
@@ -16,10 +16,13 @@ function Host({
 }) {
   const [profile, setProfile] = useState<string | null>(initial);
   const [n, setN] = useState<number | null>(null);
+  const [guidance, setGuidance] = useState("");
   return (
     <RunOptions
       profile={profile}
       onProfile={setProfile}
+      guidance={guidance}
+      onGuidance={setGuidance}
       maxIterations={n ?? 2}
       onMaxIterations={(value) => {
         spy(value);
@@ -140,6 +143,8 @@ it("keeps a profile that can be chosen, and any profile while the packs cannot b
     <RunOptions
       profile="team-east"
       onProfile={onProfile}
+      guidance=""
+      onGuidance={() => {}}
       maxIterations={2}
       onMaxIterations={() => {}}
     />,
@@ -177,6 +182,8 @@ it("holds the check while the page may still replace the profile (CRL-108)", asy
         <RunOptions
           profile="retired"
           onProfile={onProfile}
+          guidance=""
+          onGuidance={() => {}}
           maxIterations={2}
           onMaxIterations={() => {}}
           settled={settled}
@@ -190,4 +197,18 @@ it("holds the check while the page may still replace the profile (CRL-108)", asy
   expect(screen.queryByText(/no longer available/)).toBeNull();
   await user.click(screen.getByRole("button", { name: "Settle" }));
   await waitFor(() => expect(onProfile).toHaveBeenCalledWith(null));
+});
+
+it("offers Guidance for the writer in the fold, bounded at the API's 8,000 characters with a count (CRL-132)", async () => {
+  server.use(http.get("*/api/packs", () => HttpResponse.json(packs)));
+  const { user } = renderWithClient(<Host />);
+  const fold = screen.getByText("More options").closest("details")!;
+  const box = screen.getByRole("textbox", { name: "Guidance for the writer" });
+  expect(fold).toContainElement(box);
+  expect(box).toHaveAttribute("maxLength", "8000");
+  await user.type(box, "Lead with capacity");
+  expect(box).toHaveValue("Lead with capacity");
+  expect(screen.queryByText(/of 8,000 characters/)).toBeNull();
+  fireEvent.change(box, { target: { value: "g".repeat(7200) } });
+  expect(box).toHaveAccessibleDescription("7,200 of 8,000 characters");
 });

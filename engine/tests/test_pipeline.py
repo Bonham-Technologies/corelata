@@ -13,10 +13,10 @@ from corelata.llm.types import ContextOverflowError, PermanentBackendError
 from corelata.pipeline import RunOptions, discover, run_report
 from corelata.prompts.library import PromptLibrary
 from corelata.render.outline import DEGRADATION_TITLE
-from corelata.schema import ReportStatus, RunState, Verdict
+from corelata.schema import ReportStatus, RunState, SourceStatement, Verdict
 from corelata.standards.loader import BUILTIN_PACKS_DIR, load_pack
 from corelata.testing.sources import text_source
-from corelata.trace import delivered_open_findings
+from corelata.trace import delivered_open_findings, format_summary, summarize
 from tests.stages.conftest import PORT
 
 
@@ -612,3 +612,32 @@ async def test_the_degradation_line_is_short_while_the_stage_row_keeps_the_full_
     assert len(note) == len(prefix) + 200 and "part 0" not in note
     failed = next(s for s in rec.stages if s.stage == "auditing" and not s.ok)
     assert "part 4" in failed.error and len(failed.error) > 5000
+
+
+async def test_stated_source_values_reach_the_report_and_the_trace(run, fake_backend):
+    """CRL-138: the delivered report carries what the analyst stated verbatim, and the stage
+    that gave something else records what the engine wrote over."""
+    stated = SourceStatement(descriptor="open-source media article", origin="Varna Daily")
+    source = text_source("src1", *PORT).model_copy(update={"stated": stated})
+    rec = await run(source)
+    assert rec.state is RunState.COMPLETED and rec.report is not None
+    entry = rec.report.sources[0]
+    assert (entry.descriptor, entry.origin) == ("open-source media article", "Varna Daily")
+    drafting = next(s for s in rec.stages if s.stage == "drafting")
+    assert drafting.output is not None
+    assert {o["field"] for o in drafting.output["stated_overrides"]} == {"descriptor", "origin"}
+    conveying = next(s for s in rec.stages if s.stage == "conveying")
+    assert conveying.output == {"title": conveying.output["title"]}  # the conveyor kept them
+    assert rec.model_dump(mode="json")["sources"][0]["stated"] == stated.values()
+    summary = summarize(rec)
+    assert summary.sources[0].stated == stated
+    text = format_summary(summary)
+    assert "    origin: Varna Daily (stated by analyst)" in text
+
+
+async def test_a_run_without_stated_values_traces_as_before(run):
+    rec = await run()
+    assert all("stated_overrides" not in (s.output or {}) for s in rec.stages)
+    dumped = rec.model_dump(mode="json")
+    assert "stated" not in dumped["sources"][0]
+    assert "stated" not in summarize(rec).model_dump(mode="json")["sources"][0]
