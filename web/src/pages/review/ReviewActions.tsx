@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { exportUrl, reportUrl } from "../../api/client";
 import { rerunFreed, useReview } from "../../api/runs";
@@ -43,17 +43,36 @@ export function ReviewActions({
   const send = useReview(runId);
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const acceptedHere = useRef(false);
   const [note, setNote] = useState("");
   const noteId = useId();
   const countId = useId();
   const busy = send.isPending;
-  const accepting = busy && send.variables?.action === "accept";
   const freed = rerunFreed(review); // R-M15-4: Return and Accept are offered again
   const decided = review !== null && !freed;
 
+  /** Accept is final (CRL-127), so the button only asks; this sends it once confirmed. On success
+   * the dialog closes, and only then does the page move focus to the banner: while a modal dialog
+   * is open the page behind it is inert and cannot take focus. */
   function accept() {
-    send.mutate({ action: "accept", note: "" }, { onSuccess: () => onAccepted?.() });
+    send.mutate(
+      { action: "accept", note: "" },
+      {
+        onSuccess: () => {
+          acceptedHere.current = true;
+          setConfirming(false);
+        },
+      },
+    );
   }
+
+  // The dialog is a child, so its effect (which closes it) has run by the time this one does.
+  useEffect(() => {
+    if (confirming || !acceptedHere.current) return;
+    acceptedHere.current = false;
+    onAccepted?.();
+  });
 
   function sendReturn() {
     send.mutate(
@@ -72,8 +91,16 @@ export function ReviewActions({
     <div className="row review-actions">
       {checked ? null : (
         <>
-          <button type="button" className="primary" onClick={accept} disabled={busy || decided}>
-            {accepting ? "Accepting…" : "Accept"}
+          <button
+            type="button"
+            className="primary"
+            onClick={() => {
+              send.reset();
+              setConfirming(true);
+            }}
+            disabled={busy || decided}
+          >
+            Accept
           </button>
           <button
             type="button"
@@ -97,7 +124,27 @@ export function ReviewActions({
           ))
         }
       </Menu>
-      {send.error && !open ? <ErrorMessage error={send.error} /> : null}
+      {send.error && !open && !confirming ? <ErrorMessage error={send.error} /> : null}
+      <ConfirmDialog
+        open={confirming}
+        title="Accept this report?"
+        confirmLabel="Accept report"
+        busyLabel="Accepting…"
+        cancelLabel="Cancel"
+        busy={busy}
+        confirmDisabled={decided}
+        onConfirm={accept}
+        onCancel={() => {
+          send.reset();
+          setConfirming(false);
+        }}
+      >
+        {confirming && send.error ? <ErrorMessage error={send.error} /> : null}
+        <p>
+          This is final. The report can't be returned afterwards, and it will be used as project
+          memory.
+        </p>
+      </ConfirmDialog>
       <ConfirmDialog
         open={open}
         title="Return the report to the writer"

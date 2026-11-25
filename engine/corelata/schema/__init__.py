@@ -73,8 +73,10 @@ from corelata.schema.run import (
     StageResult,
 )
 from corelata.schema.source import (
+    STATED_FIELDS,
     Source,
     SourceKind,
+    SourceStatement,
     SourceUnit,
     reliability_tier,
     split_ref,
@@ -89,6 +91,8 @@ __all__ = [
     "SourceKind",
     "SourceUnit",
     "Source",
+    "SourceStatement",
+    "STATED_FIELDS",
     "unit_ref",
     "split_ref",
     "reliability_tier",

@@ -33,6 +33,7 @@ SCREEN_ROUTES = [
     "/api/projects/{project_id}",
     "/api/projects/{project_id}/sources",
     "/api/projects/{project_id}/sources/from-coglossa",
+    "/api/projects/{project_id}/sources/{source_id}",
     "/api/discoveries",
     "/api/discoveries/{discovery_id}",
     "/api/runs",

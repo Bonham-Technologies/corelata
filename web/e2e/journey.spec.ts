@@ -143,6 +143,21 @@ test("a new project, upload, suggest value, write, review, return and the revise
     "href",
     originalUrl,
   );
+  // Accept asks first (CRL-127): Cancel records nothing and returns to the button; confirming
+  // decides the report and moves focus to the banner.
+  const accept = page.getByRole("button", { name: "Accept", exact: true });
+  await accept.click();
+  const confirm = page.getByRole("dialog", { name: "Accept this report?" });
+  await expect(confirm).toContainText("can't be returned");
+  await confirm.getByRole("button", { name: "Cancel" }).click();
+  await expect(confirm).toBeHidden();
+  await expect(accept).toBeFocused();
+  await expect(accept).toBeEnabled();
+  await accept.click();
+  await confirm.getByRole("button", { name: "Accept report" }).click();
+  const banner = page.getByRole("status", { name: "Where the review stands" });
+  await expect(banner).toContainText("Accepted");
+  await expect(banner).toBeFocused();
   // the project's Reports list marks it
   await page.getByRole("navigation", { name: "Breadcrumb" }).getByRole("link").click();
   await expect(
