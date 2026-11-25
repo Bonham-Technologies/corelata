@@ -156,7 +156,7 @@ missing input (never its value). Running it by hand
   cd deploy/hosted/vercel && pnpm install --frozen-lockfile && pnpm typecheck && pnpm test
 
   # hosted-modal (from engine/, after `uv sync --all-groups`; pins as in ci.yml)
-  CORELATA_FORBID_SKIP=1 uv run --with pyyaml==6.0.3 --with fastapi==0.162.0 --with httpx \
+  CORELATA_FORBID_SKIP=1 uv run --with pyyaml==6.0.3 --with fastapi==0.165.0 --with httpx \
     python -m pytest ../deploy/hosted/modal ../deploy/hosted/test_smoke.py \
     -q -p no:cacheprovider --no-cov --rootdir ../deploy/hosted/modal
   cd .. && uv run --no-project --with-requirements deploy/hosted/modal/requirements.txt \
