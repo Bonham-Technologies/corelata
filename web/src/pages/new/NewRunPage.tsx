@@ -77,13 +77,17 @@ export function NewRunPage() {
   // The statement and the options are the project's draft, kept in sessionStorage so a reload
   // or a sign-in redirect does not lose them, and cleared once the run starts (CRL-74).
   const [draft, changeDraft] = useDraft(projectId);
-  const { statement, profile } = draft; // profile null: the deployment's default
+  const { statement, profile, guidance } = draft; // profile null: the deployment's default
   const setStatement = useCallback(
     (value: string) => changeDraft((d) => ({ ...d, statement: value })),
     [changeDraft],
   );
   const setProfile = useCallback(
     (value: string | null) => changeDraft((d) => ({ ...d, profile: value })),
+    [changeDraft],
+  );
+  const setGuidance = useCallback(
+    (value: string) => changeDraft((d) => ({ ...d, guidance: value })),
     [changeDraft],
   );
   const setMaxIterations = useCallback(
@@ -149,6 +153,7 @@ export function NewRunPage() {
       statement: offered ?? run.value_statement,
       profile: run.profile ?? null,
       maxIterations: run.max_iterations,
+      guidance: run.extra_guidance,
     };
     changeDraft((now) => (now === untouched ? filled : now));
     update(
@@ -201,7 +206,7 @@ export function NewRunPage() {
         value_statement: statement.trim(),
         profile,
         max_iterations: sentIterations,
-        extra_guidance: "",
+        extra_guidance: guidance,
         kind: "report",
       },
       {
@@ -292,6 +297,8 @@ export function NewRunPage() {
           settled={fromId === null}
           profile={profile}
           onProfile={setProfile}
+          guidance={guidance}
+          onGuidance={setGuidance}
           maxIterations={maxIterations}
           onMaxIterations={setMaxIterations}
         />

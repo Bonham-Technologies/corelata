@@ -7,9 +7,16 @@ export interface Draft {
   statement: string;
   profile: string | null;
   maxIterations: number | null;
+  /** The guidance for the writer (CRL-132); a draft saved before it reads as "". */
+  guidance: string;
 }
 
-export const EMPTY_DRAFT: Draft = { statement: "", profile: null, maxIterations: null };
+export const EMPTY_DRAFT: Draft = {
+  statement: "",
+  profile: null,
+  maxIterations: null,
+  guidance: "",
+};
 
 const DRAFT_PREFIX = "corelata.draft.";
 
@@ -90,15 +97,21 @@ function read(projectId: string | null): Draft {
 }
 
 function isEmpty(draft: Draft): boolean {
-  return draft.statement === "" && draft.profile === null && draft.maxIterations === null;
+  return (
+    draft.statement === "" &&
+    draft.profile === null &&
+    draft.maxIterations === null &&
+    draft.guidance === ""
+  );
 }
 
 function asDraft(value: unknown): Draft {
   if (typeof value !== "object" || value === null) return EMPTY_DRAFT;
-  const { statement, profile, maxIterations } = value as Record<string, unknown>;
+  const { statement, profile, maxIterations, guidance } = value as Record<string, unknown>;
   return {
     statement: typeof statement === "string" ? statement : "",
     profile: typeof profile === "string" ? profile : null,
+    guidance: typeof guidance === "string" ? guidance : "",
     maxIterations:
       typeof maxIterations === "number" && Number.isInteger(maxIterations) && maxIterations >= 0
         ? Math.min(10, maxIterations)
