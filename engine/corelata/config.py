@@ -112,14 +112,21 @@ class BackendConfig(_Strict):
 
 # CRL-140: the request body keys Corelata sets itself, which `request_extra` may not replace, and
 # what to set instead. Replacing one would bypass the config (temperature, max_tokens) or break
-# the call (model, messages, response_format, stream).
+# the call (model, messages, response_format, stream). The keys after them Corelata does not
+# send, but the client reads the text of the first choice only: more choices would be paid for
+# and dropped, and a tool call has no text to read.
 RESERVED_REQUEST_KEYS: dict[str, str] = {
-    "model": "set models.<key>.name",
-    "messages": "the prompt is Corelata's",
-    "response_format": "set models.<key>.structured_output",
-    "temperature": "set models.<key>.temperature",
-    "max_tokens": "set models.<key>.max_output_tokens",
-    "stream": "Corelata reads one whole reply",
+    "model": "Corelata sets it; set models.<key>.name",
+    "messages": "Corelata sets it; the prompt is Corelata's",
+    "response_format": "Corelata sets it; set models.<key>.structured_output",
+    "temperature": "Corelata sets it; set models.<key>.temperature",
+    "max_tokens": "Corelata sets it; set models.<key>.max_output_tokens",
+    "stream": "Corelata sets it; Corelata reads one whole reply",
+    "n": "Corelata reads one choice",
+    "tools": "Corelata reads the reply's text, not tool calls",
+    "tool_choice": "Corelata reads the reply's text, not tool calls",
+    "functions": "Corelata reads the reply's text, not function calls",
+    "function_call": "Corelata reads the reply's text, not function calls",
 }
 REASONING_MAX_CHARS = 20000
 
@@ -155,8 +162,7 @@ class ModelConfig(_Strict):
         for key in value:
             if key in RESERVED_REQUEST_KEYS:
                 raise ValueError(
-                    f"'{key}' is set by Corelata and cannot be sent from request_extra: "
-                    f"{RESERVED_REQUEST_KEYS[key]}"
+                    f"'{key}' cannot be sent from request_extra: {RESERVED_REQUEST_KEYS[key]}"
                 )
         try:
             json.dumps(value, allow_nan=False)

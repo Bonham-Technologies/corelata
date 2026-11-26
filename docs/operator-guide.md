@@ -243,10 +243,12 @@ roles:
   (`reasoning_effort: low` for gpt-oss and OpenAI-family servers). The keys Corelata sets itself
   are refused when the config loads, each with the setting to use instead: `model` (`name`),
   `messages`, `response_format` (`structured_output`), `temperature`, `max_tokens`
-  (`max_output_tokens`) and `stream` (Corelata reads one whole reply). Values must be plain
-  JSON (strings, numbers, booleans, lists and mappings; quote a date). `corelata doctor` sends
-  them too. They shape the output, so they are part of the config hash; never put a key or
-  other secret here (use `api_key_env`), since the config is stored with every run.
+  (`max_output_tokens`) and `stream` (Corelata reads one whole reply), and with them `n`,
+  `tools`, `tool_choice`, `functions` and `function_call`, since Corelata reads the text of one
+  choice only. Values must be plain JSON (strings, numbers, booleans, lists and mappings; quote
+  a date). `corelata doctor` sends them too. They shape the output, so they are part of the
+  config hash; never put a key or other secret here (use `api_key_env`), since the config is
+  stored with every run.
 - Reasoning models (Qwen3, DeepSeek-R1, gpt-oss) think before they answer. A server with a
   reasoning parser returns the thinking beside the answer (`reasoning`, or `reasoning_content`
   on older vLLM and DeepSeek's API); one without returns it in the answer as a leading
@@ -259,7 +261,8 @@ roles:
   depending on its version and flags: `corelata doctor` says, on each model's line,
   "reasoning: present under json_schema" or "absent" (the mode named is the model's own),
   read from the reply to its GateVerdict probe (for a `none` model, its test completion); a
-  line that fails says nothing about reasoning.
+  line that fails, or a `none` model whose test completion was cut at its 50 tokens (as a
+  reasoning model's often is), says nothing about reasoning.
 - The four roles: `gate` decides whether the sources can support the value statement at all,
   `writer` drafts the assessment, `conveyor` revises it to fix what the audit found, and `auditor`
   checks the draft against the standards. Use a model from a different family for the `auditor`

@@ -72,7 +72,9 @@ def test_request_extra_refuses_the_keys_corelata_sets(tmp_path, key):
     data["models"]["model-a"] = {**data["models"]["model-a"], "request_extra": {key: 1}}
     path = tmp_path / "corelata.yaml"
     path.write_text(yaml.safe_dump(data), encoding="utf-8")
-    with pytest.raises(ConfigError, match=rf"models\.model-a\.request_extra: .*'{key}' is set by"):
+    with pytest.raises(
+        ConfigError, match=rf"models\.model-a\.request_extra: .*'{key}' cannot be sent"
+    ):
         load_config(path)
 
 
@@ -84,6 +86,12 @@ def test_the_reserved_keys_are_every_key_the_client_sets():
         "temperature",
         "max_tokens",
         "stream",
+        # not sent by Corelata, but the client reads only the first choice's text
+        "n",
+        "tools",
+        "tool_choice",
+        "functions",
+        "function_call",
     }
 
 
