@@ -258,6 +258,7 @@ async def run_doctor(
     checks.append(await asyncio.to_thread(_guard, "prompts", lambda: _prompts(cfg)))
     checks.append(await asyncio.to_thread(_guard, "pack", lambda: _pack(cfg)))
     checks.append(await asyncio.to_thread(_guard, "pack names", lambda: _pack_names(cfg)))
+    checks.append(_guard("roles", lambda: _auditor_independence(cfg)))
     checks += await _backends(cfg, probe, backends_factory)
     checks.append(await _aguard("database", lambda: _database(cfg)))
     # off the event loop: the API runs doctor for Settings, and S3 is a network call
@@ -376,6 +377,36 @@ def _ocr(cfg: CorelataConfig) -> DoctorCheck:
     if mode == "off":
         return _check("ocr", CheckStatus.PASS, f"ingest.ocr is off; {found}")
     return _check("ocr", CheckStatus.PASS, f"ingest.ocr is auto ({', '.join(wanted)}); {found}")
+
+
+def _auditor_independence(cfg: CorelataConfig) -> DoctorCheck:
+    """CRL-141: warn, never fail, when the auditor is the writer's model. A model judging its own
+    drafts tends to favour them; the same served model under two config keys counts as the same."""
+    writer, auditor = cfg.roles.writer.model, cfg.roles.auditor.model
+
+    def served(key: str) -> tuple[str, str]:
+        model = cfg.models[key]
+        return model.backend, model.name or key
+
+    if writer == auditor:
+        same = writer
+    elif served(writer) == served(auditor):
+        backend, model_id = served(writer)
+        same = f"{writer} and {auditor} both serve {model_id} on {backend}"
+    else:
+        return _check(
+            "roles",
+            CheckStatus.PASS,
+            f"the auditor ({auditor}) is a different model from the writer ({writer})",
+        )
+    return _check(
+        "roles",
+        CheckStatus.WARN,
+        f"the writer and the auditor are the same model ({same}): a model tends to favour its "
+        "own drafts when it audits them",
+        "if you have a second model, preferably from a different model family, set "
+        "roles.auditor.model to it; runs work as they are",
+    )
 
 
 def _prompts(cfg: CorelataConfig) -> DoctorCheck:

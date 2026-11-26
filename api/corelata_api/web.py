@@ -51,7 +51,9 @@ def mount_web(app: FastAPI, web_dir: Path) -> None:
             pass
         return None
 
-    @app.get("/{path:path}", include_in_schema=False)
+    # GET and HEAD: monitors and `curl -I` probe with HEAD, and FileResponse sends no body
+    # for it (CRL-116)
+    @app.api_route("/{path:path}", methods=["GET", "HEAD"], include_in_schema=False)
     async def web_app(path: str) -> FileResponse:
         if path == "api" or path.startswith("api/"):
             raise HTTPException(status_code=404)

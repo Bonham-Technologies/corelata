@@ -24,7 +24,7 @@ roles:                             # spec §4.4; one model per role
   gate:     { model: strong }
   writer:   { model: strong }
   conveyor: { model: strong }
-  auditor:  { model: strong }      # a different model family from the writer is better when you have one
+  auditor:  { model: strong }      # a different model family from the writer is better when you have one; doctor warns when they are the same model
   # profiler: { model: strong }    # only for `corelata profile extract` (M6)
   # structurer: { model: strong }  # maps a finished report for `corelata check`; default: writer's model
 
