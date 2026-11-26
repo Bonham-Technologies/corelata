@@ -920,11 +920,11 @@ async def add_review_mark(
 
 
 async def load_review_marks(s: AsyncSession, run_id: uuid.UUID) -> list[ReviewMark]:
-    """Every review mark on the run, oldest first (CRL-139)."""
+    """Every review mark on the run in the order it was made (CRL-139): by row id, since marks
+    are added one at a time under the run's row lock, not by `at`, which is the clock of the API
+    process that took the mark and may lag another's."""
     rows = await s.scalars(
-        select(ReviewMarkRow)
-        .where(ReviewMarkRow.run_id == run_id)
-        .order_by(ReviewMarkRow.at, ReviewMarkRow.id)
+        select(ReviewMarkRow).where(ReviewMarkRow.run_id == run_id).order_by(ReviewMarkRow.id)
     )
     return [
         ReviewMark(claim_id=r.claim_id, mark=r.mark, comment=r.comment, actor=r.actor, at=r.at)

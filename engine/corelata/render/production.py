@@ -3,7 +3,7 @@
 model each role used, the standards pack and its hash, the audit result and how many claims a
 reviewer checked."""
 
-from corelata.schema import ClaimMark, RunRecord
+from corelata.schema import ClaimMark, RunKind, RunRecord
 from corelata.schema.review import checked_by, current_marks
 from corelata.standards.schema import ResolvedPack
 
@@ -37,9 +37,11 @@ def _models(record: RunRecord) -> str:
 
 
 def production_lines(record: RunRecord, pack: ResolvedPack) -> list[str] | None:
-    """The section's lines, or None when the profile leaves it off or the run has no report."""
+    """The section's lines, or None when the profile leaves it off, the run has no report, or
+    the run is a check: a check's report was written elsewhere (CRL-94), so neither its models
+    nor review marks (which a check cannot have) say how it was produced."""
     report = record.report
-    if not pack.format.production_statement or report is None:
+    if not pack.format.production_statement or report is None or record.kind is RunKind.CHECK:
         return None
     profile = f", profile {pack.profile}" if pack.profile else ""
     meta = report.metadata

@@ -12,7 +12,7 @@ models disagree (`make schema` regenerates it).
 | `trace.json` | always | the `RunRecord`: everything below |
 | `gate.json` | the gate ran | `GateVerdict` |
 | `report.json` | a report was delivered | `Report` (body + `metadata`) |
-| `report.md`, `report.html`, `report.docx` | a report was delivered | renders of `report.json`, with numbered source references (CRL-96); the appendix "Cited passages" lists the claims' quotes (when any claim quotes), "Stages incomplete at delivery" lists `metadata.degradations` and "Audit findings open at delivery" lists `delivered_open_findings` (the findings `metadata.open_findings` names); with the profile's `format.production_statement`, "How this report was produced" comes last (CRL-139) |
+| `report.md`, `report.html`, `report.docx` | a report was delivered | renders of `report.json`, with numbered source references (CRL-96); the appendix "Cited passages" lists the claims' quotes (when any claim quotes), "Stages incomplete at delivery" lists `metadata.degradations` and "Audit findings open at delivery" lists `delivered_open_findings` (the findings `metadata.open_findings` names); with the profile's `format.production_statement`, "How this report was produced" comes last, except on a check run (CRL-139) |
 | `findings.csv` | a check run delivered its report (CRL-94) | the findings sheet: one row per rule of the audit, in pack order (`rule_id`, `title`, `verdict`, `severity`, `claim_ids`, `cited_units`, `evidence`, `recommendation`; ids space-separated; a cell starting `=`, `+`, `-` or `@` gets a leading `'`) |
 | `reference.docx` | the run's profile named one (queued runs only) | the profile's DOCX reference as stored when the run was queued; `corelata report DIR --format docx` uses it |
 
@@ -58,7 +58,7 @@ DOCX uses the neutral template unless `--docx-reference` names the profile's ref
   `open_findings` ids, `degradations`: the stages it was delivered without, M11; absent in older
   traces, read as empty; `prior_reports`, CRL-97, below).
 - Review (CRL-139): `review_marks[]` — every mark a reviewer put on a claim of the delivered
-  report, oldest first (`claim_id`, `mark`: `checked` or `disputed`, `comment`, `actor`, `at`); a
+  report, in the order they were made (`claim_id`, `mark`: `checked` or `disputed`, `comment`, `actor`, `at`); a
   claim's latest mark is its mark. The worker stores `trace.json` when the run completes, before
   any review, so the stored file has none; the download (`GET /api/runs/{id}/exports/trace.json`)
   and `corelata export` add the marks made since. `reviewer_findings[]` — on a rerun made by a

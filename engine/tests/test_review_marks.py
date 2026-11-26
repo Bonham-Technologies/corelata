@@ -25,6 +25,7 @@ from corelata.schema import (
     Report,
     ReviewAction,
     ReviewMark,
+    RunKind,
     RunRecord,
     RunState,
     Usage,
@@ -39,6 +40,7 @@ from corelata.schema.review import (
 )
 from corelata.standards.loader import pack_hash
 from corelata.store import records, runs
+from corelata.store.models import ReviewMarkRow
 from tests.render.fixtures import PACK, SOURCES, make_report
 from tests.test_prior_reports import payload, requests_by_task
 from tests.test_service import Svc, _set_state
@@ -185,6 +187,12 @@ def test_the_production_statement_is_off_by_default_and_needs_a_report():
     assert PACK.format.production_statement is False
     assert production_lines(_record(), PACK) is None
     assert production_lines(_record(report=None), ON) is None
+
+
+def test_a_check_run_has_no_production_statement():
+    """A check audits a report Corelata did not write (CRL-94): its renders say nothing of how
+    that report was produced, nor count review marks a check cannot have."""
+    assert production_lines(_record(kind=RunKind.CHECK), ON) is None
 
 
 def test_the_production_statement_lines():
@@ -337,6 +345,28 @@ async def test_marks_persist_with_actor_and_time_and_reach_the_record(svc):
     ]
     assert record.review_marks[0].at <= record.review_marks[1].at
     assert record.review_marks[1].at.tzinfo is not None
+
+
+async def test_marks_read_in_the_order_they_were_made_whatever_their_clocks_say(svc):
+    """Marks are made one at a time under the run's row lock, so the row id is the order they
+    were made in; `at` comes from the clock of whichever API process took the mark, which may lag
+    another's. A later mark with an earlier `at` is still the claim's mark."""
+    run_id = await _delivered(svc)
+    async with svc.db.session() as s, s.begin():
+        s.add(ReviewMarkRow(run_id=run_id, claim_id="c1", mark="checked", at=T0))
+        await s.flush()
+        s.add(
+            ReviewMarkRow(
+                run_id=run_id, claim_id="c1", mark="disputed", at=T0 - timedelta(minutes=1)
+            )
+        )
+    async with svc.db.session() as s:
+        assert [m.mark for m in await runs.load_review_marks(s, run_id)] == [
+            "checked",
+            "disputed",
+        ]
+    view = await service.review_marks(svc.db, run_id)
+    assert (view.checked, view.disputed) == (0, 1)
 
 
 async def test_the_stored_trace_carries_the_marks_made_since(svc):
