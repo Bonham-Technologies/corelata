@@ -243,9 +243,17 @@ def test_evidence_quotes_default_off_and_required_for_a_new_install():
     new install starts from asks for quotes. Both settings shape output: config_hash names them."""
     pipeline = CorelataConfig.model_validate(BASE_CONFIG).pipeline
     assert pipeline.evidence_quotes is EvidenceQuotes.OFF and pipeline.quote_match_threshold == 1.0
-    example = Path(__file__).parents[1] / "corelata.example.yaml"
-    raw = yaml.safe_load(example.read_text(encoding="utf-8"))["pipeline"]
-    assert raw["evidence_quotes"] == "required" and raw["quote_match_threshold"] == 1.0
+    # the engine's example, the bundle's (deploy/install.sh copies it) and the demo stack's
+    # (CRL-120: the demo runs the synthetic model, which quotes)
+    root = Path(__file__).parents[2]
+    for example in (
+        root / "engine" / "corelata.example.yaml",
+        root / "deploy" / "config" / "corelata.example.yaml",
+        root / "deploy" / "config" / "corelata.demo.yaml",
+    ):
+        raw = yaml.safe_load(example.read_text(encoding="utf-8"))["pipeline"]
+        assert raw["evidence_quotes"] == "required", example
+        assert raw["quote_match_threshold"] == 1.0, example
     hashes = {
         config_hash(CorelataConfig.model_validate({**BASE_CONFIG, "pipeline": pipeline}))
         for pipeline in (

@@ -39,6 +39,8 @@ pipeline:                          # spec §7
   digest_chunk_tokens: 4000
   writer_unit_budget_tokens: 16000
   gate_unit_budget_tokens: 12000
+  evidence_quotes: required        # claims quote their units word for word, checked by the engine; optional or off for weak models (unset: off)
+  quote_match_threshold: 1.0       # share of a quote's words that must match the unit in order; 1.0 is exact
 
 ingest:                            # reading uploads (operator guide, "Scanned PDFs")
   ocr: off                         # auto: read scanned PDF pages with Tesseract, which the image has
