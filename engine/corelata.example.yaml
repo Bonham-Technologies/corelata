@@ -15,6 +15,10 @@ models:
     structured_output: json_schema # json_schema | json_object | none
     max_output_tokens: 8192
     temperature: 0.2
+    # request_extra:                 # keys added to every request body as given (CRL-140), e.g.
+    #   chat_template_kwargs: { enable_thinking: false }   # Qwen3 on vLLM: no thinking
+    # store_reasoning: false         # true: keep the model's reasoning with each call in the trace
+    # reasoning_max_chars: 20000     # at most this much of it per call
 
 roles:                             # spec §4.4; one model per role
   gate:     { model: strong }

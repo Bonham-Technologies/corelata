@@ -89,7 +89,8 @@ async def test_a_healthy_installation(tmp_path, server, monkeypatch, pg_url):
     assert checks["backend local"].message == "serves 1 model; fake-model → fake-model found"
     assert "icd203-base" in checks["pack"].message
     assert checks["model fake-model"].message == (
-        "test completion succeeded; json_schema output works (GateVerdict)"
+        "test completion succeeded; json_schema output works (GateVerdict); "
+        "reasoning: absent under json_schema"
     )
     assert checks["model fake-model auditor schema"].message == (
         "json_schema output works (AuditByRule, 17 rules)"
@@ -835,7 +836,10 @@ async def test_a_schema_size_limit_fails_the_auditor_probe_and_not_the_gate_prob
     checks = _by_name(report)
     gate = checks["model fake-model"]
     assert gate.status is CheckStatus.PASS
-    assert gate.message == "test completion succeeded; json_schema output works (GateVerdict)"
+    assert gate.message == (
+        "test completion succeeded; json_schema output works (GateVerdict); "
+        "reasoning: absent under json_schema"
+    )
     audit = checks["model fake-model auditor schema"]
     assert audit.status is CheckStatus.FAIL and not report.ok
     assert audit.message == (
@@ -971,7 +975,9 @@ async def test_a_none_model_gets_the_auditor_probe_with_the_schema_in_the_prompt
     )
     report = await run_doctor(path, backends_factory=lambda cfg: {"local": backend})
     checks = _by_name(report)
-    assert checks["model fake-model"].message == "test completion succeeded"  # no gate probe
+    assert checks["model fake-model"].message == (  # no gate probe: the ping's reply tells
+        "test completion succeeded; reasoning: absent under none"
+    )
     audit = checks["model fake-model auditor schema"]
     assert audit.status is CheckStatus.PASS
     assert audit.message == "none output works (AuditByRule, 17 rules)"
@@ -1120,7 +1126,8 @@ async def test_a_model_that_needs_one_repair_turn_warns_and_doctor_still_passes(
     check = checks["model fake-model"]
     assert check.status is CheckStatus.WARN and report.ok  # WARN never fails doctor
     assert check.message == (
-        "test completion succeeded; json_object output works after one repair turn (GateVerdict)"
+        "test completion succeeded; json_object output works after one repair turn (GateVerdict); "
+        "reasoning: absent under json_object"
     )
     assert check.fix == (
         "nothing to change for a run, which repairs the reply the same way; every structured "
@@ -1233,7 +1240,7 @@ async def test_the_fake_server_can_play_a_model_that_needs_a_repair_turn(tmp_pat
         assert report.ok
         assert checks["model fake-model"].message == (
             "test completion succeeded; json_schema output works after one repair turn "
-            "(GateVerdict)"
+            "(GateVerdict); reasoning: absent under json_schema"
         )
         assert checks["model fake-model auditor schema"].status is CheckStatus.WARN
         firsts = [r for r in srv.requests if len(r["messages"]) == 2]
@@ -1401,6 +1408,53 @@ async def test_the_ocr_check_runs_off_the_event_loop(tmp_path, server, monkeypat
     monkeypatch.setattr(ocr, "tesseract_path", where)
     await run_doctor(_config(tmp_path, server.base_url), probe=False)
     assert on_loop == [False]
+
+
+@pytest.mark.parametrize("reasoning", ["reasoning", "reasoning_content", "think"])
+@pytest.mark.parametrize("mode", ["json_schema", "json_object"])
+async def test_the_model_line_says_whether_the_model_reasoned_under_its_mode(
+    tmp_path, monkeypatch, reasoning, mode
+):
+    """CRL-140: a server may drop the reasoning under structured output; doctor reads the
+    GateVerdict probe's first reply, which is a run's first request."""
+    monkeypatch.delenv("CORELATA_DATABASE_URL", raising=False)
+    with FakeOpenAIServer(reasoning=reasoning) as srv:
+        model = {"backend": "local", "context_window": 4096, "structured_output": mode}
+        report = await run_doctor(_config(tmp_path, srv.base_url, models={"fake-model": model}))
+    check = _by_name(report)["model fake-model"]
+    assert check.status is CheckStatus.PASS  # a <think> block costs no repair turn
+    assert check.message == (
+        f"test completion succeeded; {mode} output works (GateVerdict); "
+        f"reasoning: present under {mode}"
+    )
+
+
+async def test_every_doctor_request_carries_the_models_request_extra(tmp_path, monkeypatch):
+    """CRL-140: with thinking turned off the way a run sends it, the model reasons no more."""
+    monkeypatch.delenv("CORELATA_DATABASE_URL", raising=False)
+    off = {"chat_template_kwargs": {"enable_thinking": False}}
+    with FakeOpenAIServer(reasoning="reasoning") as srv:
+        model = {"backend": "local", "context_window": 4096, "request_extra": off}
+        report = await run_doctor(_config(tmp_path, srv.base_url, models={"fake-model": model}))
+        assert srv.requests and all(
+            r["chat_template_kwargs"] == off["chat_template_kwargs"] for r in srv.requests
+        )
+    assert _by_name(report)["model fake-model"].message.endswith(
+        "reasoning: absent under json_schema"
+    )
+
+
+async def test_a_none_model_whose_ping_is_cut_gets_no_reasoning_part(tmp_path):
+    class Cut(FakeBackend):
+        async def chat(self, request):
+            if request.schema_name == "Ping":
+                raise OutputTruncatedError("local: output truncated")
+            return await super().chat(request)
+
+    model = {"backend": "local", "context_window": 4096, "structured_output": "none"}
+    path = _config(tmp_path, "http://unused.test/v1", models={"fake-model": model})
+    report = await run_doctor(path, backends_factory=lambda cfg: {"local": Cut()})
+    assert _by_name(report)["model fake-model"].message == "test completion succeeded"
 
 
 async def test_an_auditor_that_is_the_writers_model_is_a_warning(tmp_path, server):

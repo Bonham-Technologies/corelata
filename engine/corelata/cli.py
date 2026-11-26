@@ -53,7 +53,7 @@ from corelata.stages.structure import REPORT_ID
 from corelata.standards.diff import diff_packs, format_diff
 from corelata.standards.loader import PackError, chain_profiles, load_pack, validate_pack
 from corelata.standards.schema import ResolvedPack
-from corelata.testing.fake_openai import FakeOpenAIServer
+from corelata.testing.fake_openai import REASONING_MODES, FakeOpenAIServer
 from corelata.trace import (
     TraceError,
     claim_provenance,
@@ -211,6 +211,13 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="answer the first turn of every structured call with '{}', so each call needs its "
         "repair turn (a model doctor warns about)",
+    )
+    fake.add_argument(
+        "--reasoning",
+        choices=REASONING_MODES,
+        help="reason like a reasoning model: in the reasoning or reasoning_content field, or in "
+        "a <think> block before the content; chat_template_kwargs: {enable_thinking: false} in "
+        "a request turns it off",
     )
     bench = sub.add_parser(
         "bench", help="play the scenario set against the configured models and report agreement"
@@ -804,7 +811,12 @@ def _bench(args: argparse.Namespace) -> int:
 def _fake_openai(args: argparse.Namespace) -> int:
     models = tuple(args.models or ["fake-model"])
     server = FakeOpenAIServer(
-        args.host, args.port, models, keep_requests=False, needs_repair=args.needs_repair
+        args.host,
+        args.port,
+        models,
+        keep_requests=False,
+        needs_repair=args.needs_repair,
+        reasoning=args.reasoning,
     )
     print(f"fake OpenAI-compatible server at {server.base_url} (Ctrl+C to stop)", flush=True)
     try:

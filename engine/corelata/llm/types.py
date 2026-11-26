@@ -2,7 +2,7 @@
 
 from typing import Any, Literal, Protocol
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from corelata.config import StructuredOutput
 
@@ -20,6 +20,8 @@ class ChatRequest(BaseModel):
     structured_output: StructuredOutput
     temperature: float = 0.2
     max_tokens: int | None = None
+    # the model's `request_extra`, merged into the request body as given (CRL-140)
+    extra: dict[str, Any] = Field(default_factory=dict)
 
 
 class ChatResponse(BaseModel):
@@ -27,6 +29,8 @@ class ChatResponse(BaseModel):
     tokens_in: int | None = None
     tokens_out: int | None = None
     latency_ms: int = 0
+    # what the server returned beside the content as the model's reasoning (CRL-140)
+    reasoning: str | None = None
 
 
 class BackendError(Exception):

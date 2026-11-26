@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class LLMCallRecord(BaseModel):
@@ -19,6 +19,11 @@ class LLMCallRecord(BaseModel):
     error: str | None = None
     request: dict[str, Any] | None = None  # only when audit.store_llm_io
     response: str | None = None  # only when audit.store_llm_io
+    # CRL-140: the model's reasoning, cut to models.<key>.reasoning_max_chars, and its whole
+    # length; only when the model's store_reasoning and audit.store_llm_io are both on and the
+    # reply had some. Left out of the dump when absent, so other traces read as before.
+    reasoning: str | None = Field(None, exclude_if=lambda v: v is None)
+    reasoning_chars: int | None = Field(None, exclude_if=lambda v: v is None)
 
 
 class Usage(BaseModel):

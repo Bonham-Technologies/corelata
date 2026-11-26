@@ -1,6 +1,7 @@
 """corelata.yaml: the single file that adapts Corelata to a deployment (spec §11)."""
 
 import hashlib
+import json
 import os
 import re
 from collections.abc import Callable
@@ -109,6 +110,27 @@ class BackendConfig(_Strict):
         )
 
 
+# CRL-140: the request body keys Corelata sets itself, which `request_extra` may not replace, and
+# what to set instead. Replacing one would bypass the config (temperature, max_tokens) or break
+# the call (model, messages, response_format, stream). The keys after them Corelata does not
+# send, but the client reads the text of the first choice only: more choices would be paid for
+# and dropped, and a tool call has no text to read.
+RESERVED_REQUEST_KEYS: dict[str, str] = {
+    "model": "Corelata sets it; set models.<key>.name",
+    "messages": "Corelata sets it; the prompt is Corelata's",
+    "response_format": "Corelata sets it; set models.<key>.structured_output",
+    "temperature": "Corelata sets it; set models.<key>.temperature",
+    "max_tokens": "Corelata sets it; set models.<key>.max_output_tokens",
+    "stream": "Corelata sets it; Corelata reads one whole reply",
+    "n": "Corelata reads one choice",
+    "tools": "Corelata reads the reply's text, not tool calls",
+    "tool_choice": "Corelata reads the reply's text, not tool calls",
+    "functions": "Corelata reads the reply's text, not function calls",
+    "function_call": "Corelata reads the reply's text, not function calls",
+}
+REASONING_MAX_CHARS = 20000
+
+
 class ModelConfig(_Strict):
     backend: str
     name: str | None = None  # model id sent to the server; defaults to the config key
@@ -117,6 +139,36 @@ class ModelConfig(_Strict):
     bytes_per_token: float = Field(2.5, gt=0)  # conservative UTF-8 bytes per token estimate
     max_output_tokens: int | None = Field(None, ge=1)
     temperature: float = Field(0.2, ge=0)
+    # CRL-140: keys merged into every chat request body as given, for a server's own options
+    # (such as chat_template_kwargs: {enable_thinking: false}). They shape output, so they are
+    # in config_hash; left out of the dump when empty, so an existing config's hash is unchanged.
+    request_extra: dict[str, Any] = Field(default_factory=dict, exclude_if=lambda v: not v)
+    # CRL-140: keep the model's reasoning (the server's `reasoning` or `reasoning_content`, or a
+    # leading <think> block) with each call record, at most `reasoning_max_chars` characters of
+    # it, when audit.store_llm_io is on too. Neither shapes output: config_hash leaves them out.
+    store_reasoning: bool = Field(False, exclude_if=lambda v: v is False)
+    reasoning_max_chars: int = Field(
+        REASONING_MAX_CHARS, ge=1, exclude_if=lambda v: v == REASONING_MAX_CHARS
+    )
+
+    @field_validator("request_extra", mode="before")
+    @classmethod
+    def _null_extra(cls, value: Any) -> Any:
+        return {} if value is None else value
+
+    @field_validator("request_extra")
+    @classmethod
+    def _extra_keys(cls, value: dict[str, Any]) -> dict[str, Any]:
+        for key in value:
+            if key in RESERVED_REQUEST_KEYS:
+                raise ValueError(
+                    f"'{key}' cannot be sent from request_extra: {RESERVED_REQUEST_KEYS[key]}"
+                )
+        try:
+            json.dumps(value, allow_nan=False)
+        except (TypeError, ValueError) as e:
+            raise ValueError(f"must hold JSON values only (strings, numbers, ...): {e}") from None
+        return value
 
 
 class RoleConfig(_Strict):
@@ -562,9 +614,13 @@ def load_config(path: Path) -> tuple[CorelataConfig, list[ConfigIssue]]:
 # Operational sections: tuning the deployment never reads as a config change.
 # `ingest` shapes sources, not runs: what OCR read is recorded on each source (CRL-95).
 _OPERATIONAL_SECTIONS = {"database", "storage", "worker", "api", "auth", "integrations", "ingest"}
+# What is kept of a model's reasoning is no output setting either (CRL-140).
+_HASH_EXCLUDE: dict[str, Any] = {section: True for section in _OPERATIONAL_SECTIONS} | {
+    "models": {"__all__": {"store_reasoning", "reasoning_max_chars"}}
+}
 
 
 def config_hash(cfg: CorelataConfig) -> str:
     """Identifies the settings that shape output; operational sections are excluded."""
-    dump = cfg.model_dump_json(exclude=_OPERATIONAL_SECTIONS)
+    dump = cfg.model_dump_json(exclude=_HASH_EXCLUDE)
     return hashlib.sha256(dump.encode("utf-8")).hexdigest()[:16]

@@ -240,6 +240,33 @@ roles:
   must return `findings` as an object keyed by rule id, as the built-in `auditor/v6.j2` does; an
   override that still returns a list fails every audit.
 - `max_output_tokens` is unset by default (the server decides); `temperature` defaults to 0.2.
+- `request_extra` (CRL-140) is a mapping of keys added to every request body for that model,
+  exactly as written: a server's own options, which Corelata does not know. The common one turns
+  a reasoning model's thinking off, for Qwen3 on vLLM or SGLang
+  `chat_template_kwargs: { enable_thinking: false }`; other servers name theirs differently
+  (`reasoning_effort: low` for gpt-oss and OpenAI-family servers). The keys Corelata sets itself
+  are refused when the config loads, each with the setting to use instead: `model` (`name`),
+  `messages`, `response_format` (`structured_output`), `temperature`, `max_tokens`
+  (`max_output_tokens`) and `stream` (Corelata reads one whole reply), and with them `n`,
+  `tools`, `tool_choice`, `functions` and `function_call`, since Corelata reads the text of one
+  choice only. Values must be plain JSON (strings, numbers, booleans, lists and mappings; quote
+  a date). `corelata doctor` sends them too. They shape the output, so they are part of the
+  config hash; never put a key or other secret here (use `api_key_env`), since the config is
+  stored with every run.
+- Reasoning models (Qwen3, DeepSeek-R1, gpt-oss) think before they answer. A server with a
+  reasoning parser returns the thinking beside the answer (`reasoning`, or `reasoning_content`
+  on older vLLM and DeepSeek's API); one without returns it in the answer as a leading
+  `<think>...</think>` block, which Corelata skips before reading the JSON, so it costs no
+  repair turn. `store_reasoning: true` keeps the thinking with each call in the run's
+  `trace.json` (`llm_calls[].reasoning`), at most `reasoning_max_chars` characters of it
+  (default 20000); it is off by default and needs `audit.store_llm_io` on as well. Neither
+  setting changes the config hash. Reasoning spends output tokens: leave `max_output_tokens`
+  unset or generous. A structured-output mode may stop a server from reasoning at all,
+  depending on its version and flags: `corelata doctor` says, on each model's line,
+  "reasoning: present under json_schema" or "absent" (the mode named is the model's own),
+  read from the reply to its GateVerdict probe (for a `none` model, its test completion); a
+  line that fails, or a `none` model whose test completion was cut at its 50 tokens (as a
+  reasoning model's often is), says nothing about reasoning.
 - The four roles: `gate` decides whether the sources can support the value statement at all,
   `writer` drafts the assessment, `conveyor` revises it to fix what the audit found, and `auditor`
   checks the draft against the standards. Use a model from a different family for the `auditor`
