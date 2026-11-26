@@ -18,7 +18,7 @@ from pydantic import BaseModel, ValidationError
 from corelata.config import CorelataConfig, ModelConfig, StructuredOutput
 from corelata.llm.payload import render_input
 from corelata.llm.retry import RetryPolicy, call_with_retry
-from corelata.llm.types import Backend, BackendError, ChatMessage, ChatRequest
+from corelata.llm.types import Backend, BackendError, ChatMessage, ChatRequest, ChatResponse
 from corelata.prompts.library import PromptLibrary, RenderedPrompt
 from corelata.schema import LLMCallRecord, Usage
 
@@ -35,11 +35,28 @@ MAX_LISTED_VALUES = 5
 AGENT_FAILURES: tuple[type[Exception], ...] = (StructuredOutputError, BackendError)
 
 _WHOLE_FENCE_RE = re.compile(r"^```(?:json)?\s*\n?(.*)\n?```$", re.DOTALL | re.IGNORECASE)
+_THINK_RE = re.compile(r"^\s*<think>(.*?)</think>", re.DOTALL | re.IGNORECASE)
+
+
+def split_think(content: str) -> tuple[str | None, str]:
+    """A reply's leading `<think>...</think>` block, as reasoning models without a server-side
+    reasoning parser send it, and the rest of the reply (CRL-140). No block: (None, content)."""
+    block = _THINK_RE.match(content)
+    if block is None:
+        return None, content
+    return block.group(1).strip(), content[block.end() :]
+
+
+def reply_reasoning(resp: ChatResponse) -> str | None:
+    """The model's reasoning in a reply: the server's reasoning field, else a leading <think>
+    block of the content; None when it has neither (CRL-140)."""
+    return resp.reasoning or split_think(resp.content)[0] or None
 
 
 def extract_json(content: str) -> str:
-    """Pull the JSON object out of replies that wrap it in prose or Markdown fences."""
-    text = content.strip()
+    """Pull the JSON object out of replies that wrap it in prose or Markdown fences, after a
+    leading <think> block, whose braces would otherwise be taken for the object's (CRL-140)."""
+    text = split_think(content)[1].strip()
     try:
         json.loads(text)
     except ValueError:
@@ -107,7 +124,8 @@ def build_request(
     """The request every structured call sends: each stage through `AgentRunner.run`, and
     `corelata doctor`'s probe (R-M12-3). The backend turns `json_schema` into the strict response
     format (`llm/schema.py`), so the probe and a run send the same schema. `max_tokens`
-    overrides the model's `max_output_tokens`."""
+    overrides the model's `max_output_tokens`. The model's `request_extra` goes into the body
+    as given (CRL-140)."""
     return ChatRequest(
         model=model.name or model_key,
         messages=messages,
@@ -116,6 +134,7 @@ def build_request(
         structured_output=model.structured_output,
         temperature=model.temperature,
         max_tokens=model.max_output_tokens if max_tokens is None else max_tokens,
+        extra=dict(model.request_extra),
     )
 
 
@@ -187,7 +206,7 @@ class AgentRunner:
             if errors:
                 messages = repair_messages(messages, content, errors)
             request = build_request(model_key, model, output_type, schema, messages)
-            content, record = await self._call(role, backend, request, prompt, attempts)
+            content, record = await self._call(role, model, backend, request, prompt, attempts)
             result, errors = _parse(content, output_type, validate)
             if result is not None and not errors:
                 return result
@@ -201,6 +220,7 @@ class AgentRunner:
     async def _call(
         self,
         role: str,
+        model: ModelConfig,
         backend: Backend,
         request: ChatRequest,
         prompt: RenderedPrompt,
@@ -227,6 +247,8 @@ class AgentRunner:
                 tokens_in=resp.tokens_in,
                 tokens_out=resp.tokens_out,
                 response=resp.content,
+                reasoning=reply_reasoning(resp) if model.store_reasoning else None,
+                reasoning_max_chars=model.reasoning_max_chars,
             )
             return resp.content
 
@@ -247,8 +269,13 @@ class AgentRunner:
         tokens_in: int | None = None,
         tokens_out: int | None = None,
         response: str | None = None,
+        reasoning: str | None = None,
+        reasoning_max_chars: int = 0,
     ) -> LLMCallRecord:
+        """`reasoning`: the model's, when its config stores it; kept like the request and the
+        response only when the log stores them, cut to `reasoning_max_chars` (CRL-140)."""
         store = self.log.store_io
+        kept = reasoning if store else None
         record = LLMCallRecord(
             role=role,
             backend=backend.name,
@@ -263,6 +290,8 @@ class AgentRunner:
             error=error,
             request={"messages": [m.model_dump() for m in request.messages]} if store else None,
             response=response if store else None,
+            reasoning=None if kept is None else kept[:reasoning_max_chars],
+            reasoning_chars=None if kept is None else len(kept),
         )
         self.log.add(record)
         return record

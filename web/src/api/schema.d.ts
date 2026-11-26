@@ -487,7 +487,8 @@ export interface components {
         };
         /**
          * CallSummary
-         * @description An LLMCallRecord without its request and response bodies (the trace download has them).
+         * @description An LLMCallRecord without its request and response bodies or the model's reasoning (the
+         *     trace download has them).
          */
         CallSummary: {
             /** Attempt */

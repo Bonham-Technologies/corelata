@@ -6,10 +6,18 @@ import json
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Any
+from typing import Any, Literal
 
 from corelata.llm.payload import parse_input
 from corelata.testing.synthetic import chat_completion, synthetic_response
+
+# CRL-140: how a reasoning model's server returns its reasoning. `reasoning` (vLLM now) and
+# `reasoning_content` (vLLM before, DeepSeek's API) are fields beside the content; `think` is a
+# leading <think> block in the content, as a server without a reasoning parser sends it.
+ReasoningMode = Literal["reasoning", "reasoning_content", "think"]
+REASONING_MODES: tuple[ReasoningMode, ...] = ("reasoning", "reasoning_content", "think")
+# braces on purpose: a reply whose <think> block holds some must still parse at the first turn
+FAKE_REASONING = 'The units support the statement; reply as {"verdict": ...}, nothing else {}.'
 
 
 class _Server(ThreadingHTTPServer):
@@ -20,6 +28,7 @@ class _Server(ThreadingHTTPServer):
     keep_requests: bool
     delay_s: float
     needs_repair: bool
+    reasoning: ReasoningMode | None
     lock: threading.Lock
     in_flight: int
     max_in_flight: int
@@ -77,7 +86,16 @@ class _Handler(BaseHTTPRequestHandler):
             # does; `{}` lacks a required field of every structured output
             content = "{}"
         reason = "length" if body.get("max_tokens") == 1 else "stop"
-        self._send(200, chat_completion(content, finish_reason=reason))
+        mode = self.server.reasoning
+        template = body.get("chat_template_kwargs")
+        if isinstance(template, dict) and template.get("enable_thinking") is False:
+            mode = None  # Qwen3's switch, sent through models.<key>.request_extra
+        if mode == "think":
+            content = f"<think>\n{FAKE_REASONING}\n</think>\n\n{content}"
+        completion = chat_completion(content, finish_reason=reason)
+        if mode in ("reasoning", "reasoning_content"):
+            completion["choices"][0]["message"][mode] = FAKE_REASONING
+        self._send(200, completion)
 
     def _send(self, status: int, obj: dict[str, Any]) -> None:
         data = json.dumps(obj, ensure_ascii=False).encode("utf-8")
@@ -98,6 +116,7 @@ class FakeOpenAIServer:
         delay_s: float = 0.0,
         keep_requests: bool = True,
         needs_repair: bool = False,
+        reasoning: ReasoningMode | None = None,
     ) -> None:
         self._server = _Server((host, port), _Handler)
         self._server.models = list(models)
@@ -106,6 +125,7 @@ class FakeOpenAIServer:
         self._server.keep_requests = keep_requests
         self._server.delay_s = delay_s
         self._server.needs_repair = needs_repair
+        self._server.reasoning = reasoning
         self._server.lock = threading.Lock()
         self._server.in_flight = 0
         self._server.max_in_flight = 0

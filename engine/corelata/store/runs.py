@@ -781,10 +781,34 @@ async def add_llm_calls(
     stage: str,
 ) -> None:
     s.add_all(
-        LLMCall(run_id=run_id, ordinal=start + i, stage=stage, **r.model_dump(mode="json"))
+        LLMCall(run_id=run_id, ordinal=start + i, stage=stage, **_call_row(r))
         for i, r in enumerate(records)
     )
     await s.flush()
+
+
+# CRL-140: a call's reasoning is kept in its request column, under these keys beside `messages`,
+# so it needs no column of its own and, like the request, is left unread by the trace view.
+_REASONING_KEYS = ("reasoning", "reasoning_chars")
+
+
+def _call_row(record: LLMCallRecord) -> dict[str, Any]:
+    row = record.model_dump(mode="json", exclude=set(_REASONING_KEYS))
+    if record.reasoning is not None:
+        row["request"] = {
+            **(row["request"] or {}),
+            "reasoning": record.reasoning,
+            "reasoning_chars": record.reasoning_chars,
+        }
+    return row
+
+
+def _io(request: dict[str, Any] | None) -> tuple[dict[str, Any] | None, dict[str, Any]]:
+    """A stored request without the call's reasoning, and the reasoning fields."""
+    if request is None or "reasoning" not in request:
+        return request, {}
+    rest = {k: v for k, v in request.items() if k not in _REASONING_KEYS}
+    return rest or None, {k: request.get(k) for k in _REASONING_KEYS}
 
 
 async def load_llm_calls(
@@ -797,24 +821,27 @@ async def load_llm_calls(
     if not with_io:
         query = query.options(defer(LLMCall.request), defer(LLMCall.response))
     rows = await s.scalars(query)
-    return [
-        LLMCallRecord(
-            role=r.role,
-            backend=r.backend,
-            model=r.model,
-            prompt_id=r.prompt_id,
-            prompt_version=r.prompt_version,
-            attempt=r.attempt,
-            ok=r.ok,
-            latency_ms=r.latency_ms,
-            tokens_in=r.tokens_in,
-            tokens_out=r.tokens_out,
-            error=r.error,
-            request=r.request if with_io else None,
-            response=r.response if with_io else None,
-        )
-        for r in rows
-    ]
+    return [_call_record(r, with_io=with_io) for r in rows]
+
+
+def _call_record(r: LLMCall, *, with_io: bool) -> LLMCallRecord:
+    request, reasoning = _io(r.request) if with_io else (None, {})
+    return LLMCallRecord(
+        role=r.role,
+        backend=r.backend,
+        model=r.model,
+        prompt_id=r.prompt_id,
+        prompt_version=r.prompt_version,
+        attempt=r.attempt,
+        ok=r.ok,
+        latency_ms=r.latency_ms,
+        tokens_in=r.tokens_in,
+        tokens_out=r.tokens_out,
+        error=r.error,
+        request=request,
+        response=r.response if with_io else None,
+        **reasoning,
+    )
 
 
 async def replace_claims(
