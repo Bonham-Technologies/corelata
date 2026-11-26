@@ -406,3 +406,30 @@ async def test_a_cancelled_shutdown_is_not_swallowed(write_config, monkeypatch, 
     assert shutdown == ["feed", "db"]  # and it still closed the feed and the database
     release.set()
     await asyncio.gather(*listeners, return_exceptions=True)
+
+
+async def test_head_health_answers_200_with_no_body(make_api):
+    # Uptime monitors and load balancers probe with HEAD (CRL-116)
+    async with make_api(auth={"mode": "trusted_header"}) as api:
+        response = await api.client.head("/api/health")
+    assert response.status_code == 200
+    assert response.content == b""
+
+
+async def test_head_on_the_web_app_answers_200_with_no_body(make_api, tmp_path):
+    web_dir = tmp_path / "dist"
+    (web_dir / "assets").mkdir(parents=True)
+    (web_dir / "index.html").write_text("<title>Corelata</title>", encoding="utf-8")
+    (web_dir / "favicon.svg").write_text("<svg/>", encoding="utf-8")
+    async with make_api(api={"web_dir": str(web_dir)}) as api:
+        for path in ("/", "/projects/x", "/favicon.svg"):
+            response = await api.client.head(path)
+            assert response.status_code == 200, path
+            assert response.content == b"", path
+        assert (await api.client.head("/api/nope")).status_code == 404
+
+
+def test_head_routes_stay_out_of_the_openapi_document():
+    app = create_app(CorelataConfig.model_validate(API_CONFIG), Path("corelata.yaml"))
+    methods = {method for operations in app.openapi()["paths"].values() for method in operations}
+    assert "head" not in methods

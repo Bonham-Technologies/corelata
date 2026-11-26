@@ -834,7 +834,8 @@ doctor check by name). The theme follows the computer until someone picks one, p
 **The HTTP API.** Everything the web app does goes through the HTTP API under `/api`, which a
 script can call as well (uploads, runs, reviews, exports). `GET /api/openapi.json` describes
 every route; it needs the same sign-in as the rest (section 6), while `GET /api/health` needs
-none. Listing runs needs the project: `GET /api/runs?project_id=<id>` answers
+none (it and the web app also answer `HEAD` with 200 and no body, for uptime monitors and load
+balancers). Listing runs needs the project: `GET /api/runs?project_id=<id>` answers
 `{"runs": [...], "next_before": ...}`, newest first, 100 at a time (`limit`, at most 500); pass
 `before=<next_before>` for the next page. Without `project_id` it is a 422. Free text has limits,
 because it goes into every model prompt and the trace: a run's `value_statement` at most 4,000
