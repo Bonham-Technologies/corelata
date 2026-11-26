@@ -79,10 +79,22 @@ def _render(record: RunRecord, fmt: str, *, with_claim_ids: bool, reference: byt
     return out if isinstance(out, bytes) else out.encode("utf-8")
 
 
-async def _claim_ids_render(ctx: ApiContext, run_id: uuid.UUID, fmt: str) -> bytes:
-    """The re-render, once per (run, format) for the life of the process (R-M9-5): the record is
-    loaded only here, and only on a miss."""
-    cached = ctx.renders.get(str(run_id), fmt)
+def _cache_key(fmt: str, *, with_claim_ids: bool, marks: int) -> str:
+    """The render cache's key within a run: the format alone for the claim-ids render (R-M9-5),
+    and the review marks counted when "How this report was produced" counts them (CRL-139):
+    marks are only ever added, so the count changes whenever the section would."""
+    if not marks:
+        return fmt
+    return f"{fmt}{'+ids' if with_claim_ids else ''}@{marks}"
+
+
+async def _re_render(
+    ctx: ApiContext, run_id: uuid.UUID, fmt: str, *, with_claim_ids: bool = True, marks: int = 0
+) -> bytes:
+    """The re-render, once per (run, format, marks) for the life of the process (R-M9-5): the
+    record is loaded only here, and only on a miss."""
+    key = _cache_key(fmt, with_claim_ids=with_claim_ids, marks=marks)
+    cached = ctx.renders.get(str(run_id), key)
     if cached is not None:
         return cached
     record = await _record_with_report(ctx, run_id)
@@ -91,13 +103,13 @@ async def _claim_ids_render(ctx: ApiContext, run_id: uuid.UUID, fmt: str) -> byt
         reference = await service.reference_document(ctx.db, ctx.storage, run_id)
     try:
         content = await asyncio.to_thread(
-            _render, record, fmt, with_claim_ids=True, reference=reference
+            _render, record, fmt, with_claim_ids=with_claim_ids, reference=reference
         )
     except Exception as e:
         if fmt != "docx":
             raise
         raise InvalidRunStateError(f"DOCX export failed: {str(e) or type(e).__name__}") from e
-    ctx.renders.put(str(run_id), fmt, content)
+    ctx.renders.put(str(run_id), key, content)
     return content
 
 
@@ -114,15 +126,19 @@ async def get_report(
     download: bool = False,
 ) -> Response:
     """The delivered report. Without claim ids: the worker's stored file, byte for byte (404 if
-    none is stored). With them: re-rendered from the stored record (spec §9). 409 while the run
-    has no report, or when its DOCX export failed."""
+    none is stored). With them: re-rendered from the stored record (spec §9), as is a report whose
+    profile's "How this report was produced" counts review marks made since (CRL-139). 409 while
+    the run has no report, or when its DOCX export failed."""
     progress = await service.run_progress(ctx.db, run_id)  # an unknown run is a plain 404
     if progress.state is not RunState.COMPLETED:
         raise InvalidRunStateError(f"run {run_id} has no report (state {progress.state.value})")
     if format == "docx" and progress.export_error:
         raise InvalidRunStateError(progress.export_error)
-    if with_claim_ids:
-        content = await _claim_ids_render(ctx, run_id, format)
+    # CRL-139: a profile's "How this report was produced" counts the review marks, which come
+    # after the worker stored the renders; with any, the report is re-rendered.
+    marks = await service.production_marks(ctx.db, run_id)
+    if with_claim_ids or marks:
+        content = await _re_render(ctx, run_id, format, with_claim_ids=with_claim_ids, marks=marks)
     else:
         stored = await service.stored_export(ctx.db, ctx.storage, run_id, f"report.{format}")
         if stored is None:
@@ -142,7 +158,8 @@ async def get_report(
     responses={200: {"content": {media: {} for media in MEDIA.values()}}},
 )
 async def get_export(run_id: uuid.UUID, name: ExportName, ctx: Ctx) -> Response:
-    """A file the worker stored for the run, as stored (the trace JSON download among them)."""
+    """A file the worker stored for the run, as stored (the trace JSON download among them); the
+    trace also carries the review marks made since, when there are any (CRL-139)."""
     content = await service.stored_export(ctx.db, ctx.storage, run_id, name)
     if content is None:
         raise NotFoundError(f"run {run_id} has no stored export {name}")

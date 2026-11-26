@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from corelata.llm.agent import CallLog
 from corelata.schema import (
     Digest,
+    Finding,
     GateVerdict,
     PriorReport,
     Report,
@@ -138,6 +139,8 @@ async def load_record(
         usage=CallLog(records=calls).usage(),
         llm_calls=calls,
         error=run.error,
+        reviewer_findings=[Finding.model_validate(f) for f in run.reviewer_findings or []],
+        review_marks=await runs.load_review_marks(s, run_id),
     )
 
 

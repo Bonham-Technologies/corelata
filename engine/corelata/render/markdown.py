@@ -22,9 +22,12 @@ def render_markdown(
     *,
     with_claim_ids: bool = False,
     open_findings: list[Finding] | None = None,
+    production: list[str] | None = None,
 ) -> str:
     out: list[str] = []
-    for block in build_outline(report, pack, sources, open_findings=open_findings):
+    for block in build_outline(
+        report, pack, sources, open_findings=open_findings, production=production
+    ):
         match block:
             case Marking(text):
                 out += [text, ""]

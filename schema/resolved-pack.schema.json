@@ -182,9 +182,27 @@
           ],
           "title": "Heading Style",
           "type": "string"
+        },
+        "production_statement": {
+          "default": false,
+          "title": "Production Statement",
+          "type": "boolean"
         }
       },
       "title": "ProfileFormat",
+      "type": "object"
+    },
+    "ProfileReview": {
+      "additionalProperties": false,
+      "description": "How a team reviews its reports (CRL-139).",
+      "properties": {
+        "require_key_judgments_checked": {
+          "default": false,
+          "title": "Require Key Judgments Checked",
+          "type": "boolean"
+        }
+      },
+      "title": "ProfileReview",
       "type": "object"
     },
     "RouteTo": {
@@ -336,6 +354,9 @@
         }
       ],
       "title": "Profile"
+    },
+    "review": {
+      "$ref": "#/$defs/ProfileReview"
     },
     "rules": {
       "items": {

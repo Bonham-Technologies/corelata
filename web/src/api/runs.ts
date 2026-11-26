@@ -3,8 +3,10 @@ import { isTerminal } from "../lib/format";
 import { ApiError, client, unwrap } from "./client";
 import { projectKeys, refreshProjects } from "./projects";
 import type {
+  ClaimMark,
   CreateRun,
   ReviewAction,
+  ReviewMarks,
   ReviewResult,
   ReviewState,
   RunProgress,
@@ -13,6 +15,7 @@ import type {
 
 export const runKeys = {
   one: (runId: string) => ["runs", runId] as const,
+  marks: (runId: string) => ["runs", runId, "marks"] as const,
 };
 
 export const POLL_MS = 3000;
@@ -121,6 +124,40 @@ export function useCancelRun(runId: string) {
   });
 }
 
+/** Each claim's review mark and the counts shown before Accept (CRL-139); nothing while
+ * `enabled` is false (a checked report has no review). */
+export function useReviewMarks(runId: string, enabled = true) {
+  return useQuery({
+    queryKey: runKeys.marks(runId),
+    queryFn: ({ signal }) =>
+      unwrap<ReviewMarks>(
+        client.GET("/api/runs/{run_id}/marks", { params: { path: { run_id: runId } }, signal }),
+      ),
+    enabled,
+  });
+}
+
+/** Mark a claim checked or disputed (CRL-139); the answer is the run's marks as they now stand.
+ * A refusal (409: the run was accepted or returned meanwhile) re-reads them. */
+export function useMarkClaim(runId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { claimId: string; mark: ClaimMark; comment: string }) =>
+      unwrap<ReviewMarks>(
+        client.PUT("/api/runs/{run_id}/marks/{claim_id}", {
+          params: { path: { run_id: runId, claim_id: body.claimId } },
+          body: { mark: body.mark, comment: body.comment },
+        }),
+      ),
+    onSuccess: (marks) => queryClient.setQueryData(runKeys.marks(runId), marks),
+    onError: (error) => {
+      if (error instanceof ApiError && error.status === 409) {
+        void queryClient.invalidateQueries({ queryKey: runKeys.marks(runId), exact: true });
+      }
+    },
+  });
+}
+
 export function useReview(runId: string) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -136,6 +173,8 @@ export function useReview(runId: string) {
         queryKey: runKeys.one(runId),
         exact: true,
       });
+      // A decision closes the marks (CRL-139): they read as final from now on.
+      void queryClient.invalidateQueries({ queryKey: runKeys.marks(runId), exact: true });
       if (result.child) {
         queryClient.setQueryData(runKeys.one(result.child.run_id), result.child);
         void queryClient.invalidateQueries({ queryKey: projectKeys.runs(result.child.project_id) });
@@ -148,6 +187,8 @@ export function useReview(runId: string) {
       // is stale, so re-read it. The error itself still reaches the caller.
       if (error instanceof ApiError && (error.status === 409 || error.status === 503)) {
         void refreshProjects(queryClient); // the sidebar's count may be stale too
+        // An accept the profile refused (CRL-139) may rest on marks another reviewer changed.
+        void queryClient.invalidateQueries({ queryKey: runKeys.marks(runId), exact: true });
         return queryClient.invalidateQueries({ queryKey: runKeys.one(runId), exact: true });
       }
     },

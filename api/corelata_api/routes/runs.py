@@ -4,7 +4,7 @@ import uuid
 from typing import Annotated
 
 from corelata import service
-from corelata.schema import ReviewAction, RunKind, RunProgress, RunSummary
+from corelata.schema import ClaimMark, ReviewAction, ReviewMarks, RunKind, RunProgress, RunSummary
 from corelata.service import GUIDANCE_MAX_LENGTH, VALUE_STATEMENT_MAX_LENGTH
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
@@ -40,6 +40,13 @@ class CreateRun(BaseModel):
 class ReviewRequest(BaseModel):
     action: ReviewAction
     note: str = Field("", max_length=GUIDANCE_MAX_LENGTH)
+
+
+class MarkRequest(BaseModel):
+    """A reviewer's mark on one claim of the delivered report (CRL-139)."""
+
+    mark: ClaimMark
+    comment: str = Field("", max_length=GUIDANCE_MAX_LENGTH)
 
 
 class ReviewResult(BaseModel):
@@ -132,3 +139,23 @@ async def review_run(run_id: uuid.UUID, body: ReviewRequest, ctx: Ctx, user: Use
         else None
     )
     return ReviewResult(action=body.action, child=progress)
+
+
+@router.get("/runs/{run_id}/marks")
+async def get_marks(run_id: uuid.UUID, ctx: Ctx) -> ReviewMarks:
+    """Each claim's review mark and the counts the review screen shows before Accept (CRL-139).
+    409 while the run has no report."""
+    return await service.review_marks(ctx.db, run_id)
+
+
+@router.put("/runs/{run_id}/marks/{claim_id}")
+async def mark_claim(
+    run_id: uuid.UUID, claim_id: str, body: MarkRequest, ctx: Ctx, user: User
+) -> ReviewMarks:
+    """Mark a claim of the delivered report `checked` or `disputed`, with a comment; the latest
+    mark on a claim is its mark, and every mark is kept in the trace (CRL-139). 409 once the
+    run is accepted (marks are final then) or while a return's revision stands; 404 for a
+    claim the report does not have."""
+    return await service.mark_claim(
+        ctx.db, run_id, claim_id, body.mark, comment=body.comment, actor=user
+    )

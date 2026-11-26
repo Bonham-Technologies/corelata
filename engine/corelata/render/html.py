@@ -12,7 +12,13 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from markupsafe import Markup
 
-from corelata.render.outline import APPENDIX_TITLE, DEGRADATION_TITLE, QUOTES_TITLE, build_outline
+from corelata.render.outline import (
+    APPENDIX_TITLE,
+    DEGRADATION_TITLE,
+    PRODUCTION_TITLE,
+    QUOTES_TITLE,
+    build_outline,
+)
 from corelata.schema import Finding, Report, Source
 from corelata.standards.schema import ResolvedPack
 
@@ -35,13 +41,16 @@ def render_html(
     *,
     with_claim_ids: bool = False,
     open_findings: list[Finding] | None = None,
+    production: list[str] | None = None,
 ) -> str:
-    blocks = build_outline(report, pack, sources, open_findings=open_findings)
+    blocks = build_outline(
+        report, pack, sources, open_findings=open_findings, production=production
+    )
     return _ENV.get_template("report.html.j2").render(
         report=report,
         meta=report.metadata,
         blocks=blocks,
         with_claim_ids=with_claim_ids,
-        appendix_titles=(QUOTES_TITLE, DEGRADATION_TITLE, APPENDIX_TITLE),
+        appendix_titles=(QUOTES_TITLE, DEGRADATION_TITLE, APPENDIX_TITLE, PRODUCTION_TITLE),
         css=Markup(REPORT_CSS),  # our own file: not escaped (its quotes must stay quotes)
     )

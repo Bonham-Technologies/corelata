@@ -164,9 +164,29 @@ class TemplateOverride(_Strict):
     source_details: bool | None = None
 
 
+def _off(value: bool) -> bool:
+    return not value
+
+
 class ProfileFormat(_Strict):
     docx_reference: Path | None = None
     heading_style: Literal["plain", "numbered"] = "plain"
+    # CRL-139: the renders end with "How this report was produced" (the roles' models, the pack
+    # and its hash, the audit result and how many claims a reviewer checked). Off by default and
+    # left out of every dump while off, so a pack without it hashes and renders as before.
+    production_statement: bool = Field(False, exclude_if=_off)
+
+
+class ProfileReview(_Strict):
+    """How a team reviews its reports (CRL-139)."""
+
+    # Accept is refused until every claim a key judgment rests on is marked checked and no
+    # claim of the report is marked disputed.
+    require_key_judgments_checked: bool = False
+
+
+def _no_review_rules(review: ProfileReview) -> bool:
+    return review == ProfileReview()
 
 
 class LexiconAdditions(_Strict):
@@ -183,6 +203,7 @@ class Profile(_Strict):
     tone: str = ""
     format: ProfileFormat = Field(default_factory=ProfileFormat)
     lexicon: LexiconAdditions = Field(default_factory=LexiconAdditions)
+    review: ProfileReview = Field(default_factory=ProfileReview)
 
 
 class ResolvedPack(BaseModel):
@@ -196,6 +217,9 @@ class ResolvedPack(BaseModel):
     lexicon: Lexicon
     tone: str
     format: ProfileFormat
+    # CRL-139: left out of every dump while every setting is off, so a pack without them
+    # snapshots and hashes as before.
+    review: ProfileReview = Field(default_factory=ProfileReview, exclude_if=_no_review_rules)
     # Where the profile's reference document lives on this machine. Excluded from every dump so
     # the snapshot and pack_hash stay identical across installs (spec §6.6); None when rebuilt
     # from a snapshot. Set by the loader, read by the DOCX renderer; not in the published schema.

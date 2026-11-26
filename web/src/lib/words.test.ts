@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import {
   CLAIM_KIND,
+  CLAIM_MARK,
   citedByText,
   degradationText,
   plural,
@@ -26,6 +27,7 @@ it.each([
   ["Verdict", VERDICT],
   ["Severity", SEVERITY],
   ["ClaimKind", CLAIM_KIND],
+  ["ClaimMark", CLAIM_MARK],
 ] as const)("has a word for every %s the API can send", (name, words) => {
   expect(Object.keys(words).sort()).toEqual([...values(name)].sort());
 });

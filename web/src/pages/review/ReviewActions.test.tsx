@@ -3,7 +3,7 @@ import { http, HttpResponse } from "msw";
 import { POLL_MS } from "../../api/runs";
 import { deferred } from "../../test/deferred";
 import type { ReviewState } from "../../api/types";
-import { reportHtml, reportJson, RUN_ID, runProgress } from "../../test/fixtures";
+import { reportHtml, reportJson, reviewMarks, RUN_ID, runProgress } from "../../test/fixtures";
 import { runRefetchInterval } from "../../test/poll";
 import { renderApp } from "../../test/render";
 import { server } from "../../test/server";
@@ -638,4 +638,100 @@ it("keeps the Accept dialog open with the refusal when the accept fails (CRL-127
   expect(await within(dialog).findByRole("alert")).toHaveTextContent("the database is unavailable");
   await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
   expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+});
+
+const checkedC1 = { claim_id: "c1", mark: "checked" as const, comment: "", actor: "ana", at: "" };
+const disputedC3 = {
+  claim_id: "c3",
+  mark: "disputed" as const,
+  comment: "Which shippers?",
+  actor: "ana",
+  at: "",
+};
+
+it("shows how many claims were checked before Accept, and in the Accept dialog (CRL-139)", async () => {
+  serveCompleted();
+  server.use(
+    http.get(`*/api/runs/${RUN_ID}/marks`, () =>
+      HttpResponse.json(reviewMarks({ marks: [checkedC1, disputedC3], checked: 1, disputed: 1 })),
+    ),
+  );
+  const { user } = renderApp(`/runs/${RUN_ID}/review`);
+  expect(await screen.findByText("1 of 2 claims checked")).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Accept" }));
+  const dialog = await screen.findByRole("dialog", { name: "Accept this report?" });
+  expect(dialog).toHaveTextContent("1 of 2 claims checked, 1 disputed.");
+  expect(dialog).not.toHaveTextContent("Your team checks");
+});
+
+it("names the key-judgment claims still to check when the team requires them (CRL-139)", async () => {
+  serveCompleted();
+  server.use(
+    http.get(`*/api/runs/${RUN_ID}/marks`, () =>
+      HttpResponse.json(
+        reviewMarks({ require_key_judgments_checked: true, key_judgment_claim_ids: ["c1", "c3"] }),
+      ),
+    ),
+    http.post(`*/api/runs/${RUN_ID}/review`, () =>
+      HttpResponse.json({ detail: "key-judgment claims not checked: c1, c3" }, { status: 409 }),
+    ),
+  );
+  const { user } = renderApp(`/runs/${RUN_ID}/review`);
+  await confirmAccept(user);
+  const dialog = screen.getByRole("dialog", { name: "Accept this report?" });
+  expect(dialog).toHaveTextContent("0 of 2 claims checked.");
+  expect(dialog).toHaveTextContent("Still to check: c1, c3.");
+  expect(await within(dialog).findByRole("alert")).toHaveTextContent("not checked: c1, c3");
+});
+
+it("says nothing is left to check once every key-judgment claim is checked (CRL-139)", async () => {
+  serveCompleted();
+  server.use(
+    http.get(`*/api/runs/${RUN_ID}/marks`, () =>
+      HttpResponse.json(
+        reviewMarks({ marks: [checkedC1], checked: 1, require_key_judgments_checked: true }),
+      ),
+    ),
+  );
+  const { user } = renderApp(`/runs/${RUN_ID}/review`);
+  await screen.findByText("1 of 2 claims checked");
+  await user.click(screen.getByRole("button", { name: "Accept" }));
+  const dialog = await screen.findByRole("dialog", { name: "Accept this report?" });
+  expect(dialog).toHaveTextContent("Your team checks every claim a key judgment rests on");
+  expect(dialog).not.toHaveTextContent("Still to check");
+});
+
+it("returns disputed claims without a note (CRL-139)", async () => {
+  serveCompleted();
+  let posted: unknown;
+  server.use(
+    http.get(`*/api/runs/${RUN_ID}/marks`, () =>
+      HttpResponse.json(reviewMarks({ marks: [disputedC3], disputed: 1 })),
+    ),
+    http.post(`*/api/runs/${RUN_ID}/review`, async ({ request }) => {
+      posted = await request.json();
+      return HttpResponse.json({ action: "return", child: null });
+    }),
+  );
+  const { user } = renderApp(`/runs/${RUN_ID}/review`);
+  await screen.findByText("0 of 2 claims checked");
+  await user.click(screen.getByRole("button", { name: "Return with note…" }));
+  const dialog = await screen.findByRole("dialog", { name: "Return the report to the writer" });
+  expect(dialog).toHaveTextContent("1 disputed claim goes to the writer with your comments.");
+  expect(dialog).not.toHaveTextContent("A note is required.");
+  await user.click(within(dialog).getByRole("button", { name: "Return" }));
+  await waitFor(() => expect(posted).toEqual({ action: "return", note: "" }));
+});
+
+it("says several disputed claims go to the writer (CRL-139)", async () => {
+  serveCompleted();
+  server.use(
+    http.get(`*/api/runs/${RUN_ID}/marks`, () => HttpResponse.json(reviewMarks({ disputed: 2 }))),
+  );
+  const { user } = renderApp(`/runs/${RUN_ID}/review`);
+  await screen.findByText("0 of 2 claims checked");
+  await user.click(screen.getByRole("button", { name: "Return with note…" }));
+  expect(await screen.findByRole("dialog")).toHaveTextContent(
+    "2 disputed claims go to the writer with your comments.",
+  );
 });

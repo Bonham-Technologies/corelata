@@ -97,7 +97,7 @@ async def test_a_healthy_installation(tmp_path, server, monkeypatch, pg_url):
     )
     names = [c.name for c in report.checks]
     assert names.index("model fake-model auditor schema") == names.index("model fake-model") + 1
-    assert "0011" in checks["database"].message
+    assert "0012" in checks["database"].message
     assert f":{make_url(pg_url).password}@" not in checks["database"].message  # redacted
 
 

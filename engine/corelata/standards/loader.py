@@ -21,6 +21,7 @@ from corelata.standards.schema import (
     PackMeta,
     Profile,
     ProfileFormat,
+    ProfileReview,
     ResolvedPack,
     Rule,
     Template,
@@ -240,6 +241,7 @@ def resolve(chain: list[RawPack], profile: Profile | None) -> ResolvedPack:
         raise PackError(f"pack '{leaf.meta.name}': no lexicon.yaml in it or its ancestors")
     tone = ""
     fmt = ProfileFormat()
+    review = ProfileReview()
     if profile is not None:
         for rid in profile.rules.disable:
             if rid not in rules:
@@ -286,6 +288,7 @@ def resolve(chain: list[RawPack], profile: Profile | None) -> ResolvedPack:
         )
         tone = profile.tone
         fmt = profile.format
+        review = profile.review
     return ResolvedPack(
         name=leaf.meta.name,
         version=leaf.meta.version,
@@ -295,6 +298,7 @@ def resolve(chain: list[RawPack], profile: Profile | None) -> ResolvedPack:
         lexicon=lexicon,
         tone=tone,
         format=fmt,
+        review=review,
     )
 
 
