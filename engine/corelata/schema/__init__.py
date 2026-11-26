@@ -64,6 +64,12 @@ from corelata.schema.report import (
     SourceEntryCore,
     SourceSummaryStatement,
 )
+from corelata.schema.review import (
+    REVIEW_FINDING_RULE,
+    ClaimMark,
+    ReviewMark,
+    ReviewMarks,
+)
 from corelata.schema.run import (
     TERMINAL_STATES,
     DraftRecord,
@@ -141,6 +147,10 @@ __all__ = [
     "ReviewDecision",
     "ReviewState",
     "RunProgress",
+    "ClaimMark",
+    "ReviewMark",
+    "ReviewMarks",
+    "REVIEW_FINDING_RULE",
     "RunSummary",
     "LatestRun",
     "ProjectSummary",

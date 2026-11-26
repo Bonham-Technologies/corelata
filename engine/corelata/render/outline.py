@@ -42,6 +42,8 @@ CHANGE_LEADS = {
 QUOTES_TITLE = "Cited passages"  # CRL-93: the words each claim quotes, when any claim quotes
 APPENDIX_TITLE = "Audit findings open at delivery"
 DEGRADATION_TITLE = "Stages incomplete at delivery"  # R-M11-2: stages it was delivered without
+# CRL-139: `format.production_statement`, the last section (`render.production`)
+PRODUCTION_TITLE = "How this report was produced"
 
 
 @dataclass(frozen=True)
@@ -88,6 +90,7 @@ class Bullets:
     kind: ClassVar[str] = "bullets"
     items: tuple[Item, ...]
     # key_judgments | changes | sources | alternatives | gaps | quotes | degradations | findings
+    # | production
     role: str = "list"
     numbered: bool = False  # items are numbered from 1: the sources section (CRL-96)
 
@@ -205,9 +208,12 @@ def build_outline(
     sources: list[Source],
     *,
     open_findings: list[Finding] | None = None,
+    production: list[str] | None = None,
 ) -> list[Block]:
     """Blocks in reading order. `handling_marking` in the template is honoured by the marking
-    blocks at top and bottom; a section name this version does not know is skipped."""
+    blocks at top and bottom; a section name this version does not know is skipped. `production`
+    is the lines of "How this report was produced" (CRL-139), the last section; None leaves it
+    out."""
     numbered = pack.format.heading_style == "numbered"
     by_id = {s.id: s for s in sources}
     cites = SourceRefs(report)
@@ -289,5 +295,8 @@ def build_outline(
     if open_findings:
         out.append(Heading(APPENDIX_TITLE))
         out.append(Bullets(tuple(Item(finding_line(f)) for f in open_findings), "findings"))
+    if production:
+        out.append(Heading(PRODUCTION_TITLE))
+        out.append(Bullets(tuple(Item(line) for line in production), "production"))
     out.append(Marking(report.handling_marking))
     return out

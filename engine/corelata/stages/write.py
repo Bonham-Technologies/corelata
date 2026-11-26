@@ -206,6 +206,10 @@ async def run_writer(
     ctx: StageContext, *, iteration: int, prior: ReportBody | None, findings: list[Finding]
 ) -> ReportBody:
     check = report_validator(ctx)
+    # CRL-139: a rerun's first draft reads the reviewer's disputed claims as its findings
+    reviewer = iteration == 0 and bool(ctx.reviewer_findings)
+    if reviewer:
+        findings = [*ctx.reviewer_findings, *findings]
     parsed = await ctx.runner.run(
         role="writer",
         model_key=ctx.model_key("writer"),
@@ -219,6 +223,7 @@ async def run_writer(
             "source_details": ctx.pack.source_details,
             "source_summary": ctx.pack.source_summary,
             "prior_reports": bool(ctx.prior_reports),
+            "reviewer_findings": reviewer,
         },
         payload={
             "task": "writer",

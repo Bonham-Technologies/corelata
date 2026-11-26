@@ -106,6 +106,14 @@
       "title": "ClaimKind",
       "type": "string"
     },
+    "ClaimMark": {
+      "enum": [
+        "checked",
+        "disputed"
+      ],
+      "title": "ClaimMark",
+      "type": "string"
+    },
     "Confidence": {
       "enum": [
         "high",
@@ -867,6 +875,52 @@
       "title": "ReportStatus",
       "type": "string"
     },
+    "ReviewMark": {
+      "description": "One mark a reviewer put on a claim of the delivered report.",
+      "properties": {
+        "actor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Who marked it, when the sign-in names them.",
+          "title": "Actor"
+        },
+        "at": {
+          "description": "When it was marked.",
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        },
+        "claim_id": {
+          "description": "The claim of the delivered report the mark is on.",
+          "title": "Claim Id",
+          "type": "string"
+        },
+        "comment": {
+          "default": "",
+          "description": "What the reviewer said about the claim.",
+          "title": "Comment",
+          "type": "string"
+        },
+        "mark": {
+          "$ref": "#/$defs/ClaimMark",
+          "description": "`checked`: the reviewer checked the claim against its evidence; `disputed`: the reviewer disputes it."
+        }
+      },
+      "required": [
+        "claim_id",
+        "mark",
+        "at"
+      ],
+      "title": "ReviewMark",
+      "type": "object"
+    },
     "RunKind": {
       "description": "What a run does (CRL-94): `report` writes a report from the sources; `check` audits a\nfinished report someone else wrote against the pack, without rewriting it.",
       "enum": [
@@ -1393,6 +1447,20 @@
         }
       ],
       "default": null
+    },
+    "review_marks": {
+      "items": {
+        "$ref": "#/$defs/ReviewMark"
+      },
+      "title": "Review Marks",
+      "type": "array"
+    },
+    "reviewer_findings": {
+      "items": {
+        "$ref": "#/$defs/Finding"
+      },
+      "title": "Reviewer Findings",
+      "type": "array"
     },
     "run_id": {
       "title": "Run Id",

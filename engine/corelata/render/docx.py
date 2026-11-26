@@ -146,12 +146,15 @@ def render_docx(
     *,
     with_claim_ids: bool = False,
     open_findings: list[Finding] | None = None,
+    production: list[str] | None = None,
     reference: Path | None = None,
 ) -> bytes:
     doc = _open(reference)
     doc.core_properties.title = report.title
     marked = False
-    for block in build_outline(report, pack, sources, open_findings=open_findings):
+    for block in build_outline(
+        report, pack, sources, open_findings=open_findings, production=production
+    ):
         match block:
             case Marking(text):
                 if not marked:  # the marking lives in the header and footer, set once

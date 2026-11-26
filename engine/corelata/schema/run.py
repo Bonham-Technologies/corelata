@@ -11,6 +11,7 @@ from corelata.schema.common import LLMCallRecord, Usage
 from corelata.schema.digest import Digest
 from corelata.schema.gate import GateVerdict
 from corelata.schema.report import PriorReport, Report, ReportBody, ReportStatus
+from corelata.schema.review import ReviewMark
 from corelata.schema.source import Source
 
 
@@ -106,3 +107,10 @@ class RunRecord(BaseModel):
     usage: Usage
     llm_calls: list[LLMCallRecord] = Field(default_factory=list)
     error: str | None = None
+    # CRL-139: the claims of the returned report the reviewer disputed, one writer finding each,
+    # which this rerun's writer read with its first draft; left out of the dump when there are
+    # none, so every other trace reads as it did.
+    reviewer_findings: list[Finding] = Field(default_factory=list, exclude_if=_empty)
+    # CRL-139: the reviewer's marks on the delivered report's claims, every one in the order it
+    # was made (a claim's latest is its mark); left out of the dump when there are none.
+    review_marks: list[ReviewMark] = Field(default_factory=list, exclude_if=_empty)

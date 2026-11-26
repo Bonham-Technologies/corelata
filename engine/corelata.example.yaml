@@ -32,6 +32,9 @@ standards:                         # spec §6
   # packs_dir: ./packs             # your packs; the built-in icd203-base is always available
   default_pack: icd203-base
   # default_profile: team-east
+  # a profile (packs/<pack>/profiles/<name>.yaml) may opt in to, both off by default:
+  #   format: { production_statement: true }         # end renders with "How this report was produced"
+  #   review: { require_key_judgments_checked: true } # Accept waits for key-judgment claims checked
 
 pipeline:                          # spec §7
   max_iterations: 2                # audit loop bound; the report is delivered either way

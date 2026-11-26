@@ -178,6 +178,7 @@ export function ReviewPage() {
                   return (
                     <ProvenanceTab
                       runId={runId}
+                      reviewed={!checked}
                       selectedClaim={claim}
                       onSelectClaim={(id) => update({ claim: id })}
                     />

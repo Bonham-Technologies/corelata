@@ -168,6 +168,9 @@ class Run(Base):
     error: Mapped[str | None]
     export_error: Mapped[str | None]  # the DOCX export failed after the run completed
     review_state: Mapped[Json | None]  # ReviewState JSON, written by review_run (CRL-17)
+    # list[Finding] (CRL-139, migration 0012): the disputed claims of the returned report this
+    # rerun's writer is given; NULL for every other run, read as none
+    reviewer_findings: Mapped[JsonList | None]
     # the database's clock, which the orphan sweep's grace is measured by (CRL-87); a SQL
     # expression rendered into the INSERT, not a server default, so the schema is unchanged
     created_at: Mapped[datetime] = mapped_column(default=func.now())
@@ -307,6 +310,20 @@ class ReviewEvent(Base):
     child_run_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("run.id", ondelete="SET NULL")
     )
+    at: Mapped[datetime] = mapped_column(default=utcnow)
+
+
+class ReviewMarkRow(Base):
+    """CRL-139 (migration 0012): a reviewer's mark on a claim of the run's delivered report, one
+    row per mark made; a claim's latest row is its mark. Rows are only ever added."""
+
+    __tablename__ = "review_mark"
+    id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
+    run_id: Mapped[uuid.UUID] = _cascade("run.id", index=True)
+    claim_id: Mapped[str]
+    mark: Mapped[str]  # ClaimMark
+    comment: Mapped[str] = mapped_column(default="")
+    actor: Mapped[str | None]
     at: Mapped[datetime] = mapped_column(default=utcnow)
 
 

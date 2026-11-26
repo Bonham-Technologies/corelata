@@ -10,7 +10,7 @@ from corelata.ingest.injection import suspect_flag
 from corelata.ingest.units import UnitIndex
 from corelata.llm.agent import AgentRunner
 from corelata.quotes import QuoteCheck
-from corelata.schema import Digest, PriorReport, Source, SourceUnit, reliability_tier
+from corelata.schema import Digest, Finding, PriorReport, Source, SourceUnit, reliability_tier
 from corelata.standards.schema import ResolvedPack
 
 
@@ -64,6 +64,9 @@ class StageContext:
     # CRL-138: the source entry values the engine wrote over in the last writer or conveyor
     # reply because the analyst stated them (`stages.stated.apply_stated`); empty when none.
     stated_overrides: list[dict[str, Any]] = field(default_factory=list)
+    # CRL-139: the claims of the returned report the reviewer disputed, one finding each; the
+    # writer reads them with its first draft. Empty for every run that is not such a rerun.
+    reviewer_findings: list[Finding] = field(default_factory=list)
 
     def source(self, source_id: str) -> Source:
         return next(s for s in self.sources if s.id == source_id)

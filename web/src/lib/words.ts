@@ -1,4 +1,4 @@
-import type { ClaimKind, ReportStatus, RunState, Severity, Verdict } from "../api/types";
+import type { ClaimKind, ClaimMark, ReportStatus, RunState, Severity, Verdict } from "../api/types";
 
 /** The words the screens use for the engine's (M18 spec §4). The engine's own words stay in the
  * API, the CLI, the trace, the Process and Sources tabs and Settings ▸ Technical details (§4.4).
@@ -80,6 +80,12 @@ export const CLAIM_KIND: Record<ClaimKind, string> = {
 /** A report's status while it waits for a decision. One place, so the sidebar, the writing page
  * and Help say it the same way. */
 export const WAITING_FOR_REVIEW = "waiting for review";
+
+/** A reviewer's mark on a claim (CRL-139), as the Claims tab and its list show it. */
+export const CLAIM_MARK: Record<ClaimMark, string> = {
+  checked: "Checked",
+  disputed: "Disputed",
+};
 
 export function plural(n: number, one: string, many = `${one}s`): string {
   return `${n} ${n === 1 ? one : many}`;

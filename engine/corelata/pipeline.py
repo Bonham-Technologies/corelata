@@ -4,7 +4,7 @@ recorded as a degradation and the report is still delivered (R-M11-2). Nothing r
 
 import secrets
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from typing import Any, Protocol
 
@@ -76,6 +76,8 @@ class RunOptions:
     # CRL-94: the finished report a check run audits (its source id `report`); None for a run
     # that writes its own report.
     checked_report: Source | None = None
+    # CRL-139: a return's disputed claims, one writer finding each, for the rerun's first draft
+    reviewer_findings: list[Finding] = field(default_factory=list)
 
 
 class RunObserver(Protocol):
@@ -145,6 +147,7 @@ class _Run:
         given = self._prior_reports(cfg, options.prior_reports)
         self.ctx.prior_reports = [r for r in given or [] if not r.cut]
         self.ctx.pack = pack.for_run(prior_reports=bool(self.ctx.prior_reports))
+        self.ctx.reviewer_findings = list(options.reviewer_findings)
         if given == []:  # project memory, and the project has no accepted report
             self.ctx.initial_coverage = pack.prior_report_rules()
         self.max_iterations = (
@@ -174,6 +177,7 @@ class _Run:
             prior_reports=given or [],
             max_iterations=self.max_iterations,
             usage=log.usage(),
+            reviewer_findings=list(options.reviewer_findings),
         )
         self.halved = False
 

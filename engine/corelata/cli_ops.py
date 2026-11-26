@@ -113,7 +113,11 @@ def add_commands(sub: argparse._SubParsersAction) -> None:
     action = review.add_mutually_exclusive_group(required=True)
     action.add_argument("--accept", dest="action", action="store_const", const="accept")
     action.add_argument("--return", dest="action", action="store_const", const="return")
-    review.add_argument("--note", default="", help="guidance for the writer (required for return)")
+    review.add_argument(
+        "--note",
+        default="",
+        help="guidance for the writer (required for return unless a claim is marked disputed)",
+    )
     review.add_argument("--actor", help="who reviewed")
 
     export = sub.add_parser(

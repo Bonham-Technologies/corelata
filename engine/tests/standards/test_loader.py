@@ -509,3 +509,28 @@ def test_pack_dirs_signature_skips_a_looping_symlink(tmp_path):
     signature = pack_dirs_signature(packs)
     assert signature
     assert str(loop) not in [entry[0] for entry in signature]
+
+
+def test_a_profile_turns_on_the_production_statement_and_the_review_rule(tmp_path):
+    """CRL-139: both settings reach the resolved pack (and so the run's snapshot); a profile
+    without them resolves and hashes exactly as before."""
+    on = {
+        "name": "team",
+        "extends": "base",
+        "format": {"production_statement": True},
+        "review": {"require_key_judgments_checked": True},
+    }
+    write_pack(tmp_path, "base", rules=[RULE], profiles={"team": on, "plain": {**PLAIN}})
+    pack = load_pack("base", packs_dir=tmp_path, profile="team")
+    assert pack.format.production_statement and pack.review.require_key_judgments_checked
+    dumped = pack.model_dump(mode="json")
+    assert dumped["format"]["production_statement"] is True
+    assert dumped["review"] == {"require_key_judgments_checked": True}
+    plain = load_pack("base", packs_dir=tmp_path, profile="plain")
+    assert "review" not in plain.model_dump(mode="json")
+    assert "production_statement" not in plain.model_dump(mode="json")["format"]
+    assert pack_hash(plain) != pack_hash(pack)
+    assert ResolvedPack.model_validate(dumped).review.require_key_judgments_checked
+
+
+PLAIN = {"name": "plain", "extends": "base"}

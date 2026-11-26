@@ -309,6 +309,27 @@ config/packs/icd203-base/
   (`profiles/team-east.docx`) and name it relative to the pack directory
   (`docx_reference: profiles/team-east.docx`); a file that is not a readable .docx is refused when
   the pack loads.
+- **How a report was produced, and what review requires (CRL-139).** Two profile settings, both
+  off by default; a profile without them resolves, hashes and renders exactly as before:
+
+  ```yaml
+  # profiles/team-east.yaml
+  name: team-east
+  extends: icd203-base
+  format:
+    production_statement: true          # end every render with "How this report was produced"
+  review:
+    require_key_judgments_checked: true # Accept only once the key judgments' claims are checked
+  ```
+
+  `format.production_statement: true` ends the Markdown, HTML and Word renders with a section
+  "How this report was produced": the model each role used, the standards pack with its version,
+  the profile and the pack hash, the audit result (findings open at delivery, stages incomplete)
+  and "N of M claims checked by <reviewer>". The download is re-rendered once reviewers have
+  marked claims, so it counts the marks made since the report was written.
+  `review.require_key_judgments_checked: true` makes **Accept** (and `corelata review --accept`)
+  refuse, naming the claims, until every claim a key judgment rests on is marked checked and no
+  claim of the report is marked disputed. Without it Accept works as it always has, marks or not.
 - **Sourcing (ICD 206).** A lexicon with a `source_access` list (the base pack's is `direct`,
   `indirect`, `unknown`) has every source entry carry its date of information, its originator
   and its access, one of those terms; a template whose `section_order` lists `source_summary`
@@ -798,6 +819,17 @@ The web app offers the same downloads in the review's **Download** menu.
 An accept is final: `review --return` (or **Return with note…**) on an accepted run is refused
 with "run … was accepted; start a new run to change it". Start a new run on the same sources
 instead.
+
+**Review marks (CRL-139).** On the review's **Claims** tab a reviewer marks the selected claim
+**Mark checked** (they checked it against its passages) or **Mark disputed**, with an optional
+comment; the claim list shows each claim's mark and the header shows "N of M claims checked"
+before **Accept**. A claim's latest mark counts; every mark is kept, with who made it and when,
+in the run's `trace.json` (`review_marks`). A return hands each disputed claim to the revision's
+writer as a finding (the claim, its passages and the comment), beside the note; with a disputed
+claim the note may be left empty. Marks can change only while Accept and Return are offered:
+once the report is accepted, or while a return's revision is being written or has its report,
+`PUT /api/runs/{id}/marks/{claim_id}` answers 409. `GET /api/runs/{id}/marks` lists the marks
+and the counts.
 
 **A run whose worker died.** Once the worker that took a run has sent no heartbeat for
 `worker.stalled_after_s`, the run's page no longer says "it keeps going": it says the process

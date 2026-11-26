@@ -10,6 +10,7 @@ from pathlib import Path
 from corelata.render.docx import render_docx
 from corelata.render.html import render_html
 from corelata.render.markdown import render_markdown
+from corelata.render.production import production_lines
 from corelata.schema import RunKind, RunRecord
 from corelata.standards.schema import ResolvedPack
 from corelata.trace import delivered_open_findings
@@ -82,16 +83,25 @@ def _report_file(
     assert record.report is not None
     open_ = delivered_open_findings(record)
     args = (record.report, pack, record.sources)
+    production = production_lines(record, pack)  # CRL-139: None unless the profile asks
     if fmt == "json":
         return dump_json(record.report.model_dump(mode="json"))
     if fmt == "md":
-        return render_markdown(*args, with_claim_ids=with_claim_ids, open_findings=open_)
+        return render_markdown(
+            *args, with_claim_ids=with_claim_ids, open_findings=open_, production=production
+        )
     if fmt == "html":
-        return render_html(*args, with_claim_ids=with_claim_ids, open_findings=open_)
+        return render_html(
+            *args, with_claim_ids=with_claim_ids, open_findings=open_, production=production
+        )
     if fmt != "docx":
         raise ValueError(f"unknown report format '{fmt}'")
     return render_docx(
-        *args, with_claim_ids=docx_claim_ids, open_findings=open_, reference=docx_reference
+        *args,
+        with_claim_ids=docx_claim_ids,
+        open_findings=open_,
+        production=production,
+        reference=docx_reference,
     )
 
 

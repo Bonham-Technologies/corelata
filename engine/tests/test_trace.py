@@ -56,7 +56,7 @@ async def test_summarize_clean_run(run):
     assert it0.iteration == 0 and it0.failed == [] and it0.open == []
     assert it0.passed == 12 and it0.attested == 5 and it0.not_applicable == 0
     assert s.open_findings == [] and s.usage.calls == 4
-    assert s.prompt_versions["writer"] == 6 and s.error is None
+    assert s.prompt_versions["writer"] == 7 and s.error is None
 
 
 async def test_summary_shows_a_coglossa_sources_reliability_tier(run):
