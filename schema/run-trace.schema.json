@@ -1,7 +1,7 @@
 {
   "$defs": {
     "CallSummary": {
-      "description": "An LLMCallRecord without its request and response bodies (the trace download has them).",
+      "description": "An LLMCallRecord without its request and response bodies or the model's reasoning (the\ntrace download has them).",
       "properties": {
         "attempt": {
           "title": "Attempt",

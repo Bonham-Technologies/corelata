@@ -233,6 +233,10 @@ def test_fake_openai_command_binds_and_stops(monkeypatch):
     monkeypatch.setattr(FakeOpenAIServer, "serve_forever", fake_serve)
     assert main(["fake-openai", "--port", "0"]) == 0
     assert main(["fake-openai", "--port", "0", "--needs-repair"]) == 0
+    seen = []
+    monkeypatch.setattr(FakeOpenAIServer, "serve_forever", lambda self: seen.append(self))
+    assert main(["fake-openai", "--port", "0", "--reasoning", "think"]) == 0
+    assert seen[0]._server.reasoning == "think"  # CRL-140
 
 
 def test_run_out_pointing_at_a_file_is_usage_error_before_any_model_call(

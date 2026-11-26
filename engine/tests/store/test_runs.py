@@ -22,7 +22,7 @@ from corelata.schema import (
 )
 from corelata.storage import LocalStorage
 from corelata.store import runs
-from corelata.store.models import ClaimEvidenceRow, ClaimRow, Run, SourceRow, utcnow
+from corelata.store.models import ClaimEvidenceRow, ClaimRow, LLMCall, Run, SourceRow, utcnow
 from corelata.testing.queue import RecordingQueue
 from corelata.testing.sources import text_source
 from tests.conftest import build_config
@@ -192,6 +192,32 @@ async def test_stage_output_and_call_request_with_non_json_native_values(db):
     assert loaded_stage.model_dump(mode="json") == stage.model_dump(mode="json")
     assert loaded_stage.output["status"] == "clean"
     assert loaded_call.model_dump(mode="json") == call.model_dump(mode="json")
+
+
+async def test_a_calls_reasoning_round_trips_in_its_request_column(db):
+    """CRL-140: no column of its own; the trace view's lean read leaves it unread."""
+    base = dict(role="gate", backend="b", model="m", prompt_id="gate", prompt_version=1, ok=True)
+    thought = LLMCallRecord(
+        **base,
+        attempt=1,
+        request={"messages": [{"role": "user", "content": "hi"}]},
+        response="{}",
+        reasoning="because",
+        reasoning_chars=40,
+    )
+    bare = LLMCallRecord(**base, attempt=2, request={"messages": []}, response="{}")
+    async with db.session() as s, s.begin():
+        project, src = await _project_with_source(s)
+        run = await _run(s, project, [src])
+        await runs.add_llm_calls(s, run.id, 0, [thought, bare], stage="gating")
+    async with db.session() as s:
+        assert await runs.load_llm_calls(s, run.id) == [thought, bare]
+        lean = await runs.load_llm_calls(s, run.id, with_io=False)
+        stored = await s.scalar(
+            select(LLMCall).where(LLMCall.run_id == run.id, LLMCall.ordinal == 0)
+        )
+    assert stored.request["reasoning"] == "because" and stored.request["reasoning_chars"] == 40
+    assert lean[0].reasoning is None and lean[0].request is None
 
 
 async def test_replace_claims_resolves_sources(db):

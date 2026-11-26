@@ -68,7 +68,14 @@ DOCX uses the neutral template unless `--docx-reference` names the profile's ref
   `writer`, `iteration` 0), which the rerun's first writer call reads as its findings. Both keys
   are absent when empty, so a trace without them reads as before.
 - Cost: `usage` (calls and tokens, total and by role), `llm_calls[]` (one per model call;
-  `request` and `response` present when `audit.store_llm_io` is on).
+  `request` and `response` present when `audit.store_llm_io` is on). A call also has
+  `reasoning` and `reasoning_chars` (CRL-140) when its model has `store_reasoning: true`,
+  `audit.store_llm_io` is on and the reply carried reasoning (the server's `reasoning` or
+  `reasoning_content` field, else a leading `<think>` block of `response`): `reasoning` is the
+  model's thinking cut to the model's `reasoning_max_chars`, `reasoning_chars` its whole length
+  (larger than `reasoning`'s when cut). Every other call, and every older trace, has neither key.
+  The trace view (`GET /api/runs/{id}/trace`) shows neither; `response` keeps the reply as the
+  model sent it, `<think>` block included.
   Both cover the run's last attempt only. A run whose worker was taken for dead is started over
   (spec §16), and the new attempt clears the earlier one's stages and calls. An execution the
   fence stopped (its run ended under it, or another worker started the run over, CRL-56) writes
