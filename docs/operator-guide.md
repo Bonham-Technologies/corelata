@@ -96,7 +96,11 @@ cannot fetch them.
    uses, so a server that would reject a run's schema fails here, with the server's own error.
    The model you configured as auditor gets one more line, `model <key> auditor schema`: the
    auditor's schema has one required property per rule of your pack, the largest a run sends,
-   and some servers limit schema size. Every check must pass or warn; a failing check says what
+   and some servers limit schema size. A `roles` line warns when the writer and the auditor are
+   the same model (the same config key, or two keys that serve the same model id on the same
+   backend): a model tends to favour its own drafts when it audits them, so give
+   `roles.auditor` a second model, preferably from a different family, when you have one; it is
+   a warning only, and runs work either way. Every check must pass or warn; a failing check says what
    to fix. A model whose first reply to a probe is not the requested JSON gets one repair turn,
    as every call in a run does: if the repaired reply works, the line is a warning
    ("json_object output works after one repair turn") and the model can be used, at the price of
@@ -866,7 +870,8 @@ doctor check by name). The theme follows the computer until someone picks one, p
 **The HTTP API.** Everything the web app does goes through the HTTP API under `/api`, which a
 script can call as well (uploads, runs, reviews, exports). `GET /api/openapi.json` describes
 every route; it needs the same sign-in as the rest (section 6), while `GET /api/health` needs
-none. Listing runs needs the project: `GET /api/runs?project_id=<id>` answers
+none (it and the web app also answer `HEAD` with 200 and no body, for uptime monitors and load
+balancers). Listing runs needs the project: `GET /api/runs?project_id=<id>` answers
 `{"runs": [...], "next_before": ...}`, newest first, 100 at a time (`limit`, at most 500); pass
 `before=<next_before>` for the next page. Without `project_id` it is a 422. Free text has limits,
 because it goes into every model prompt and the trace: a run's `value_statement` at most 4,000

@@ -1401,3 +1401,44 @@ async def test_the_ocr_check_runs_off_the_event_loop(tmp_path, server, monkeypat
     monkeypatch.setattr(ocr, "tesseract_path", where)
     await run_doctor(_config(tmp_path, server.base_url), probe=False)
     assert on_loop == [False]
+
+
+async def test_an_auditor_that_is_the_writers_model_is_a_warning(tmp_path, server):
+    # CRL-141: a model judging its own drafts is a known risk; the doctor says so, never fails
+    report = await run_doctor(_config(tmp_path, server.base_url), probe=False)
+    check = _by_name(report)["roles"]
+    assert check.status is CheckStatus.WARN
+    assert check.message == (
+        "the writer and the auditor are the same model (fake-model): a model tends to favour "
+        "its own drafts when it audits them"
+    )
+    assert "different model family" in check.fix
+    assert report.ok
+
+
+async def test_the_same_served_model_under_two_keys_is_the_same_model(tmp_path, server):
+    models = {
+        "drafting": {"backend": "local", "name": "shared-id", "context_window": 4096},
+        "checking": {"backend": "local", "name": "shared-id", "context_window": 4096},
+    }
+    roles = {r: {"model": "drafting"} for r in ("gate", "writer", "conveyor")}
+    path = _config(
+        tmp_path, server.base_url, models=models, roles={**roles, "auditor": {"model": "checking"}}
+    )
+    check = _by_name(await run_doctor(path, probe=False))["roles"]
+    assert check.status is CheckStatus.WARN
+    assert "(drafting and checking both serve shared-id on local)" in check.message
+
+
+async def test_a_different_auditor_passes(tmp_path, server):
+    models = {
+        "drafting": {"backend": "local", "context_window": 4096},
+        "checking": {"backend": "local", "context_window": 4096},
+    }
+    roles = {r: {"model": "drafting"} for r in ("gate", "writer", "conveyor")}
+    path = _config(
+        tmp_path, server.base_url, models=models, roles={**roles, "auditor": {"model": "checking"}}
+    )
+    check = _by_name(await run_doctor(path, probe=False))["roles"]
+    assert check.status is CheckStatus.PASS
+    assert check.message == "the auditor (checking) is a different model from the writer (drafting)"
