@@ -45,7 +45,8 @@
   `/api/packs/{name}`; the listing shows them regardless.~~ — **closed in M9** (CRL-16) — CRL-16
 - ~~`GET /api/runs/{id}/report?with_claim_ids=1&format=docx` re-renders through a temporary file
   on every call.~~ — **closed in M9** (CRL-9) — CRL-9
-- The SPA catch-all is GET-only (`HEAD /` answers 405).
+- ~~The SPA catch-all is GET-only (`HEAD /` answers 405).~~ — **closed** (CRL-116): `HEAD /` and
+  `HEAD /api/health` answer 200 with no body — CRL-116
 - ~~The report routes load the full `RunRecord` (all model-call bodies) per request, and
   `with_claim_ids=1` re-renders `trace.json` too (`render_outputs` always emits it): check the
   state via `run_progress` and render only the requested file later.~~ — **closed in M9** (CRL-9) — CRL-9

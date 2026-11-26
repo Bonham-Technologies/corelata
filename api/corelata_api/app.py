@@ -22,7 +22,7 @@ from corelata.store.db import Database, database_url
 from corelata.version import build_version
 from corelata.worker.app import ProcrastinateQueue, open_app
 from corelata.worker.kick import KickingQueue, build_kicker
-from fastapi import APIRouter, Depends, FastAPI, Request
+from fastapi import APIRouter, Depends, FastAPI, Request, Response
 
 from corelata_api.auth import current_user
 from corelata_api.context import ApiContext
@@ -82,6 +82,12 @@ async def get_health() -> dict[str, str]:
     """Liveness: answers without the database and without a signed-in user."""
     # The bundle's version when the image carries one (spec §12); the docstring is the OpenAPI text.
     return {"status": "ok", "version": build_version()}
+
+
+@health.head("/health", include_in_schema=False)
+async def head_health() -> Response:
+    """HEAD for uptime monitors and load balancers (CRL-116): the status line, no body."""
+    return Response(status_code=200)
 
 
 def create_app(
