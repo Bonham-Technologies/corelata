@@ -11,9 +11,10 @@ from corelata.prompts.library import PromptLibrary, PromptNotFoundError
 # CRL-93 moved the prompts that mention quotes to a new version, CRL-97 those that mention
 # earlier reports to the next, CRL-95 those that explain the OCR flag to the one after, and
 # CRL-96 those that mention source details and the source summary to the one after that, and
-# CRL-137 every prompt that reads source text to one that says it is untrusted data; the
-# previous ones stay for the record (a trace names the version it ran with)
-LATEST = {"gate": 2, "discover": 2, "digest": 2, "writer": 6, "conveyor": 3, "auditor": 6}
+# CRL-137 every prompt that reads source text to one that says it is untrusted data, and CRL-139
+# the writer to one that reads a reviewer's disputed claims; the previous ones stay for the
+# record (a trace names the version it ran with)
+LATEST = {"gate": 2, "discover": 2, "digest": 2, "writer": 7, "conveyor": 3, "auditor": 6}
 QUOTES_VERSION = {"writer": 2, "conveyor": 2, "auditor": 3}
 PRIOR_REPORTS_VERSION = {"writer": 3, "auditor": 4}
 OCR_VERSION = {"writer": 4, "auditor": 5}

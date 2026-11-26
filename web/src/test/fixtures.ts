@@ -8,6 +8,7 @@ import type {
   ProjectView,
   ReportJson,
   ResolvedPack,
+  ReviewMarks,
   RunPage,
   RunProgress,
   RunSummary,
@@ -247,7 +248,7 @@ export const resolvedPack: ResolvedPack = {
     source_descriptors: [],
   },
   tone: "",
-  format: { docx_reference: null, heading_style: "plain" },
+  format: { docx_reference: null, heading_style: "plain", production_statement: false },
 };
 
 export const findings: Finding[] = [
@@ -549,3 +550,19 @@ export const doctorReport: DoctorReport = {
     { name: "database", status: "pass", message: "postgresql://corelata@db at 0006", fix: "" },
   ],
 };
+
+/** The review marks of `reportJson`'s run (CRL-139): none yet, unless overridden. Its key
+ * judgment rests on c1. */
+export function reviewMarks(overrides: Partial<ReviewMarks> = {}): ReviewMarks {
+  return {
+    marks: [],
+    claims: reportJson.claims.length,
+    checked: 0,
+    disputed: 0,
+    reviewers: [],
+    editable: true,
+    require_key_judgments_checked: false,
+    key_judgment_claim_ids: ["c1"],
+    ...overrides,
+  };
+}

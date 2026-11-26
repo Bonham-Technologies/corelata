@@ -5,6 +5,7 @@ work reaches the worker through a JobQueue. Task 7 adds discoveries."""
 import asyncio
 import contextlib
 import hashlib
+import json
 import logging
 import uuid
 from collections.abc import Mapping
@@ -18,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from corelata import __version__
 from corelata.config import CorelataConfig, WorkerConfig, config_hash
+from corelata.exports import dump_json
 from corelata.ingest.base import IngestError
 from corelata.ingest.coglossa import load_coglossa_export
 from corelata.ingest.ocr import OcrSettings
@@ -28,12 +30,16 @@ from corelata.prompts.check import check_prompt_ids, run_prompt_ids
 from corelata.prompts.library import PromptLibrary
 from corelata.schema import (
     TERMINAL_STATES,
+    ClaimMark,
     DiscoveryState,
     DiscoveryView,
     Finding,
     ProjectSummary,
+    Report,
     ReviewAction,
     ReviewDecision,
+    ReviewMark,
+    ReviewMarks,
     ReviewState,
     RunKind,
     RunProgress,
@@ -45,9 +51,10 @@ from corelata.schema import (
     SourceStatement,
     Usage,
 )
+from corelata.schema.review import accept_blockers, disputed_findings, marks_view
 from corelata.stages.stated import statement_errors
 from corelata.standards.loader import pack_hash, statement_lexicon
-from corelata.standards.schema import Lexicon, ResolvedPack
+from corelata.standards.schema import Lexicon, ProfileReview, ResolvedPack
 from corelata.storage import Storage, StorageError, display_name, safe_filename, storage_call
 from corelata.store import discoveries, records, runs
 from corelata.store.db import Database, error_reason
@@ -215,6 +222,8 @@ class RunRequest:
     # `source_ids` as its evidence; its value statement may be empty.
     kind: RunKind = RunKind.REPORT
     report_source_id: uuid.UUID | None = None
+    # CRL-139: a return's disputed claims, one writer finding each, for the rerun's first draft
+    reviewer_findings: list[Finding] | None = None
 
 
 # ---------------------------------------------------------------- projects and sources
@@ -555,6 +564,7 @@ async def _create_run(
             run_id=run_id,
             kind=req.kind.value,
             report_source_id=req.report_source_id,
+            reviewer_findings=req.reviewer_findings,
         )
 
     try:
@@ -776,12 +786,27 @@ async def review_run(
                 raise InvalidRunStateError(
                     f"run {run_id} is a check; a check is not accepted or returned"
                 )
+            report = Report.model_validate(run.report) if run.report else None
+            marks = await runs.load_review_marks(s, run_id) if report is not None else []
             if action is ReviewAction.ACCEPT:
+                if report is not None and _review_rules(run).require_key_judgments_checked:
+                    # CRL-139: the profile's opt-in; read under the row lock, so a mark that
+                    # commits while this accept waits is counted
+                    blockers = accept_blockers(report, marks)
+                    if blockers:
+                        raise ConflictError(
+                            f"run {run_id} cannot be accepted yet: its profile requires every "
+                            f"key-judgment claim checked and none disputed "
+                            f"({'; '.join(blockers)})"
+                        )
                 await runs.add_review_event(s, run_id, action.value, note, actor, None)
                 await _store_review_state(s, run_id)
                 return None
-            if not note.strip():
-                raise InvalidRequestError("a return needs a note for the writer")
+            findings = disputed_findings(report, marks) if report is not None else []
+            if not note.strip() and not findings:
+                raise InvalidRequestError(
+                    "a return needs a note for the writer, or a claim marked disputed"
+                )
             if (run.review_state or {}).get("decision") == ReviewDecision.ACCEPTED.value:
                 # An accept is the reviewer's final word on the report, which may already have
                 # gone out (CRL-21, R-M16-1). Read under the row lock, so an accept that commits
@@ -798,7 +823,11 @@ async def review_run(
                     f"run {run_id} was already returned; its rerun is {earlier.child_run_id}. "
                     "Return that run to iterate again"
                 )
-            guidance = f"{run.extra_guidance}\nReviewer note: {note.strip()}".strip()
+            guidance = (
+                f"{run.extra_guidance}\nReviewer note: {note.strip()}".strip()
+                if note.strip()
+                else run.extra_guidance
+            )
             if len(guidance) > RUN_GUIDANCE_MAX_LENGTH:
                 raise InvalidRequestError(GUIDANCE_CAP_MESSAGE)
             reference = (
@@ -819,6 +848,7 @@ async def review_run(
                     max_iterations=run.max_iterations,
                     extra_guidance=guidance,
                     parent_run_id=run_id,
+                    reviewer_findings=findings,
                 ),
                 pack_name=run.pack_name,
                 pack_hash_=run.pack_hash,
@@ -839,6 +869,76 @@ async def review_run(
         raise
     await _defer_run(db, queue, child)
     return child
+
+
+def _review_rules(run: Run) -> ProfileReview:
+    """The review settings of the profile the run snapshotted (CRL-139); none before them."""
+    return ProfileReview.model_validate(run.pack_snapshot.get("review") or {})
+
+
+def _marks_closed(run: Run) -> str | None:
+    """Why the run's review marks can no longer change (CRL-139), or None while they can: they
+    can exactly while Accept and Return are offered, so not once the run is accepted, nor while
+    a return's revision is being written or has its report (the disputed claims went to it)."""
+    if run.kind == RunKind.CHECK.value:
+        return f"run {run.id} is a check; its claims are not reviewed"
+    review = run.review_state or {}
+    if review.get("decision") == ReviewDecision.ACCEPTED.value:
+        return f"run {run.id} was accepted; its review marks can no longer change"
+    if review.get("decision") == ReviewDecision.RETURNED.value and (
+        review.get("child_state") is None or RunState(review["child_state"]) not in FREED_BY
+    ):
+        return (
+            f"run {run.id} was returned; mark the claims of its revision "
+            f"{review.get('child_run_id') or ''}".rstrip()
+        )
+    return None
+
+
+async def _marks_of(s: AsyncSession, run: Run) -> ReviewMarks:
+    if RunState(run.state) is not RunState.COMPLETED or not run.report:
+        raise InvalidRunStateError(f"run {run.id} has no report (state {run.state})")
+    return marks_view(
+        Report.model_validate(run.report),
+        await runs.load_review_marks(s, run.id),
+        editable=_marks_closed(run) is None,
+        require_key_judgments_checked=_review_rules(run).require_key_judgments_checked,
+    )
+
+
+async def review_marks(db: Database, run_id: uuid.UUID) -> ReviewMarks:
+    """`GET /api/runs/{id}/marks` (CRL-139): each claim's mark and the counts. 409 while the run
+    has no report."""
+    async with db.session() as s:
+        return await _marks_of(s, await runs.get_run(s, run_id))
+
+
+async def mark_claim(
+    db: Database,
+    run_id: uuid.UUID,
+    claim_id: str,
+    mark: ClaimMark,
+    *,
+    comment: str = "",
+    actor: str | None = None,
+) -> ReviewMarks:
+    """Mark a claim of the delivered report checked or disputed (CRL-139). The mark is added
+    under the run's row lock, which an accept also takes, so no mark lands after an accept: a
+    mark on an accepted run (or a returned one, `_marks_closed`) is a ConflictError. A claim the
+    report does not have is a NotFoundError."""
+    if len(comment) > GUIDANCE_MAX_LENGTH:
+        raise InvalidRequestError(f"a review comment is at most {GUIDANCE_MAX_LENGTH} characters")
+    async with db.session() as s, s.begin():
+        run = await runs.get_run(s, run_id, lock=True)
+        if RunState(run.state) is not RunState.COMPLETED or not run.report:
+            raise InvalidRunStateError(f"run {run_id} has no report (state {run.state})")
+        if (closed := _marks_closed(run)) is not None:
+            raise ConflictError(closed)
+        report = Report.model_validate(run.report)
+        if all(c.id != claim_id for c in report.claims):
+            raise runs.NotFoundError(f"claim {claim_id} is not in the report of run {run_id}")
+        await runs.add_review_mark(s, run_id, claim_id, mark.value, comment.strip(), actor)
+        return await _marks_of(s, run)
 
 
 def _review_state(events: list[ReviewEvent], reruns: Reruns) -> ReviewState | None:
@@ -977,7 +1077,29 @@ async def stored_export(
         row = next((r for r in await runs.list_exports(s, run_id) if r.name == name), None)
     if row is None:
         return None
-    return await storage_call(storage.get, row.storage_key)
+    content = await storage_call(storage.get, row.storage_key)
+    if name != "trace.json":
+        return content
+    async with db.session() as s:
+        marks = await runs.load_review_marks(s, run_id)
+    if not marks:
+        return content  # as stored, byte for byte
+    return await asyncio.to_thread(_with_marks, content, marks)
+
+
+def _with_marks(trace: bytes, marks: list[ReviewMark]) -> bytes:
+    """The stored trace with the run's review marks (CRL-139), which are made after the worker
+    stored it; the rest of the trace is unchanged."""
+    data = json.loads(trace)
+    data["review_marks"] = [m.model_dump(mode="json") for m in marks]
+    return dump_json(data).encode("utf-8")
+
+
+async def production_marks(db: Database, run_id: uuid.UUID) -> int:
+    """How many review marks the run's "How this report was produced" section counts, 0 when its
+    profile has no such section (CRL-139): with any, the stored renders are out of date."""
+    async with db.session() as s:
+        return await runs.production_marks(s, run_id)
 
 
 async def get_run_record(db: Database, run_id: uuid.UUID, *, with_io: bool = True) -> RunRecord:

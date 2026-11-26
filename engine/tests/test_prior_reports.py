@@ -270,4 +270,4 @@ async def test_a_source_ocr_read_and_earlier_reports_reach_the_writer_and_the_au
         assert '"ocr": true' in system and "INPUT_JSON.prior_reports" in system
         assert [p["run_id"] for p in payload(request)["prior_reports"]] == ["r-earlier"]
     versions = {(c.role, c.prompt_version) for c in rec.llm_calls}
-    assert {("writer", 6), ("auditor", 6)} <= versions
+    assert {("writer", 7), ("auditor", 6)} <= versions

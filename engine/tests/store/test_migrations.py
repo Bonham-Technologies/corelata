@@ -27,11 +27,12 @@ OUR_TABLES = {
     "llm_call",
     "export",
     "review_event",
+    "review_mark",
     "discovery",
     "discovery_source",
     "discovery_candidate",
 }
-HEAD = "0011"
+HEAD = "0012"
 
 
 def _tables(url):
@@ -777,6 +778,52 @@ def test_0010_adds_nullable_stated_columns_and_the_downgrade_drops_them(pg_admin
             assert "stated" not in _columns(conn, "source")
             assert "stated" not in _columns(conn, "run_source")
             assert conn.execute(text("SELECT count(*) FROM run_source")).scalar_one() == 1
+    finally:
+        engine.dispose()
+        drop_test_database(pg_admin, url)
+
+
+def test_0012_adds_review_marks_and_reviewer_findings_and_the_downgrade_drops_them(pg_admin):
+    """A 0011 database with a run: the upgrade adds the `review_mark` table and the nullable
+    `run.reviewer_findings` (CRL-139), NULL on the existing run, which reads as none; a mark
+    cascades with its run; the downgrade drops both and keeps the run."""
+    url = create_test_database(pg_admin)
+    engine = create_engine(to_sqlalchemy_url(url), poolclass=NullPool)
+    try:
+        upgrade(url, "0011")
+        project, run = uuid.uuid4(), uuid.uuid4()
+        at = datetime(2026, 11, 26, 9, tzinfo=UTC)
+        with engine.begin() as conn:
+            conn.execute(
+                text("INSERT INTO project (id, name, created_at) VALUES (:id, 'p', :at)"),
+                {"id": project, "at": at},
+            )
+            conn.execute(text(_RUN_AT_0003), {"id": run, "project": project, "at": at})
+            assert "reviewer_findings" not in _columns(conn, "run")
+        assert "review_mark" not in _tables(url)
+        upgrade(url, "0012")
+        with engine.begin() as conn:
+            assert _columns(conn, "run")["reviewer_findings"] == "YES"
+            assert conn.execute(text("SELECT reviewer_findings FROM run")).scalar_one() is None
+            conn.execute(
+                text(
+                    "INSERT INTO review_mark (run_id, claim_id, mark, comment, actor, at) "
+                    "VALUES (:r, 'c1', 'checked', '', 'ana', :at)"
+                ),
+                {"r": run, "at": at},
+            )
+            conn.execute(text("DELETE FROM project"))
+            assert conn.execute(text("SELECT count(*) FROM review_mark")).scalar_one() == 0
+            conn.execute(
+                text("INSERT INTO project (id, name, created_at) VALUES (:id, 'p', :at)"),
+                {"id": project, "at": at},
+            )
+            conn.execute(text(_RUN_AT_0003), {"id": run, "project": project, "at": at})
+        downgrade(url, "0011")
+        with engine.connect() as conn:
+            assert "reviewer_findings" not in _columns(conn, "run")
+            assert conn.execute(text("SELECT count(*) FROM run")).scalar_one() == 1
+        assert "review_mark" not in _tables(url)
     finally:
         engine.dispose()
         drop_test_database(pg_admin, url)

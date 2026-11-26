@@ -330,7 +330,8 @@ export interface paths {
         };
         /**
          * Get Export
-         * @description A file the worker stored for the run, as stored (the trace JSON download among them).
+         * @description A file the worker stored for the run, as stored (the trace JSON download among them); the
+         *     trace also carries the review marks made since, when there are any (CRL-139).
          */
         get: operations["get_export_api_runs__run_id__exports__name__get"];
         put?: never;
@@ -361,6 +362,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/runs/{run_id}/marks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Marks
+         * @description Each claim's review mark and the counts the review screen shows before Accept (CRL-139).
+         *     409 while the run has no report.
+         */
+        get: operations["get_marks_api_runs__run_id__marks_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/runs/{run_id}/marks/{claim_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Mark Claim
+         * @description Mark a claim of the delivered report `checked` or `disputed`, with a comment; the latest
+         *     mark on a claim is its mark, and every mark is kept in the trace (CRL-139). 409 once the
+         *     run is accepted (marks are final then) or while a return's revision stands; 404 for a
+         *     claim the report does not have.
+         */
+        put: operations["mark_claim_api_runs__run_id__marks__claim_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/runs/{run_id}/report": {
         parameters: {
             query?: never;
@@ -371,8 +416,9 @@ export interface paths {
         /**
          * Get Report
          * @description The delivered report. Without claim ids: the worker's stored file, byte for byte (404 if
-         *     none is stored). With them: re-rendered from the stored record (spec §9). 409 while the run
-         *     has no report, or when its DOCX export failed.
+         *     none is stored). With them: re-rendered from the stored record (spec §9), as is a report whose
+         *     profile's "How this report was produced" counts review marks made since (CRL-139). 409 while
+         *     the run has no report, or when its DOCX export failed.
          */
         get: operations["get_report_api_runs__run_id__report_get"];
         put?: never;
@@ -568,6 +614,11 @@ export interface components {
          * @enum {string}
          */
         ClaimKind: "fact" | "judgment" | "assumption";
+        /**
+         * ClaimMark
+         * @enum {string}
+         */
+        ClaimMark: "checked" | "disputed";
         /** ClaimProvenance */
         ClaimProvenance: {
             /** Cited By */
@@ -873,6 +924,18 @@ export interface components {
             term: string;
         };
         /**
+         * MarkRequest
+         * @description A reviewer's mark on one claim of the delivered report (CRL-139).
+         */
+        MarkRequest: {
+            /**
+             * Comment
+             * @default
+             */
+            comment: string;
+            mark: components["schemas"]["ClaimMark"];
+        };
+        /**
          * PackSummary
          * @description One entry of `GET /api/packs` (spec §10.1): a pack directory as found, built-in packs
          *     included. `name` is the directory name, which is what `load_pack` takes.
@@ -949,6 +1012,22 @@ export interface components {
              * @enum {string}
              */
             heading_style: "plain" | "numbered";
+            /**
+             * Production Statement
+             * @default false
+             */
+            production_statement: boolean;
+        };
+        /**
+         * ProfileReview
+         * @description How a team reviews its reports (CRL-139).
+         */
+        ProfileReview: {
+            /**
+             * Require Key Judgments Checked
+             * @default false
+             */
+            require_key_judgments_checked: boolean;
         };
         /** ProfileSummary */
         ProfileSummary: {
@@ -1024,6 +1103,7 @@ export interface components {
             name: string;
             /** Profile */
             profile: string | null;
+            review?: components["schemas"]["ProfileReview"];
             /** Rules */
             rules: components["schemas"]["Rule"][];
             template: components["schemas"]["Template"];
@@ -1042,6 +1122,82 @@ export interface components {
          * @enum {string}
          */
         ReviewDecision: "accepted" | "returned";
+        /**
+         * ReviewMark
+         * @description One mark a reviewer put on a claim of the delivered report.
+         */
+        ReviewMark: {
+            /**
+             * Actor
+             * @description Who marked it, when the sign-in names them.
+             */
+            actor?: string | null;
+            /**
+             * At
+             * Format: date-time
+             * @description When it was marked.
+             */
+            at: string;
+            /**
+             * Claim Id
+             * @description The claim of the delivered report the mark is on.
+             */
+            claim_id: string;
+            /**
+             * Comment
+             * @description What the reviewer said about the claim.
+             * @default
+             */
+            comment: string;
+            /** @description `checked`: the reviewer checked the claim against its evidence; `disputed`: the reviewer disputes it. */
+            mark: components["schemas"]["ClaimMark"];
+        };
+        /**
+         * ReviewMarks
+         * @description `GET /api/runs/{id}/marks`: each claim's mark and the counts the review screen shows.
+         */
+        ReviewMarks: {
+            /**
+             * Checked
+             * @description The claims whose current mark is `checked`.
+             */
+            checked: number;
+            /**
+             * Claims
+             * @description The claims in the delivered report.
+             */
+            claims: number;
+            /**
+             * Disputed
+             * @description The claims whose current mark is `disputed`.
+             */
+            disputed: number;
+            /**
+             * Editable
+             * @description Marks can be added or changed: false once the run is accepted, while a return's revision is being written or has its report, and for a check run.
+             */
+            editable: boolean;
+            /**
+             * Key Judgment Claim Ids
+             * @description The claims the report's key judgments rest on, in the report's order.
+             */
+            key_judgment_claim_ids: string[];
+            /**
+             * Marks
+             * @description Each marked claim's current mark (its latest), in the report's claim order; a claim nobody marked is not listed.
+             */
+            marks: components["schemas"]["ReviewMark"][];
+            /**
+             * Require Key Judgments Checked
+             * @description The run's profile has `review.require_key_judgments_checked`: Accept is refused until every claim a key judgment rests on is checked and no claim is disputed.
+             */
+            require_key_judgments_checked: boolean;
+            /**
+             * Reviewers
+             * @description Who marked the checked claims, in the order they first did.
+             */
+            reviewers: string[];
+        };
         /** ReviewRequest */
         ReviewRequest: {
             action: components["schemas"]["ReviewAction"];
@@ -3039,6 +3195,159 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Finding"][];
+                };
+            };
+            /** @description missing trusted header */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description conflicts with the current data */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description upload too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description invalid request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description the database or job queue is unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_marks_api_runs__run_id__marks_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewMarks"];
+                };
+            };
+            /** @description missing trusted header */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description conflicts with the current data */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description upload too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description invalid request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description the database or job queue is unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    mark_claim_api_runs__run_id__marks__claim_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+                claim_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MarkRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewMarks"];
                 };
             };
             /** @description missing trusted header */

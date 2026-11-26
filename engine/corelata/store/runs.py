@@ -43,6 +43,7 @@ from corelata.schema import (
     ProjectSummary,
     Report,
     ReviewDecision,
+    ReviewMark,
     RunState,
     Source,
     SourceKind,
@@ -62,6 +63,7 @@ from corelata.store.models import (
     LLMCall,
     Project,
     ReviewEvent,
+    ReviewMarkRow,
     Run,
     RunSource,
     SourceRow,
@@ -451,6 +453,7 @@ async def create_run(
     created_at: datetime | None = None,
     kind: str = "report",
     report_source_id: uuid.UUID | None = None,
+    reviewer_findings: list[Finding] | None = None,
 ) -> Run:
     """A run row plus its ordered sources; every source, and a check run's report (CRL-94),
     must belong to the project. Each source's statement is copied as it stands now (CRL-138),
@@ -478,6 +481,9 @@ async def create_run(
         corelata_version=corelata_version,
         docx_reference_key=docx_reference_key,
         digests=[],
+        reviewer_findings=(
+            [f.model_dump(mode="json") for f in reviewer_findings] if reviewer_findings else None
+        ),
     )
     if created_at is not None:
         run.created_at = created_at
@@ -514,6 +520,7 @@ HEAVY_RUN_COLUMNS = (
     Run.digests,
     Run.gate,
     Run.prior_reports,
+    Run.reviewer_findings,
 )
 
 
@@ -897,6 +904,44 @@ async def load_review_events(s: AsyncSession, run_id: uuid.UUID) -> list[ReviewE
             .order_by(ReviewEvent.at, ReviewEvent.id)
         )
     )
+
+
+async def add_review_mark(
+    s: AsyncSession,
+    run_id: uuid.UUID,
+    claim_id: str,
+    mark: str,
+    comment: str,
+    actor: str | None,
+) -> None:
+    """Record one review mark (CRL-139); rows are only ever added."""
+    s.add(ReviewMarkRow(run_id=run_id, claim_id=claim_id, mark=mark, comment=comment, actor=actor))
+    await s.flush()
+
+
+async def load_review_marks(s: AsyncSession, run_id: uuid.UUID) -> list[ReviewMark]:
+    """Every review mark on the run, oldest first (CRL-139)."""
+    rows = await s.scalars(
+        select(ReviewMarkRow)
+        .where(ReviewMarkRow.run_id == run_id)
+        .order_by(ReviewMarkRow.at, ReviewMarkRow.id)
+    )
+    return [
+        ReviewMark(claim_id=r.claim_id, mark=r.mark, comment=r.comment, actor=r.actor, at=r.at)
+        for r in rows
+    ]
+
+
+async def production_marks(s: AsyncSession, run_id: uuid.UUID) -> int:
+    """How many review marks the run has when its pack has `format.production_statement` on,
+    else 0 (CRL-139): what decides whether its stored renders are still current. Two small reads;
+    the snapshot is not loaded."""
+    flag = Run.pack_snapshot["format"]["production_statement"].astext
+    on = await s.scalar(select(flag).where(Run.id == run_id))
+    if on != "true":
+        return 0
+    count = select(func.count()).select_from(ReviewMarkRow).where(ReviewMarkRow.run_id == run_id)
+    return await s.scalar(count) or 0
 
 
 async def rerun_states(

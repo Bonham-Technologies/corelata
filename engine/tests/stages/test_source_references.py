@@ -44,7 +44,7 @@ async def test_the_base_pack_asks_for_source_details_and_a_summary(make_ctx, fak
     assert schema["properties"]["source_summary"] == {"$ref": "#/$defs/SourceSummaryStatement"}
     prompt = fake_backend.requests[0].messages[0].content
     assert "date_of_information" in prompt and "conflicting_sources" in prompt
-    assert ctx.runner.log.records[0].prompt_version == 6
+    assert ctx.runner.log.records[0].prompt_version == 7
     payload = _payload(ctx)
     assert payload["lexicon"]["source_access"] == ["direct", "indirect", "unknown"]
     assert "source_summary" in payload["template"]["section_order"]

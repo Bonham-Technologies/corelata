@@ -26,6 +26,7 @@ from corelata.prompts.library import PromptLibrary
 from corelata.schema import (
     TERMINAL_STATES,
     DiscoveryState,
+    Finding,
     PriorReport,
     RunRecord,
     RunState,
@@ -155,6 +156,7 @@ class _Inputs:
     attempt: int
     prior_reports: list[PriorReport] | None
     checked_report: Source | None  # a check run's report (CRL-94)
+    reviewer_findings: list[Finding]  # a return's disputed claims (CRL-139)
 
 
 async def _begin(svc: WorkerServices, run_id: uuid.UUID) -> _Inputs | None:
@@ -214,6 +216,7 @@ async def _begin(svc: WorkerServices, run_id: uuid.UUID) -> _Inputs | None:
                 await _accepted_reports(svc.cfg, s, run) if run.report_source_id is None else None
             ),
             checked_report=await records.load_checked_report(s, run),
+            reviewer_findings=[Finding.model_validate(f) for f in run.reviewer_findings or []],
         )
 
 
@@ -356,6 +359,7 @@ async def execute_run(svc: WorkerServices, run_id: uuid.UUID) -> None:
                 parent_run_id=inputs.parent_run_id,
                 created_at=inputs.created_at,
                 prior_reports=inputs.prior_reports,
+                reviewer_findings=inputs.reviewer_findings,
             )
             llm = {"backends": svc.backends, "prompts": svc.prompts, "log": observer.calls}
             if inputs.checked_report is not None:

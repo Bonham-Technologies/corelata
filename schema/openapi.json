@@ -271,6 +271,14 @@
         "title": "ClaimKind",
         "type": "string"
       },
+      "ClaimMark": {
+        "enum": [
+          "checked",
+          "disputed"
+        ],
+        "title": "ClaimMark",
+        "type": "string"
+      },
       "ClaimProvenance": {
         "properties": {
           "cited_by": {
@@ -1079,6 +1087,25 @@
         "title": "LikelihoodTerm",
         "type": "object"
       },
+      "MarkRequest": {
+        "description": "A reviewer's mark on one claim of the delivered report (CRL-139).",
+        "properties": {
+          "comment": {
+            "default": "",
+            "maxLength": 8000,
+            "title": "Comment",
+            "type": "string"
+          },
+          "mark": {
+            "$ref": "#/components/schemas/ClaimMark"
+          }
+        },
+        "required": [
+          "mark"
+        ],
+        "title": "MarkRequest",
+        "type": "object"
+      },
       "PackSummary": {
         "description": "One entry of `GET /api/packs` (spec §10.1): a pack directory as found, built-in packs\nincluded. `name` is the directory name, which is what `load_pack` takes.",
         "properties": {
@@ -1257,9 +1284,27 @@
             ],
             "title": "Heading Style",
             "type": "string"
+          },
+          "production_statement": {
+            "default": false,
+            "title": "Production Statement",
+            "type": "boolean"
           }
         },
         "title": "ProfileFormat",
+        "type": "object"
+      },
+      "ProfileReview": {
+        "additionalProperties": false,
+        "description": "How a team reviews its reports (CRL-139).",
+        "properties": {
+          "require_key_judgments_checked": {
+            "default": false,
+            "title": "Require Key Judgments Checked",
+            "type": "boolean"
+          }
+        },
+        "title": "ProfileReview",
         "type": "object"
       },
       "ProfileSummary": {
@@ -1394,6 +1439,9 @@
             ],
             "title": "Profile"
           },
+          "review": {
+            "$ref": "#/components/schemas/ProfileReview"
+          },
           "rules": {
             "items": {
               "$ref": "#/components/schemas/Rule"
@@ -1441,6 +1489,117 @@
         ],
         "title": "ReviewDecision",
         "type": "string"
+      },
+      "ReviewMark": {
+        "description": "One mark a reviewer put on a claim of the delivered report.",
+        "properties": {
+          "actor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Who marked it, when the sign-in names them.",
+            "title": "Actor"
+          },
+          "at": {
+            "description": "When it was marked.",
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "claim_id": {
+            "description": "The claim of the delivered report the mark is on.",
+            "title": "Claim Id",
+            "type": "string"
+          },
+          "comment": {
+            "default": "",
+            "description": "What the reviewer said about the claim.",
+            "title": "Comment",
+            "type": "string"
+          },
+          "mark": {
+            "$ref": "#/components/schemas/ClaimMark",
+            "description": "`checked`: the reviewer checked the claim against its evidence; `disputed`: the reviewer disputes it."
+          }
+        },
+        "required": [
+          "claim_id",
+          "mark",
+          "at"
+        ],
+        "title": "ReviewMark",
+        "type": "object"
+      },
+      "ReviewMarks": {
+        "description": "`GET /api/runs/{id}/marks`: each claim's mark and the counts the review screen shows.",
+        "properties": {
+          "checked": {
+            "description": "The claims whose current mark is `checked`.",
+            "title": "Checked",
+            "type": "integer"
+          },
+          "claims": {
+            "description": "The claims in the delivered report.",
+            "title": "Claims",
+            "type": "integer"
+          },
+          "disputed": {
+            "description": "The claims whose current mark is `disputed`.",
+            "title": "Disputed",
+            "type": "integer"
+          },
+          "editable": {
+            "description": "Marks can be added or changed: false once the run is accepted, while a return's revision is being written or has its report, and for a check run.",
+            "title": "Editable",
+            "type": "boolean"
+          },
+          "key_judgment_claim_ids": {
+            "description": "The claims the report's key judgments rest on, in the report's order.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Key Judgment Claim Ids",
+            "type": "array"
+          },
+          "marks": {
+            "description": "Each marked claim's current mark (its latest), in the report's claim order; a claim nobody marked is not listed.",
+            "items": {
+              "$ref": "#/components/schemas/ReviewMark"
+            },
+            "title": "Marks",
+            "type": "array"
+          },
+          "require_key_judgments_checked": {
+            "description": "The run's profile has `review.require_key_judgments_checked`: Accept is refused until every claim a key judgment rests on is checked and no claim is disputed.",
+            "title": "Require Key Judgments Checked",
+            "type": "boolean"
+          },
+          "reviewers": {
+            "description": "Who marked the checked claims, in the order they first did.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Reviewers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "marks",
+          "claims",
+          "checked",
+          "disputed",
+          "reviewers",
+          "editable",
+          "require_key_judgments_checked",
+          "key_judgment_claim_ids"
+        ],
+        "title": "ReviewMarks",
+        "type": "object"
       },
       "ReviewRequest": {
         "properties": {
@@ -4410,7 +4569,7 @@
     },
     "/api/runs/{run_id}/exports/{name}": {
       "get": {
-        "description": "A file the worker stored for the run, as stored (the trace JSON download among them).",
+        "description": "A file the worker stored for the run, as stored (the trace JSON download among them); the\ntrace also carries the review marks made since, when there are any (CRL-139).",
         "operationId": "get_export_api_runs__run_id__exports__name__get",
         "parameters": [
           {
@@ -4604,9 +4763,202 @@
         ]
       }
     },
+    "/api/runs/{run_id}/marks": {
+      "get": {
+        "description": "Each claim's review mark and the counts the review screen shows before Accept (CRL-139).\n409 while the run has no report.",
+        "operationId": "get_marks_api_runs__run_id__marks_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewMarks"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "missing trusted header"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "conflicts with the current data"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "upload too large"
+          },
+          "422": {
+            "description": "invalid request"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "the database or job queue is unavailable"
+          }
+        },
+        "summary": "Get Marks",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/runs/{run_id}/marks/{claim_id}": {
+      "put": {
+        "description": "Mark a claim of the delivered report `checked` or `disputed`, with a comment; the latest\nmark on a claim is its mark, and every mark is kept in the trace (CRL-139). 409 once the\nrun is accepted (marks are final then) or while a return's revision stands; 404 for a\nclaim the report does not have.",
+        "operationId": "mark_claim_api_runs__run_id__marks__claim_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "claim_id",
+            "required": true,
+            "schema": {
+              "title": "Claim Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MarkRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewMarks"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "missing trusted header"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "conflicts with the current data"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "upload too large"
+          },
+          "422": {
+            "description": "invalid request"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "the database or job queue is unavailable"
+          }
+        },
+        "summary": "Mark Claim",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
     "/api/runs/{run_id}/report": {
       "get": {
-        "description": "The delivered report. Without claim ids: the worker's stored file, byte for byte (404 if\nnone is stored). With them: re-rendered from the stored record (spec §9). 409 while the run\nhas no report, or when its DOCX export failed.",
+        "description": "The delivered report. Without claim ids: the worker's stored file, byte for byte (404 if\nnone is stored). With them: re-rendered from the stored record (spec §9), as is a report whose\nprofile's \"How this report was produced\" counts review marks made since (CRL-139). 409 while\nthe run has no report, or when its DOCX export failed.",
         "operationId": "get_report_api_runs__run_id__report_get",
         "parameters": [
           {

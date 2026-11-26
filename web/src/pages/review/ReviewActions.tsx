@@ -1,13 +1,26 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { exportUrl, reportUrl } from "../../api/client";
-import { rerunFreed, useReview } from "../../api/runs";
-import type { ReviewState } from "../../api/types";
+import { rerunFreed, useReview, useReviewMarks } from "../../api/runs";
+import type { ReviewMarks, ReviewState } from "../../api/types";
 import { CharCount, nearLimit } from "../../components/CharCount";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { ErrorMessage } from "../../components/ErrorMessage";
 import { Menu } from "../../components/Menu";
 import { NOTE_MAX_LENGTH } from "../../lib/limits";
+import { plural } from "../../lib/words";
+
+/** "2 of 5 claims checked" (CRL-139): what the reviewer checked, shown before Accept. */
+export function checkedText(marks: ReviewMarks): string {
+  return `${marks.checked} of ${plural(marks.claims, "claim")} checked`;
+}
+
+/** The key-judgment claims not yet checked, when the team's profile requires them all checked
+ * before Accept (CRL-139). */
+export function stillToCheck(marks: ReviewMarks): string[] {
+  const checked = new Set(marks.marks.filter((m) => m.mark === "checked").map((m) => m.claim_id));
+  return marks.key_judgment_claim_ids.filter((id) => !checked.has(id));
+}
 
 /** The Download menu's items (M18 spec §5.4): today's four URLs, with plain names, and for a
  * checked report its standards sheet (CRL-94). */
@@ -41,6 +54,8 @@ export function ReviewActions({
   onAccepted?: () => void;
 }) {
   const send = useReview(runId);
+  const marks = useReviewMarks(runId, !checked).data;
+  const disputed = marks?.disputed ?? 0;
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -113,6 +128,7 @@ export function ReviewActions({
           >
             Return with note…
           </button>
+          {marks ? <span className="muted">{checkedText(marks)}</span> : null}
         </>
       )}
       <Menu label="Download" button="Download ▾">
@@ -144,6 +160,21 @@ export function ReviewActions({
           This is final. The report can't be returned afterwards, and it will be used as project
           memory.
         </p>
+        {marks ? (
+          <p>
+            {checkedText(marks)}
+            {disputed ? `, ${disputed} disputed` : ""}.
+          </p>
+        ) : null}
+        {marks?.require_key_judgments_checked ? (
+          <p className="muted">
+            Your team checks every claim a key judgment rests on, and leaves none disputed, before
+            accepting.
+            {stillToCheck(marks).length
+              ? ` Still to check: ${stillToCheck(marks).join(", ")}.`
+              : ""}
+          </p>
+        ) : null}
       </ConfirmDialog>
       <ConfirmDialog
         open={open}
@@ -152,7 +183,7 @@ export function ReviewActions({
         busyLabel="Returning…"
         cancelLabel="Cancel"
         busy={busy}
-        confirmDisabled={!note.trim()}
+        confirmDisabled={!note.trim() && disputed === 0}
         initialFocusId={noteId}
         onConfirm={sendReturn}
         onCancel={() => {
@@ -162,7 +193,13 @@ export function ReviewActions({
       >
         {send.error ? <ErrorMessage error={send.error} /> : null}
         <p className="muted">The note becomes guidance for the revised report.</p>
-        {note.trim() ? null : <p className="muted">A note is required.</p>}
+        {disputed ? (
+          <p className="muted">
+            {plural(disputed, "disputed claim")} {disputed === 1 ? "goes" : "go"} to the writer with
+            your comments.
+          </p>
+        ) : null}
+        {note.trim() || disputed ? null : <p className="muted">A note is required.</p>}
         <div className="field">
           <label htmlFor={noteId}>Note for the writer</label>
           <textarea

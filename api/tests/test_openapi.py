@@ -46,6 +46,8 @@ SCREEN_ROUTES = [
     "/api/runs/{run_id}/trace",
     "/api/runs/{run_id}/findings",
     "/api/runs/{run_id}/claims/{claim_id}",
+    "/api/runs/{run_id}/marks",
+    "/api/runs/{run_id}/marks/{claim_id}",
     "/api/packs",
     "/api/packs/{name}/resolved",
     "/api/packs/{name}/validate",

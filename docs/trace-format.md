@@ -12,7 +12,7 @@ models disagree (`make schema` regenerates it).
 | `trace.json` | always | the `RunRecord`: everything below |
 | `gate.json` | the gate ran | `GateVerdict` |
 | `report.json` | a report was delivered | `Report` (body + `metadata`) |
-| `report.md`, `report.html`, `report.docx` | a report was delivered | renders of `report.json`, with numbered source references (CRL-96); the appendix "Cited passages" lists the claims' quotes (when any claim quotes), "Stages incomplete at delivery" lists `metadata.degradations` and "Audit findings open at delivery" lists `delivered_open_findings` (the findings `metadata.open_findings` names) |
+| `report.md`, `report.html`, `report.docx` | a report was delivered | renders of `report.json`, with numbered source references (CRL-96); the appendix "Cited passages" lists the claims' quotes (when any claim quotes), "Stages incomplete at delivery" lists `metadata.degradations` and "Audit findings open at delivery" lists `delivered_open_findings` (the findings `metadata.open_findings` names); with the profile's `format.production_statement`, "How this report was produced" comes last (CRL-139) |
 | `findings.csv` | a check run delivered its report (CRL-94) | the findings sheet: one row per rule of the audit, in pack order (`rule_id`, `title`, `verdict`, `severity`, `claim_ids`, `cited_units`, `evidence`, `recommendation`; ids space-separated; a cell starting `=`, `+`, `-` or `@` gets a leading `'`) |
 | `reference.docx` | the run's profile named one (queued runs only) | the profile's DOCX reference as stored when the run was queued; `corelata report DIR --format docx` uses it |
 
@@ -57,6 +57,16 @@ DOCX uses the neutral template unless `--docx-reference` names the profile's ref
   plus `metadata` (`run_id`, `pack_name`, `pack_hash`, `profile`, `iteration`, `status`,
   `open_findings` ids, `degradations`: the stages it was delivered without, M11; absent in older
   traces, read as empty; `prior_reports`, CRL-97, below).
+- Review (CRL-139): `review_marks[]` — every mark a reviewer put on a claim of the delivered
+  report, oldest first (`claim_id`, `mark`: `checked` or `disputed`, `comment`, `actor`, `at`); a
+  claim's latest mark is its mark. The worker stores `trace.json` when the run completes, before
+  any review, so the stored file has none; the download (`GET /api/runs/{id}/exports/trace.json`)
+  and `corelata export` add the marks made since. `reviewer_findings[]` — on a rerun made by a
+  return, one finding per claim of the returned report the reviewer disputed (`rule_id`
+  `review.disputed`, `verdict` `fail`, `claim_ids` the returned report's claim id, `evidence` its
+  text, `cited_units` its passages, `recommendation` the reviewer's comment, `route_to`
+  `writer`, `iteration` 0), which the rerun's first writer call reads as its findings. Both keys
+  are absent when empty, so a trace without them reads as before.
 - Cost: `usage` (calls and tokens, total and by role), `llm_calls[]` (one per model call;
   `request` and `response` present when `audit.store_llm_io` is on).
   Both cover the run's last attempt only. A run whose worker was taken for dead is started over
@@ -184,7 +194,8 @@ cannot find a quote the engine matched fuzzily).
 4. The auditor never produces report text; only structured findings flow back to the writer
    and conveyor.
 5. Every render is a pure function of `report`, `pack_snapshot`, `sources` and the open
-   findings, all of which are in `trace.json`.
+   findings, all of which are in `trace.json`; with `format.production_statement` (CRL-139) also
+   of `llm_calls`, `pack_hash`, `iterations` and `review_marks`, which are there too.
 
 ## Compatibility
 

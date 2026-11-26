@@ -3,14 +3,27 @@ import { http, HttpResponse } from "msw";
 import { useState } from "react";
 import { reportKeys } from "../../api/reports";
 import { deferred } from "../../test/deferred";
-import { claimProvenance, reportJson, RUN_ID } from "../../test/fixtures";
+import { claimProvenance, reportJson, reviewMarks, RUN_ID } from "../../test/fixtures";
 import { renderWithClient } from "../../test/render";
 import { server } from "../../test/server";
 import { ProvenanceTab } from "./ProvenanceTab";
 
-function Host({ initial = null }: { initial?: string | null }) {
+function Host({
+  initial = null,
+  reviewed = true,
+}: {
+  initial?: string | null;
+  reviewed?: boolean;
+}) {
   const [claim, setClaim] = useState<string | null>(initial);
-  return <ProvenanceTab runId={RUN_ID} selectedClaim={claim} onSelectClaim={setClaim} />;
+  return (
+    <ProvenanceTab
+      runId={RUN_ID}
+      selectedClaim={claim}
+      onSelectClaim={setClaim}
+      reviewed={reviewed}
+    />
+  );
 }
 
 beforeEach(() => {
@@ -132,4 +145,147 @@ it("shows a claims list error", async () => {
   );
   renderWithClient(<Host />);
   expect(await screen.findByRole("alert")).toHaveTextContent("run not found");
+});
+
+const marked = (mark: "checked" | "disputed", comment = "", actor: string | null = "ana") => ({
+  claim_id: "c3",
+  mark,
+  comment,
+  actor,
+  at: "2026-11-26T09:00:00Z",
+});
+
+it("marks the selected claim checked or disputed with a comment (CRL-139)", async () => {
+  const sent: unknown[] = [];
+  server.use(
+    http.put(`*/api/runs/${RUN_ID}/marks/c3`, async ({ request }) => {
+      const body = (await request.json()) as { mark: "checked" | "disputed"; comment: string };
+      sent.push(body);
+      const mark = marked(body.mark, body.comment);
+      return HttpResponse.json(
+        reviewMarks({
+          marks: [mark],
+          checked: body.mark === "checked" ? 1 : 0,
+          disputed: body.mark === "disputed" ? 1 : 0,
+        }),
+      );
+    }),
+  );
+  const { user } = renderWithClient(<Host initial="c3" />);
+  const review = await screen.findByRole("region", { name: "Your review of claim c3" });
+  expect(within(review).getByRole("status")).toHaveTextContent("Not marked yet");
+  await user.type(within(review).getByRole("textbox", { name: "Comment" }), " Which shippers? ");
+  await user.click(within(review).getByRole("button", { name: "Mark disputed" }));
+  await waitFor(() =>
+    expect(within(review).getByRole("status")).toHaveTextContent("Disputed by ana"),
+  );
+  expect(within(review).getByRole("button", { name: "Mark disputed" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  const list = screen.getByRole("list", { name: "Claims" });
+  expect(within(list).getAllByRole("listitem")[1]).toHaveTextContent("2 passages · Disputed");
+  await user.click(within(review).getByRole("button", { name: "Mark checked" }));
+  await waitFor(() =>
+    expect(within(review).getByRole("status")).toHaveTextContent("Checked by ana"),
+  );
+  expect(sent).toEqual([
+    { mark: "disputed", comment: "Which shippers?" },
+    { mark: "checked", comment: "Which shippers?" },
+  ]);
+});
+
+it("shows a mark without its controls once the review is decided (CRL-139)", async () => {
+  server.use(
+    http.get(`*/api/runs/${RUN_ID}/marks`, () =>
+      HttpResponse.json(
+        reviewMarks({
+          marks: [marked("checked", "Matches the notice")],
+          checked: 1,
+          editable: false,
+        }),
+      ),
+    ),
+  );
+  renderWithClient(<Host initial="c3" />);
+  const review = await screen.findByRole("region", { name: "Your review of claim c3" });
+  expect(within(review).getByRole("status")).toHaveTextContent(
+    "Checked by ana: Matches the notice",
+  );
+  expect(within(review).queryByRole("button")).toBeNull();
+  expect(within(review).queryByRole("textbox")).toBeNull();
+});
+
+it("starts a claim's comment from its own mark, and names no one for an anonymous mark", async () => {
+  server.use(
+    http.get(`*/api/runs/${RUN_ID}/marks`, () =>
+      HttpResponse.json(
+        reviewMarks({ marks: [marked("disputed", "Too sure", null)], disputed: 1 }),
+      ),
+    ),
+  );
+  renderWithClient(<Host initial="c3" />);
+  const review = await screen.findByRole("region", { name: "Your review of claim c3" });
+  expect(within(review).getByRole("status")).toHaveTextContent(/^Disputed$/);
+  expect(within(review).getByRole("textbox", { name: "Comment" })).toHaveValue("Too sure");
+});
+
+it("shows a refused mark and re-reads the marks (CRL-139)", async () => {
+  let reads = 0;
+  server.use(
+    http.get(`*/api/runs/${RUN_ID}/marks`, () => {
+      reads += 1;
+      return HttpResponse.json(reviewMarks());
+    }),
+    http.put(`*/api/runs/${RUN_ID}/marks/c3`, () =>
+      HttpResponse.json({ detail: "run was accepted" }, { status: 409 }),
+    ),
+  );
+  const { user } = renderWithClient(<Host initial="c3" />);
+  const review = await screen.findByRole("region", { name: "Your review of claim c3" });
+  await user.click(within(review).getByRole("button", { name: "Mark checked" }));
+  expect(await within(review).findByRole("alert")).toHaveTextContent("run was accepted");
+  await waitFor(() => expect(reads).toBe(2));
+});
+
+it("a failed mark that is not a refusal does not re-read the marks (CRL-139)", async () => {
+  let reads = 0;
+  server.use(
+    http.get(`*/api/runs/${RUN_ID}/marks`, () => {
+      reads += 1;
+      return HttpResponse.json(reviewMarks());
+    }),
+    http.put(`*/api/runs/${RUN_ID}/marks/c3`, () =>
+      HttpResponse.json({ detail: "the database is unavailable" }, { status: 503 }),
+    ),
+  );
+  const { user } = renderWithClient(<Host initial="c3" />);
+  const review = await screen.findByRole("region", { name: "Your review of claim c3" });
+  await user.click(within(review).getByRole("button", { name: "Mark checked" }));
+  expect(await within(review).findByRole("alert")).toHaveTextContent("unavailable");
+  expect(reads).toBe(1);
+});
+
+it("a checked report reads no marks and offers none (CRL-139)", async () => {
+  let reads = 0;
+  server.use(
+    http.get(`*/api/runs/${RUN_ID}/marks`, () => {
+      reads += 1;
+      return HttpResponse.json(reviewMarks());
+    }),
+  );
+  renderWithClient(<Host initial="c3" reviewed={false} />);
+  expect(await screen.findByRole("list", { name: "Evidence for claim c3" })).toBeInTheDocument();
+  expect(screen.queryByRole("region", { name: "Your review of claim c3" })).toBeNull();
+  expect(reads).toBe(0);
+});
+
+it("shows a marks error", async () => {
+  server.use(
+    http.get(`*/api/runs/${RUN_ID}/marks`, () =>
+      HttpResponse.json({ detail: "marks unavailable" }, { status: 500 }),
+    ),
+  );
+  renderWithClient(<Host />);
+  expect(await screen.findByRole("alert")).toHaveTextContent("marks unavailable");
 });
