@@ -136,7 +136,8 @@ class DraftChanges(BaseModel):
 
 
 class CallSummary(BaseModel):
-    """An LLMCallRecord without its request and response bodies (the trace download has them)."""
+    """An LLMCallRecord without its request and response bodies or the model's reasoning (the
+    trace download has them)."""
 
     role: str
     backend: str
@@ -350,7 +351,9 @@ def run_trace(record: RunRecord, units: Mapping[str, UnitCount] | None = None) -
         steps.append(DraftStep(role=draft.role, iteration=draft.iteration, changes=changes))
         prev = draft.report
     calls = [
-        CallSummary.model_validate(c.model_dump(exclude={"request", "response"}))
+        CallSummary.model_validate(
+            c.model_dump(exclude={"request", "response", "reasoning", "reasoning_chars"})
+        )
         for c in record.llm_calls
     ]
     return RunTrace(summary=summarize(record, units), drafts=steps, calls=calls)

@@ -107,6 +107,8 @@ def _payload(request: ChatRequest) -> dict[str, Any]:
         }
     elif request.structured_output is StructuredOutput.JSON_OBJECT:
         payload["response_format"] = {"type": "json_object"}
+    # CRL-140: the model's request_extra, after Corelata's own keys, which it cannot name
+    payload.update(request.extra)
     return payload
 
 
@@ -141,7 +143,21 @@ def _parse_chat(name: str, resp: httpx.Response, latency_ms: int) -> ChatRespons
         tokens_in=_count(usage.get("prompt_tokens")),
         tokens_out=_count(usage.get("completion_tokens")),
         latency_ms=latency_ms,
+        reasoning=_reasoning(choice["message"]),
     )
+
+
+# vLLM names the field `reasoning` (formerly `reasoning_content`, as DeepSeek's API and others do)
+_REASONING_FIELDS = ("reasoning", "reasoning_content")
+
+
+def _reasoning(message: dict[str, Any]) -> str | None:
+    """The reasoning a server returned beside the content, or None (CRL-140)."""
+    for name in _REASONING_FIELDS:
+        value = message.get(name)
+        if isinstance(value, str) and value.strip():
+            return value
+    return None
 
 
 def _count(value: object) -> int | None:

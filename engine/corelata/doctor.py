@@ -28,6 +28,7 @@ from corelata.llm.agent import (
     extract_json,
     rejection_errors,
     repair_messages,
+    reply_reasoning,
     request_messages,
 )
 from corelata.llm.payload import render_input
@@ -37,6 +38,7 @@ from corelata.llm.types import (
     BackendError,
     ChatMessage,
     ChatRequest,
+    ChatResponse,
     ContextOverflowError,
     OutputTruncatedError,
     TransientBackendError,
@@ -492,7 +494,8 @@ async def _backend(
     return checks
 
 
-def _ping(model_id: str, mode: StructuredOutput) -> ChatRequest:
+def _ping(model_id: str, mode: StructuredOutput, extra: dict[str, Any]) -> ChatRequest:
+    """`extra`: the model's request_extra, which every request to it carries (CRL-140)."""
     return ChatRequest(
         model=model_id,
         messages=[
@@ -504,6 +507,7 @@ def _ping(model_id: str, mode: StructuredOutput) -> ChatRequest:
         structured_output=mode,
         temperature=0,
         max_tokens=50,
+        extra=dict(extra),
     )
 
 
@@ -533,8 +537,9 @@ async def _model(
     if not probe:
         return _check(label, CheckStatus.PASS, "served"), False
     parts: list[DoctorCheck] = []
+    reply: ChatResponse | None = None  # the reply in the configured mode, for the reasoning part
     try:
-        await backend.chat(_ping(model_id, StructuredOutput.NONE))
+        reply = await backend.chat(_ping(model_id, StructuredOutput.NONE, model.request_extra))
         parts.append(_check(label, CheckStatus.PASS, PING_OK))
     except OutputTruncatedError:  # cut at max_tokens: the model answered
         parts.append(_check(label, CheckStatus.PASS, PING_OK))
@@ -549,7 +554,17 @@ async def _model(
         )
     pinged = parts[0].status is CheckStatus.PASS
     if model.structured_output is not StructuredOutput.NONE and pinged:
-        parts.append(await _structured(label, key, model, backend))
+        probed, reply = await _structured(label, key, model, backend)
+        parts.append(probed)
+    if reply is not None and all(c.status is not CheckStatus.FAIL for c in parts):
+        # CRL-140: a server may drop the reasoning under structured output (version, flags);
+        # a failed line ends with its failure, which matters more
+        reasoned = "present" if reply_reasoning(reply) else "absent"
+        parts.append(
+            _check(
+                label, CheckStatus.PASS, f"reasoning: {reasoned} under {model.structured_output}"
+            )
+        )
     worst = max(parts, key=lambda c: _ORDER[c.status])
     fix = next((c.fix for c in parts if c.status is not CheckStatus.PASS), "")
     return _check(label, worst.status, "; ".join(c.message for c in parts), fix), pinged
@@ -583,12 +598,13 @@ async def _probe(
     *,
     works: str,
     needs: str,
-) -> DoctorCheck:
+) -> tuple[DoctorCheck, ChatResponse | None]:
     """One structured call exactly as a run makes it: the stages' request builder, so the backend
     applies `strict_json_schema` as in a run, no `max_tokens` of its own (the model's cap if it
     has one, else none), and the one repair turn a run gives a rejected reply, built by the same
     code (R-M15-5). Passes when `parse` accepts the first reply, warns when it accepts the
-    repaired one, fails when it accepts neither."""
+    repaired one, fails when it accepts neither. Also gives the first reply, None when the
+    request failed."""
     name = output_type.__name__
     article = "an" if name[0] in "AEIOU" else "a"
     mode = model.structured_output.value
@@ -596,18 +612,18 @@ async def _probe(
     messages = request_messages(system, payload, model, schema)
     first = await _send(label, key, model, backend, output_type, schema, messages, needs)
     if isinstance(first, DoctorCheck):
-        return first
-    error = _rejected(parse, first)
+        return first, None
+    error = _rejected(parse, first.content)
     if error is None:
-        return _check(label, CheckStatus.PASS, f"{mode} output works ({works})")
+        return _check(label, CheckStatus.PASS, f"{mode} output works ({works})"), first
     # R-M15-5: a run repairs a rejected reply once (llm/agent.py); so does the probe
-    repaired = repair_messages(messages, first, rejection_errors(error))
+    repaired = repair_messages(messages, first.content, rejection_errors(error))
     second = await _send(
         label, key, model, backend, output_type, schema, repaired, needs, repair_turn=True
     )
     if isinstance(second, DoctorCheck):
-        return second
-    error = _rejected(parse, second)
+        return second, first
+    error = _rejected(parse, second.content)
     if error is None:
         return _check(
             label,
@@ -615,7 +631,7 @@ async def _probe(
             f"{mode} output works after one repair turn ({works})",
             f"nothing to change for a run, which repairs the reply the same way; every structured "
             f"call on models.{key} may cost a second request",
-        )
+        ), first
     first_error = error.errors()[0]
     where = ".".join(str(p) for p in first_error["loc"]) or "<root>"
     return _check(
@@ -624,7 +640,7 @@ async def _probe(
         f"the server did not return the requested JSON ({mode}), even after one repair turn: "
         + _cut(f"not {article} {name}: {where}: {first_error['msg']}"),
         _fixes(key, model.structured_output)[1],
-    )
+    ), first
 
 
 def _rejected(parse: Callable[[str], object], content: str) -> ValidationError | None:
@@ -646,14 +662,14 @@ async def _send(
     needs: str,
     *,
     repair_turn: bool = False,
-) -> str | DoctorCheck:
-    """The reply's text, or the failed check a run would also fail on: a reply cut at the output
+) -> ChatResponse | DoctorCheck:
+    """The reply, or the failed check a run would also fail on: a reply cut at the output
     limit, or a backend error (no repair turn follows either, as in a run)."""
     name = output_type.__name__
     mode = model.structured_output.value
     request = build_request(key, model, output_type, schema, messages)
     try:
-        return (await backend.chat(request)).content
+        return await backend.chat(request)
     except OutputTruncatedError:
         if request.max_tokens is None:  # no cap of ours: the server's own default cut the reply
             return _check(
@@ -687,8 +703,11 @@ async def _send(
         return _check(label, CheckStatus.FAIL, failed, fix)
 
 
-async def _structured(label: str, key: str, model: ModelConfig, backend: Backend) -> DoctorCheck:
-    """R-M12-3: the real GateVerdict schema; passes only on a reply that parses as one."""
+async def _structured(
+    label: str, key: str, model: ModelConfig, backend: Backend
+) -> tuple[DoctorCheck, ChatResponse | None]:
+    """R-M12-3: the real GateVerdict schema; passes only on a reply that parses as one. Also
+    gives its first reply, which the model line reads the reasoning of (CRL-140)."""
     return await _probe(
         label,
         key,
@@ -724,7 +743,7 @@ async def _auditor_schema(
     payload = auditor_payload(pack, draft, units, PROBE_PAYLOAD["value_statement"])
     rules = len(pack.rules)
     noun = "rule" if rules == 1 else "rules"
-    return await _probe(
+    check, _ = await _probe(
         label,
         key,
         model,
@@ -737,6 +756,7 @@ async def _auditor_schema(
         needs=f"an AuditByRule needs about 60 tokens per rule ({rules} here) plus any reasoning "
         "the model emits first",
     )
+    return check
 
 
 async def _database(cfg: CorelataConfig) -> DoctorCheck:
