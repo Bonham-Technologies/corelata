@@ -1,6 +1,6 @@
 [project]
 name = "corelata-api"
-version = "0.1.8"
+version = "0.1.9"
 description = "REST API for Corelata"
 requires-python = ">=3.12"
 license = "Apache-2.0"

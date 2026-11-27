@@ -338,7 +338,7 @@ wheels = [
 
 [[package]]
 name = "corelata"
-version = "0.1.8"
+version = "0.1.9"
 source = { editable = "../engine" }
 dependencies = [
     { name = "alembic" },
@@ -391,7 +391,7 @@ dev = [
 
 [[package]]
 name = "corelata-api"
-version = "0.1.8"
+version = "0.1.9"
 source = { editable = "." }
 dependencies = [
     { name = "corelata" },
