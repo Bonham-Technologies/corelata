@@ -1,6 +1,8 @@
 name: release
 # A tag v<version> publishes the offline bundle (spec §12) as a GitHub release: the tar, its
-# .sha256, the manifest and SHA256SUMS (the tar and the manifest). The tag must name the package
+# .sha256, the manifest, the repository SBOM and SHA256SUMS (the tar, the manifest and the SBOM),
+# each with a build provenance attestation (CRL-153; bonham-ops checklist SC-2, SC-3, SC-4). The
+# notes end with the version's CHANGELOG.md section. The tag must name the package
 # version and a commit on main (deploy/check-release-tag.sh), and the bundle must pass the air-gap
 # install test on the runner before anything is published.
 #
@@ -54,8 +56,15 @@ jobs:
             echo
             echo "SHA-256: \`$(cut -d' ' -f1 "dist/corelata-$v-linux-amd64.tar.sha256")\`"
             echo
-            echo "Built from $(git rev-parse --short HEAD); manifest attached."
+            echo "Built from $(git rev-parse --short HEAD); manifest, SBOM and build provenance attached."
+            echo
+            echo "## Changes"
+            awk -v v="$v" '
+              /^## / { if (on) exit; h = $0; sub(/^## \[?/, "", h); sub(/[] ].*$/, "", h)
+                       if (h == v) { on = 1; next } }
+              on' CHANGELOG.md
           } >dist/notes.md
+          grep -q '^- ' dist/notes.md || { echo "::error::CHANGELOG.md has no section for $v"; exit 1; }
       - name: hand the release files to the publish job
         run: |
           v=${GITHUB_REF_NAME#v}
@@ -74,11 +83,13 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
-      contents: write # create the release
+      contents: write # create the release; read the dependency graph's SBOM
       actions: read # download the build job's files
+      id-token: write # sign the provenance attestations (CRL-153)
+      attestations: write # store them
     steps:
-      # No checkout: this job runs no code from the repository, only gh.
-      - name: publish
+      # No checkout: this job runs no code from the repository, only gh and the attest action.
+      - name: verify and add the SBOM
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -87,9 +98,27 @@ jobs:
           gh run download "$GITHUB_RUN_ID" --name release --dir release
           # the files arrived as the build job wrote them (gh does not check the artifact digest)
           (cd release && sha256sum -c "corelata-$v-linux-amd64.tar.sha256" && sha256sum -c SHA256SUMS)
+          # The dependency graph describes the default branch, which the tag gate put this tag on.
+          gh api "repos/$GH_REPO/dependency-graph/sbom" --jq .sbom >"release/corelata-$v.spdx.json"
+          (cd release && sha256sum "corelata-$v-linux-amd64.tar" "corelata-$v-manifest.json" \
+            "corelata-$v.spdx.json" >SHA256SUMS)
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            release/*.tar
+            release/*-manifest.json
+            release/*.spdx.json
+            release/SHA256SUMS
+      - name: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          v=${GITHUB_REF_NAME#v}
           gh release create "$GITHUB_REF_NAME" \
             "release/corelata-$v-linux-amd64.tar" \
             "release/corelata-$v-linux-amd64.tar.sha256" \
             "release/corelata-$v-manifest.json" \
+            "release/corelata-$v.spdx.json" \
             release/SHA256SUMS \
             --verify-tag --title "Corelata $v" --notes-file release/notes.md
