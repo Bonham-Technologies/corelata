@@ -1,4 +1,4 @@
-import { builtinEnvironments, type Environment } from "vitest/environments";
+import { builtinEnvironments, type Environment } from "vitest/runtime";
 import { pointStorageAtJsdom } from "./jsdom-storage";
 
 // jsdom's AbortController breaks react-router's Node `Request`; keep Node's. Node 25 and later
