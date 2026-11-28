@@ -54,6 +54,11 @@ export function Sidebar({
         {projects.data && all.length === 0 ? (
           <p className="muted">Your projects will appear here.</p>
         ) : null}
+        {term && all.length > 0 && shown.length === 0 ? (
+          <p role="status" className="muted">
+            {`No project matches "${search.trim()}".`}
+          </p>
+        ) : null}
         {groupByDate(shown, (p) => p.last_activity_at).map((group) => (
           <section key={group.label} aria-label={group.label}>
             <h2 className="group">{group.label}</h2>

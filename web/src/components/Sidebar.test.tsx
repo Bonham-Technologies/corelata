@@ -109,6 +109,21 @@ it("says where the projects will appear, and searches from 16 projects on", asyn
   expect(within(sidebar()).getByRole("link", { name: /^Danube/ })).toBeInTheDocument();
 });
 
+it("says when a search matches no project, in a status line (CRL-117)", async () => {
+  serve(Array.from({ length: 16 }, (_, i) => named(`p${i}`)));
+  const { user } = renderApp("/new");
+  await user.type(
+    await screen.findByRole("searchbox", { name: "Search your projects" }),
+    " Volga ",
+  );
+  expect(within(sidebar()).getByRole("status")).toHaveTextContent('No project matches "Volga".');
+  expect(within(sidebar()).queryAllByRole("listitem")).toHaveLength(0);
+  expect(screen.queryByText("Your projects will appear here.")).toBeNull();
+  await user.clear(screen.getByRole("searchbox", { name: "Search your projects" }));
+  expect(within(sidebar()).queryByRole("status")).toBeNull();
+  expect(within(sidebar()).getAllByRole("listitem")).toHaveLength(16);
+});
+
 it("marks the project page's row and a run's project as the current page", async () => {
   const other = named("other");
   serve([project, other]);
